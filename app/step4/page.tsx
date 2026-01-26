@@ -1,9 +1,11 @@
 'use client'
 
 import React, { useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { GitBranch, Plus, Edit2, Trash2, AlertTriangle, Lock, Unlock, ArrowRight } from 'lucide-react';
 
 export default function CausalAnalysis() {
+  const router = useRouter();
   const [showAddFactor, setShowAddFactor] = useState(false);
   const [filterType, setFilterType] = useState('all');
   const [filterStatus, setFilterStatus] = useState('all');
@@ -390,13 +392,17 @@ export default function CausalAnalysis() {
                         <p className="text-sm font-medium text-amber-900 mb-2">Further Analysis Required:</p>
                         <div className="flex gap-2">
                           {needsHFAT && (
-                            <button className="flex items-center gap-2 px-3 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors text-sm">
+                            <button 
+                              onClick={() => router.push('/hfat-new')}
+                              className="flex items-center gap-2 px-3 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors text-sm">
                               <ArrowRight className="w-4 h-4" />
                               Launch HFAT Assessment
                             </button>
                           )}
                           {needsHOP && (
-                            <button className="flex items-center gap-2 px-3 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors text-sm">
+                            <button 
+                              onClick={() => router.push('/hop-new')}
+                              className="flex items-center gap-2 px-3 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors text-sm">
                               <ArrowRight className="w-4 h-4" />
                               Launch HOP Assessment
                             </button>
