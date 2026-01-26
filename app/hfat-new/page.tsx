@@ -91,9 +91,9 @@ export default function HFATAssessment() {
     }
   };
 
-  const [expandedCategories, setExpandedCategories] = useState({});
-  const [ratings, setRatings] = useState({});
-  const [notes, setNotes] = useState({});
+  const [expandedCategories, setExpandedCategories] = useState<Record<string, boolean>>({});
+  const [ratings, setRatings] = useState<Record<string, number>>({});
+  const [notes, setNotes] = useState<Record<string, string>>({});
 
   const toggleCategory = (category: string) => {
     setExpandedCategories(prev => ({
