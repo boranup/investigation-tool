@@ -1,23 +1,22 @@
 'use client'
 
-import React, { useState } from 'react';
-import { useRouter } from 'next/navigation';
+import React, { useState, useEffect } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { ArrowLeft, Save, CheckCircle, ChevronDown, ChevronRight, Users, Target, Building2, Scale, HelpCircle } from 'lucide-react';
+import { supabase } from '@/lib/supabase';
 
 export default function HFATAssessment() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   
-  const investigation = {
-    id: 'inv-001',
-    number: 'INV-2026-001',
-    description: 'Pressure relief valve failure during startup'
-  };
+  const investigationId = searchParams.get('investigationId');
+  const causalFactorId = searchParams.get('causalFactorId');
+  const assessmentId = searchParams.get('assessmentId');
 
-  const causalFactor = {
-    id: 'cf-003',
-    title: 'Operator did not recognize early pressure trend deviation',
-    description: 'Pressure began trending above normal 45 minutes before alarm'
-  };
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [investigation, setInvestigation] = useState<any>(null);
+  const [causalFactor, setCausalFactor] = useState<any>(null);
 
   const iogpCategories = {
     individual: {
@@ -133,6 +132,52 @@ export default function HFATAssessment() {
     responseActions: ''
   });
 
+  useEffect(() => {
+    loadData();
+  }, []);
+
+  const loadData = async () => {
+    try {
+      // Load investigation
+      if (investigationId) {
+        const { data: invData } = await supabase
+          .from('investigations')
+          .select('*')
+          .eq('id', investigationId)
+          .single();
+        if (invData) setInvestigation(invData);
+      }
+
+      // Load causal factor
+      if (causalFactorId) {
+        const { data: cfData } = await supabase
+          .from('causal_factors')
+          .select('*')
+          .eq('id', causalFactorId)
+          .single();
+        if (cfData) setCausalFactor(cfData);
+      }
+
+      // Load existing assessment if assessmentId provided
+      if (assessmentId) {
+        const { data: assessmentData } = await supabase
+          .from('hfat_assessments')
+          .select('*')
+          .eq('id', assessmentId)
+          .single();
+        
+        if (assessmentData) {
+          setFactorData(assessmentData.factor_data || {});
+          setJustCulture(assessmentData.just_culture || { classification: '', justification: '', responseActions: '' });
+        }
+      }
+    } catch (error) {
+      console.error('Error loading data:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const toggleCategory = (category: string) => {
     setExpandedCategories(prev => ({
       ...prev,
@@ -164,16 +209,105 @@ export default function HFATAssessment() {
     }));
   };
 
-  const handleSave = () => {
-    console.log('Saving HFAT Assessment:', { factorData, justCulture });
-    alert('HFAT Assessment saved successfully!');
+  const handleSave = async () => {
+    if (!investigationId || !causalFactorId) {
+      alert('Missing investigation or causal factor ID');
+      return;
+    }
+
+    setSaving(true);
+    try {
+      const assessmentData = {
+        investigation_id: investigationId,
+        causal_factor_id: causalFactorId,
+        factor_data: factorData,
+        just_culture: justCulture,
+        status: 'draft',
+        updated_at: new Date().toISOString()
+      };
+
+      if (assessmentId) {
+        // Update existing
+        const { error } = await supabase
+          .from('hfat_assessments')
+          .update(assessmentData)
+          .eq('id', assessmentId);
+        
+        if (error) throw error;
+      } else {
+        // Create new
+        const { error } = await supabase
+          .from('hfat_assessments')
+          .insert([assessmentData]);
+        
+        if (error) throw error;
+      }
+
+      alert('HFAT Assessment saved successfully!');
+    } catch (error) {
+      console.error('Error saving:', error);
+      alert('Error saving assessment');
+    } finally {
+      setSaving(false);
+    }
   };
 
-  const handleComplete = () => {
-    console.log('Completing HFAT Assessment:', { factorData, justCulture });
-    alert('HFAT Assessment completed! Returning to causal analysis...');
-    router.push('/step4');
+  const handleComplete = async () => {
+    if (!investigationId || !causalFactorId) {
+      alert('Missing investigation or causal factor ID');
+      return;
+    }
+
+    setSaving(true);
+    try {
+      const assessmentData = {
+        investigation_id: investigationId,
+        causal_factor_id: causalFactorId,
+        factor_data: factorData,
+        just_culture: justCulture,
+        status: 'complete',
+        completed_at: new Date().toISOString(),
+        updated_at: new Date().toISOString()
+      };
+
+      if (assessmentId) {
+        const { error } = await supabase
+          .from('hfat_assessments')
+          .update(assessmentData)
+          .eq('id', assessmentId);
+        
+        if (error) throw error;
+      } else {
+        const { error } = await supabase
+          .from('hfat_assessments')
+          .insert([assessmentData]);
+        
+        if (error) throw error;
+      }
+
+      // Update causal factor status
+      await supabase
+        .from('causal_factors')
+        .update({ analysis_status: 'analysis_complete' })
+        .eq('id', causalFactorId);
+
+      alert('HFAT Assessment completed! Returning to causal analysis...');
+      router.push('/step4');
+    } catch (error) {
+      console.error('Error completing:', error);
+      alert('Error completing assessment');
+    } finally {
+      setSaving(false);
+    }
   };
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 p-6 flex items-center justify-center">
+        <div className="text-slate-600">Loading assessment...</div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 p-6">
@@ -197,27 +331,29 @@ export default function HFATAssessment() {
               </p>
               <div className="mt-2 text-sm">
                 <span className="text-slate-500">Investigation:</span>{' '}
-                <span className="font-medium text-slate-700">{investigation.number}</span>
+                <span className="font-medium text-slate-700">{investigation?.investigation_number || 'Loading...'}</span>
               </div>
               <div className="text-sm">
                 <span className="text-slate-500">Causal Factor:</span>{' '}
-                <span className="font-medium text-slate-700">{causalFactor.title}</span>
+                <span className="font-medium text-slate-700">{causalFactor?.causal_factor_title || 'Loading...'}</span>
               </div>
             </div>
             <div className="flex gap-2">
               <button
                 onClick={handleSave}
-                className="flex items-center gap-2 px-4 py-2 border border-slate-300 text-slate-700 rounded-lg hover:bg-slate-50 transition-colors"
+                disabled={saving}
+                className="flex items-center gap-2 px-4 py-2 border border-slate-300 text-slate-700 rounded-lg hover:bg-slate-50 transition-colors disabled:opacity-50"
               >
                 <Save className="w-4 h-4" />
-                Save Draft
+                {saving ? 'Saving...' : 'Save Draft'}
               </button>
               <button
                 onClick={handleComplete}
-                className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
+                disabled={saving}
+                className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors disabled:opacity-50"
               >
                 <CheckCircle className="w-4 h-4" />
-                Complete Assessment
+                {saving ? 'Saving...' : 'Complete Assessment'}
               </button>
             </div>
           </div>
