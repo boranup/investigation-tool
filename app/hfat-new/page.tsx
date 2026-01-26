@@ -2,12 +2,11 @@
 
 import React, { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { ArrowLeft, Save, CheckCircle } from 'lucide-react';
+import { ArrowLeft, Save, CheckCircle, ChevronDown, ChevronRight, Users, Brain, Building2, GraduationCap, MessageSquare, MapPin, AlertTriangle, Target, Settings } from 'lucide-react';
 
 export default function HFATAssessment() {
   const router = useRouter();
   
-  // Mock data - in real implementation, get from URL params and database
   const investigation = {
     id: 'inv-001',
     number: 'INV-2026-001',
@@ -15,67 +14,139 @@ export default function HFATAssessment() {
   };
 
   const causalFactor = {
-    id: 'cf-001',
-    title: 'Relief valve PSV-101 failed to lift at set pressure',
-    description: 'Valve did not open at design set pressure of 150 psig'
+    id: 'cf-003',
+    title: 'Operator did not recognize early pressure trend deviation',
+    description: 'Pressure began trending above normal 45 minutes before alarm'
   };
 
-  const [formData, setFormData] = useState({
-    // Equipment Details
-    equipmentName: 'PSV-101',
-    equipmentType: 'Pressure Relief Valve',
-    manufacturer: '',
-    modelNumber: '',
-    serviceLife: '',
-    
-    // Failure Description
-    failureMode: '',
-    failureEffect: '',
-    failureCause: '',
-    
-    // Barrier Analysis
-    designBarriers: '',
-    proceduralBarriers: '',
-    maintenanceBarriers: '',
-    
-    // Root Cause
-    immediateRootCause: '',
-    underlyingCauses: '',
-    organizationalFactors: '',
-    
-    // Recommendations
-    recommendations: '',
-    
-    // Assessment Status
-    assessmentStatus: 'in_progress'
-  });
+  const humanFactorsCategories = {
+    individual: {
+      icon: Users,
+      color: 'blue',
+      label: 'Individual Factors',
+      items: [
+        { id: 'attention', label: 'Attention/Distraction', tooltip: 'Was attention divided? Were there distractions?' },
+        { id: 'fatigue', label: 'Fatigue/Alertness', tooltip: 'Was the person fatigued? Time of day effects?' },
+        { id: 'stress', label: 'Stress/Pressure', tooltip: 'Was there time pressure or stress?' },
+        { id: 'capability', label: 'Physical/Mental Capability', tooltip: 'Did the person have the capability to perform?' },
+        { id: 'attitude', label: 'Attitude/Motivation', tooltip: 'What was their mindset and motivation?' },
+        { id: 'perception', label: 'Perception/Situation Awareness', tooltip: 'Did they perceive the situation correctly?' }
+      ]
+    },
+    team: {
+      icon: MessageSquare,
+      color: 'green',
+      label: 'Team/Social Factors',
+      items: [
+        { id: 'communication', label: 'Communication', tooltip: 'Was communication clear and effective?' },
+        { id: 'teamwork', label: 'Teamwork/Coordination', tooltip: 'Did the team work together effectively?' },
+        { id: 'supervision', label: 'Supervision/Leadership', tooltip: 'Was supervision adequate?' },
+        { id: 'norms', label: 'Group Norms/Culture', tooltip: 'What were the accepted practices?' }
+      ]
+    },
+    task: {
+      icon: Target,
+      color: 'purple',
+      label: 'Task/Procedure Factors',
+      items: [
+        { id: 'complexity', label: 'Task Complexity', tooltip: 'How complex was the task?' },
+        { id: 'procedures', label: 'Procedures/Guidance', tooltip: 'Were procedures clear and available?' },
+        { id: 'workload', label: 'Workload', tooltip: 'Was workload manageable?' },
+        { id: 'time', label: 'Time Available', tooltip: 'Was there adequate time?' }
+      ]
+    },
+    environment: {
+      icon: MapPin,
+      color: 'amber',
+      label: 'Work Environment',
+      items: [
+        { id: 'workspace', label: 'Workspace Design', tooltip: 'Was the workspace well-designed?' },
+        { id: 'lighting', label: 'Lighting/Visibility', tooltip: 'Could they see what they needed?' },
+        { id: 'noise', label: 'Noise/Distractions', tooltip: 'Was noise a factor?' },
+        { id: 'conditions', label: 'Environmental Conditions', tooltip: 'Temperature, weather, etc.' }
+      ]
+    },
+    equipment: {
+      icon: Settings,
+      color: 'red',
+      label: 'Equipment/Interface',
+      items: [
+        { id: 'design', label: 'Equipment Design', tooltip: 'Was equipment well-designed for the task?' },
+        { id: 'displays', label: 'Displays/Indicators', tooltip: 'Were displays clear and effective?' },
+        { id: 'controls', label: 'Controls/Inputs', tooltip: 'Were controls intuitive?' },
+        { id: 'alarms', label: 'Alarms/Warnings', tooltip: 'Were alarms effective?' }
+      ]
+    },
+    organization: {
+      icon: Building2,
+      color: 'slate',
+      label: 'Organizational Factors',
+      items: [
+        { id: 'training', label: 'Training/Competence', tooltip: 'Was training adequate?' },
+        { id: 'resources', label: 'Resources/Staffing', tooltip: 'Were resources sufficient?' },
+        { id: 'culture', label: 'Safety Culture', tooltip: 'What was the safety culture?' },
+        { id: 'planning', label: 'Planning/Preparation', tooltip: 'Was work well-planned?' },
+        { id: 'management', label: 'Management Systems', tooltip: 'Were management systems effective?' }
+      ]
+    }
+  };
 
-  const [currentSection, setCurrentSection] = useState(1);
+  const [expandedCategories, setExpandedCategories] = useState({});
+  const [ratings, setRatings] = useState({});
+  const [notes, setNotes] = useState({});
+
+  const toggleCategory = (category: string) => {
+    setExpandedCategories(prev => ({
+      ...prev,
+      [category]: !prev[category]
+    }));
+  };
+
+  const updateRating = (category: string, itemId: string, rating: number) => {
+    setRatings(prev => ({
+      ...prev,
+      [`${category}_${itemId}`]: rating
+    }));
+  };
+
+  const updateNotes = (category: string, itemId: string, value: string) => {
+    setNotes(prev => ({
+      ...prev,
+      [`${category}_${itemId}`]: value
+    }));
+  };
+
+  const getRatingColor = (rating: number) => {
+    if (rating === 0) return 'bg-gray-200';
+    if (rating <= 2) return 'bg-green-500';
+    if (rating <= 3) return 'bg-yellow-500';
+    return 'bg-red-500';
+  };
+
+  const getRatingLabel = (rating: number) => {
+    if (rating === 0) return 'Not Rated';
+    if (rating === 1) return 'Not a Factor';
+    if (rating === 2) return 'Minor Factor';
+    if (rating === 3) return 'Moderate Factor';
+    if (rating === 4) return 'Significant Factor';
+    if (rating === 5) return 'Major Factor';
+    return '';
+  };
 
   const handleSave = () => {
-    console.log('Saving HFAT Assessment:', formData);
+    console.log('Saving HFAT Assessment:', { ratings, notes });
     alert('HFAT Assessment saved successfully!');
   };
 
   const handleComplete = () => {
-    const updated = { ...formData, assessmentStatus: 'complete' };
-    console.log('Completing HFAT Assessment:', updated);
+    console.log('Completing HFAT Assessment:', { ratings, notes });
     alert('HFAT Assessment completed! Returning to causal analysis...');
     router.push('/step4');
   };
 
-  const sections = [
-    { id: 1, name: 'Equipment Details', icon: '🔧' },
-    { id: 2, name: 'Failure Analysis', icon: '⚠️' },
-    { id: 3, name: 'Barrier Analysis', icon: '🛡️' },
-    { id: 4, name: 'Root Cause', icon: '🎯' },
-    { id: 5, name: 'Recommendations', icon: '💡' }
-  ];
-
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 p-6">
       <div className="max-w-6xl mx-auto">
-        {/* Header */}
         <div className="bg-white rounded-lg shadow-sm border border-slate-200 p-6 mb-6">
           <button
             onClick={() => router.push('/step4')}
@@ -91,7 +162,7 @@ export default function HFATAssessment() {
                 HFAT Assessment
               </h1>
               <p className="text-sm text-slate-600">
-                Hardware Failure Analysis Tool
+                Human Factors Analysis Tool
               </p>
               <div className="mt-2 text-sm">
                 <span className="text-slate-500">Investigation:</span>{' '}
@@ -121,310 +192,127 @@ export default function HFATAssessment() {
           </div>
         </div>
 
-        <div className="grid grid-cols-4 gap-6">
-          {/* Section Navigation */}
-          <div className="col-span-1">
-            <div className="bg-white rounded-lg shadow-sm border border-slate-200 p-4 sticky top-6">
-              <h3 className="text-sm font-semibold text-slate-900 mb-3">Sections</h3>
-              <div className="space-y-2">
-                {sections.map(section => (
-                  <button
-                    key={section.id}
-                    onClick={() => setCurrentSection(section.id)}
-                    className={`w-full text-left px-3 py-2 rounded-lg transition-colors ${
-                      currentSection === section.id
-                        ? 'bg-blue-100 text-blue-900 font-medium'
-                        : 'text-slate-700 hover:bg-slate-100'
-                    }`}
-                  >
-                    <span className="mr-2">{section.icon}</span>
-                    {section.name}
-                  </button>
-                ))}
-              </div>
+        <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
+          <h3 className="text-sm font-semibold text-blue-900 mb-2">Rating Scale</h3>
+          <div className="flex gap-4 text-xs">
+            <div className="flex items-center gap-2">
+              <div className="w-4 h-4 bg-gray-200 rounded"></div>
+              <span className="text-slate-700">0 - Not Rated</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <div className="w-4 h-4 bg-green-500 rounded"></div>
+              <span className="text-slate-700">1-2 - Not/Minor Factor</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <div className="w-4 h-4 bg-yellow-500 rounded"></div>
+              <span className="text-slate-700">3 - Moderate Factor</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <div className="w-4 h-4 bg-red-500 rounded"></div>
+              <span className="text-slate-700">4-5 - Significant/Major Factor</span>
             </div>
           </div>
+        </div>
 
-          {/* Content Area */}
-          <div className="col-span-3">
-            <div className="bg-white rounded-lg shadow-sm border border-slate-200 p-6">
-              
-              {/* Section 1: Equipment Details */}
-              {currentSection === 1 && (
-                <div>
-                  <h2 className="text-xl font-bold text-slate-900 mb-4">Equipment Details</h2>
-                  <div className="space-y-4">
-                    <div className="grid grid-cols-2 gap-4">
-                      <div>
-                        <label className="block text-sm font-medium text-slate-700 mb-2">
-                          Equipment Name/Tag *
-                        </label>
-                        <input
-                          type="text"
-                          value={formData.equipmentName}
-                          onChange={(e) => setFormData({...formData, equipmentName: e.target.value})}
-                          className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-sm font-medium text-slate-700 mb-2">
-                          Equipment Type *
-                        </label>
-                        <input
-                          type="text"
-                          value={formData.equipmentType}
-                          onChange={(e) => setFormData({...formData, equipmentType: e.target.value})}
-                          className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-                        />
-                      </div>
-                    </div>
-                    
-                    <div className="grid grid-cols-2 gap-4">
-                      <div>
-                        <label className="block text-sm font-medium text-slate-700 mb-2">
-                          Manufacturer
-                        </label>
-                        <input
-                          type="text"
-                          value={formData.manufacturer}
-                          onChange={(e) => setFormData({...formData, manufacturer: e.target.value})}
-                          className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-sm font-medium text-slate-700 mb-2">
-                          Model Number
-                        </label>
-                        <input
-                          type="text"
-                          value={formData.modelNumber}
-                          onChange={(e) => setFormData({...formData, modelNumber: e.target.value})}
-                          className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-                        />
-                      </div>
-                    </div>
-
-                    <div>
-                      <label className="block text-sm font-medium text-slate-700 mb-2">
-                        Service Life / Operating Conditions
-                      </label>
-                      <textarea
-                        value={formData.serviceLife}
-                        onChange={(e) => setFormData({...formData, serviceLife: e.target.value})}
-                        rows={3}
-                        placeholder="Describe the service conditions, operating environment, age of equipment..."
-                        className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-                      />
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              {/* Section 2: Failure Analysis */}
-              {currentSection === 2 && (
-                <div>
-                  <h2 className="text-xl font-bold text-slate-900 mb-4">Failure Analysis</h2>
-                  <div className="space-y-4">
-                    <div>
-                      <label className="block text-sm font-medium text-slate-700 mb-2">
-                        Failure Mode *
-                      </label>
-                      <textarea
-                        value={formData.failureMode}
-                        onChange={(e) => setFormData({...formData, failureMode: e.target.value})}
-                        rows={3}
-                        placeholder="How did the equipment fail? (e.g., failed to operate, operated prematurely, degraded performance)"
-                        className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-                      />
-                    </div>
-
-                    <div>
-                      <label className="block text-sm font-medium text-slate-700 mb-2">
-                        Failure Effect *
-                      </label>
-                      <textarea
-                        value={formData.failureEffect}
-                        onChange={(e) => setFormData({...formData, failureEffect: e.target.value})}
-                        rows={3}
-                        placeholder="What was the consequence of this failure? What happened as a result?"
-                        className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-                      />
-                    </div>
-
-                    <div>
-                      <label className="block text-sm font-medium text-slate-700 mb-2">
-                        Failure Cause / Mechanism *
-                      </label>
-                      <textarea
-                        value={formData.failureCause}
-                        onChange={(e) => setFormData({...formData, failureCause: e.target.value})}
-                        rows={4}
-                        placeholder="Why did it fail? What was the physical/chemical/mechanical mechanism? (e.g., corrosion, fatigue, wear, design deficiency)"
-                        className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-                      />
-                    </div>
-
-                    <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-                      <h4 className="text-sm font-semibold text-blue-900 mb-2">Guidance</h4>
-                      <ul className="text-sm text-blue-800 space-y-1">
-                        <li>• Be specific about the failure mechanism</li>
-                        <li>• Reference any inspection findings or test results</li>
-                        <li>• Consider environmental factors and operating conditions</li>
-                        <li>• Note any design or material deficiencies</li>
-                      </ul>
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              {/* Section 3: Barrier Analysis */}
-              {currentSection === 3 && (
-                <div>
-                  <h2 className="text-xl font-bold text-slate-900 mb-4">Barrier Analysis</h2>
-                  <p className="text-sm text-slate-600 mb-4">
-                    Identify what barriers existed and why they failed to prevent this failure
-                  </p>
-                  <div className="space-y-4">
-                    <div>
-                      <label className="block text-sm font-medium text-slate-700 mb-2">
-                        Design Barriers
-                      </label>
-                      <textarea
-                        value={formData.designBarriers}
-                        onChange={(e) => setFormData({...formData, designBarriers: e.target.value})}
-                        rows={3}
-                        placeholder="What design features were intended to prevent this failure? Why did they fail? (e.g., safety factors, redundancy, fail-safe design)"
-                        className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-                      />
-                    </div>
-
-                    <div>
-                      <label className="block text-sm font-medium text-slate-700 mb-2">
-                        Procedural Barriers
-                      </label>
-                      <textarea
-                        value={formData.proceduralBarriers}
-                        onChange={(e) => setFormData({...formData, proceduralBarriers: e.target.value})}
-                        rows={3}
-                        placeholder="What procedures or operating limits should have prevented this? Why were they ineffective?"
-                        className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-                      />
-                    </div>
-
-                    <div>
-                      <label className="block text-sm font-medium text-slate-700 mb-2">
-                        Maintenance/Inspection Barriers
-                      </label>
-                      <textarea
-                        value={formData.maintenanceBarriers}
-                        onChange={(e) => setFormData({...formData, maintenanceBarriers: e.target.value})}
-                        rows={3}
-                        placeholder="What maintenance or inspection activities should have detected or prevented this? Why did they fail?"
-                        className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-                      />
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              {/* Section 4: Root Cause */}
-              {currentSection === 4 && (
-                <div>
-                  <h2 className="text-xl font-bold text-slate-900 mb-4">Root Cause Analysis</h2>
-                  <div className="space-y-4">
-                    <div>
-                      <label className="block text-sm font-medium text-slate-700 mb-2">
-                        Immediate Root Cause *
-                      </label>
-                      <textarea
-                        value={formData.immediateRootCause}
-                        onChange={(e) => setFormData({...formData, immediateRootCause: e.target.value})}
-                        rows={3}
-                        placeholder="What was the direct technical cause of the failure?"
-                        className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-                      />
-                    </div>
-
-                    <div>
-                      <label className="block text-sm font-medium text-slate-700 mb-2">
-                        Underlying Causes
-                      </label>
-                      <textarea
-                        value={formData.underlyingCauses}
-                        onChange={(e) => setFormData({...formData, underlyingCauses: e.target.value})}
-                        rows={3}
-                        placeholder="Why did the immediate cause occur? (e.g., inadequate design specification, unsuitable materials, insufficient testing)"
-                        className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-                      />
-                    </div>
-
-                    <div>
-                      <label className="block text-sm font-medium text-slate-700 mb-2">
-                        Organizational Factors
-                      </label>
-                      <textarea
-                        value={formData.organizationalFactors}
-                        onChange={(e) => setFormData({...formData, organizationalFactors: e.target.value})}
-                        rows={3}
-                        placeholder="What organizational decisions or systems contributed? (e.g., maintenance philosophy, design standards, change management)"
-                        className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-                      />
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              {/* Section 5: Recommendations */}
-              {currentSection === 5 && (
-                <div>
-                  <h2 className="text-xl font-bold text-slate-900 mb-4">Recommendations</h2>
-                  <p className="text-sm text-slate-600 mb-4">
-                    These will feed into the main investigation recommendations
-                  </p>
-                  <div className="space-y-4">
-                    <div>
-                      <label className="block text-sm font-medium text-slate-700 mb-2">
-                        HFAT Findings & Recommendations
-                      </label>
-                      <textarea
-                        value={formData.recommendations}
-                        onChange={(e) => setFormData({...formData, recommendations: e.target.value})}
-                        rows={6}
-                        placeholder="Based on this analysis, what actions should be taken? Consider: design changes, material upgrades, inspection frequency, operating limits, etc."
-                        className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-                      />
-                    </div>
-
-                    <div className="bg-green-50 border border-green-200 rounded-lg p-4">
-                      <h4 className="text-sm font-semibold text-green-900 mb-2">Assessment Summary</h4>
-                      <div className="text-sm text-green-800 space-y-1">
-                        <p><strong>Equipment:</strong> {formData.equipmentName}</p>
-                        <p><strong>Failure Mode:</strong> {formData.failureMode || 'Not specified'}</p>
-                        <p><strong>Status:</strong> {formData.assessmentStatus === 'complete' ? 'Complete' : 'In Progress'}</p>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              {/* Navigation Buttons */}
-              <div className="flex justify-between mt-8 pt-6 border-t border-slate-200">
+        <div className="space-y-4">
+          {Object.entries(humanFactorsCategories).map(([categoryKey, category]) => {
+            const Icon = category.icon;
+            const isExpanded = expandedCategories[categoryKey];
+            
+            return (
+              <div key={categoryKey} className="bg-white rounded-lg shadow-sm border border-slate-200">
                 <button
-                  onClick={() => setCurrentSection(Math.max(1, currentSection - 1))}
-                  disabled={currentSection === 1}
-                  className="px-4 py-2 border border-slate-300 text-slate-700 rounded-lg hover:bg-slate-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                  onClick={() => toggleCategory(categoryKey)}
+                  className={`w-full p-4 flex items-center justify-between hover:bg-slate-50 transition-colors rounded-lg`}
                 >
-                  Previous Section
+                  <div className="flex items-center gap-3">
+                    <Icon className={`w-5 h-5 text-${category.color}-600`} />
+                    <h2 className="text-lg font-semibold text-slate-900">{category.label}</h2>
+                  </div>
+                  {isExpanded ? <ChevronDown className="w-5 h-5 text-slate-400" /> : <ChevronRight className="w-5 h-5 text-slate-400" />}
                 </button>
-                <button
-                  onClick={() => setCurrentSection(Math.min(5, currentSection + 1))}
-                  disabled={currentSection === 5}
-                  className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  Next Section
-                </button>
+
+                {isExpanded && (
+                  <div className="px-4 pb-4 space-y-4">
+                    {category.items.map(item => {
+                      const ratingKey = `${categoryKey}_${item.id}`;
+                      const currentRating = ratings[ratingKey] || 0;
+                      
+                      return (
+                        <div key={item.id} className="border-t border-slate-200 pt-4">
+                          <div className="flex items-start justify-between mb-3">
+                            <div className="flex-1">
+                              <div className="flex items-center gap-2">
+                                <h3 className="font-medium text-slate-900">{item.label}</h3>
+                                {item.tooltip && (
+                                  <div className="group relative">
+                                    <AlertTriangle className="w-4 h-4 text-slate-400 cursor-help" />
+                                    <div className="absolute hidden group-hover:block z-10 w-64 p-2 bg-gray-900 text-white text-xs rounded shadow-lg left-6 -top-2">
+                                      {item.tooltip}
+                                    </div>
+                                  </div>
+                                )}
+                              </div>
+                              <div className="mt-2">
+                                <div className="flex items-center gap-2">
+                                  {[0, 1, 2, 3, 4, 5].map(rating => (
+                                    <button
+                                      key={rating}
+                                      onClick={() => updateRating(categoryKey, item.id, rating)}
+                                      className={`w-10 h-10 rounded-lg border-2 transition-all ${
+                                        currentRating === rating
+                                          ? `${getRatingColor(rating)} border-slate-900`
+                                          : 'bg-white border-slate-300 hover:border-slate-400'
+                                      }`}
+                                    >
+                                      <span className={`text-sm font-medium ${currentRating === rating ? 'text-white' : 'text-slate-600'}`}>
+                                        {rating}
+                                      </span>
+                                    </button>
+                                  ))}
+                                  <span className={`ml-3 text-sm font-medium px-3 py-1 rounded ${
+                                    currentRating > 0 ? getRatingColor(currentRating) + ' text-white' : 'bg-gray-100 text-gray-600'
+                                  }`}>
+                                    {getRatingLabel(currentRating)}
+                                  </span>
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                          
+                          {currentRating > 0 && (
+                            <div className="mt-3">
+                              <label className="block text-sm font-medium text-slate-700 mb-2">
+                                Notes / Evidence
+                              </label>
+                              <textarea
+                                value={notes[ratingKey] || ''}
+                                onChange={(e) => updateNotes(categoryKey, item.id, e.target.value)}
+                                rows={2}
+                                placeholder="Describe how this factor contributed to the incident..."
+                                className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
+                              />
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
               </div>
-            </div>
+            );
+          })}
+        </div>
+
+        <div className="bg-slate-100 border border-slate-200 rounded-lg p-4 mt-6">
+          <h3 className="text-sm font-semibold text-slate-900 mb-2">Assessment Progress</h3>
+          <div className="text-sm text-slate-700">
+            <p>Rated Factors: {Object.values(ratings).filter(r => r > 0).length} / {
+              Object.values(humanFactorsCategories).reduce((sum, cat) => sum + cat.items.length, 0)
+            }</p>
+            <p className="mt-1">
+              Significant Factors (4-5): {Object.values(ratings).filter(r => r >= 4).length}
+            </p>
           </div>
         </div>
       </div>
