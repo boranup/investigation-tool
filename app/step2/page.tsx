@@ -143,7 +143,13 @@ export default function EvidenceDataCollection() {
   const handleAddInterview = () => {
     const interview = {
       id: String(interviews.length + 1),
-      ...newInterview,
+      intervieweeName: newInterview.intervieweeName,
+      role: newInterview.role,
+      department: newInterview.department,
+      interviewDate: newInterview.interviewDate,
+      interviewer: newInterview.interviewer,
+      type: newInterview.type,
+      keyFindings: newInterview.notes,
       linkedEvents: 0,
       status: 'draft'
     };
