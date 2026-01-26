@@ -1,23 +1,22 @@
 'use client'
 
-import React, { useState } from 'react';
-import { useRouter } from 'next/navigation';
+import React, { useState, useEffect } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { ArrowLeft, Save, CheckCircle } from 'lucide-react';
+import { supabase } from '@/lib/supabase';
 
 export default function HOPAssessment() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   
-  const investigation = {
-    id: 'inv-001',
-    number: 'INV-2026-001',
-    description: 'Pressure relief valve failure during startup'
-  };
+  const investigationId = searchParams.get('investigationId');
+  const causalFactorId = searchParams.get('causalFactorId');
+  const assessmentId = searchParams.get('assessmentId');
 
-  const causalFactor = {
-    id: 'cf-003',
-    title: 'Operator did not recognize early pressure trend deviation',
-    description: 'Pressure began trending above normal 45 minutes before alarm'
-  };
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [investigation, setInvestigation] = useState<any>(null);
+  const [causalFactor, setCausalFactor] = useState<any>(null);
 
   const [formData, setFormData] = useState({
     // Context
@@ -42,25 +41,200 @@ export default function HOPAssessment() {
     
     // Learning Opportunities
     systemImprovements: '',
-    learningPoints: '',
-    
-    // Assessment Status
-    assessmentStatus: 'in_progress'
+    learningPoints: ''
   });
 
   const [currentSection, setCurrentSection] = useState(1);
 
-  const handleSave = () => {
-    console.log('Saving HOP Assessment:', formData);
-    alert('HOP Assessment saved successfully!');
+  useEffect(() => {
+    loadData();
+  }, []);
+
+  const loadData = async () => {
+    try {
+      // Load investigation
+      if (investigationId) {
+        const { data: invData } = await supabase
+          .from('investigations')
+          .select('*')
+          .eq('id', investigationId)
+          .single();
+        if (invData) setInvestigation(invData);
+      }
+
+      // Load causal factor
+      if (causalFactorId) {
+        const { data: cfData } = await supabase
+          .from('causal_factors')
+          .select('*')
+          .eq('id', causalFactorId)
+          .single();
+        if (cfData) setCausalFactor(cfData);
+      }
+
+      // Load existing assessment if assessmentId provided
+      if (assessmentId) {
+        const { data: assessmentData } = await supabase
+          .from('hop_assessments')
+          .select('*')
+          .eq('id', assessmentId)
+          .single();
+        
+        if (assessmentData) {
+          setFormData({
+            taskDescription: assessmentData.task_description || '',
+            workConditions: assessmentData.work_conditions || '',
+            timeOfDay: assessmentData.time_of_day || '',
+            workloadDemands: assessmentData.workload_demands || '',
+            timeAvailable: assessmentData.time_available || '',
+            proceduralGuidance: assessmentData.procedural_guidance || '',
+            trainingExperience: assessmentData.training_experience || '',
+            equipmentDesign: assessmentData.equipment_design || '',
+            communicationTeamwork: assessmentData.communication_teamwork || '',
+            supervisorySupport: assessmentData.supervisory_support || '',
+            organizationalCulture: assessmentData.organizational_culture || '',
+            whatMadeSense: assessmentData.what_made_sense || '',
+            localRationality: assessmentData.local_rationality || '',
+            tradeoffsDecisions: assessmentData.tradeoffs_decisions || '',
+            systemImprovements: assessmentData.system_improvements || '',
+            learningPoints: assessmentData.learning_points || ''
+          });
+        }
+      }
+    } catch (error) {
+      console.error('Error loading data:', error);
+    } finally {
+      setLoading(false);
+    }
   };
 
-  const handleComplete = () => {
-    const updated = { ...formData, assessmentStatus: 'complete' };
-    console.log('Completing HOP Assessment:', updated);
-    alert('HOP Assessment completed! Returning to causal analysis...');
-    router.push('/step4');
+  const handleSave = async () => {
+    if (!investigationId || !causalFactorId) {
+      alert('Missing investigation or causal factor ID');
+      return;
+    }
+
+    setSaving(true);
+    try {
+      const assessmentData = {
+        investigation_id: investigationId,
+        causal_factor_id: causalFactorId,
+        task_description: formData.taskDescription,
+        work_conditions: formData.workConditions,
+        time_of_day: formData.timeOfDay,
+        workload_demands: formData.workloadDemands,
+        time_available: formData.timeAvailable,
+        procedural_guidance: formData.proceduralGuidance,
+        training_experience: formData.trainingExperience,
+        equipment_design: formData.equipmentDesign,
+        communication_teamwork: formData.communicationTeamwork,
+        supervisory_support: formData.supervisorySupport,
+        organizational_culture: formData.organizationalCulture,
+        what_made_sense: formData.whatMadeSense,
+        local_rationality: formData.localRationality,
+        tradeoffs_decisions: formData.tradeoffsDecisions,
+        system_improvements: formData.systemImprovements,
+        learning_points: formData.learningPoints,
+        status: 'draft',
+        updated_at: new Date().toISOString()
+      };
+
+      if (assessmentId) {
+        // Update existing
+        const { error } = await supabase
+          .from('hop_assessments')
+          .update(assessmentData)
+          .eq('id', assessmentId);
+        
+        if (error) throw error;
+      } else {
+        // Create new
+        const { error } = await supabase
+          .from('hop_assessments')
+          .insert([assessmentData]);
+        
+        if (error) throw error;
+      }
+
+      alert('HOP Assessment saved successfully!');
+    } catch (error) {
+      console.error('Error saving:', error);
+      alert('Error saving assessment');
+    } finally {
+      setSaving(false);
+    }
   };
+
+  const handleComplete = async () => {
+    if (!investigationId || !causalFactorId) {
+      alert('Missing investigation or causal factor ID');
+      return;
+    }
+
+    setSaving(true);
+    try {
+      const assessmentData = {
+        investigation_id: investigationId,
+        causal_factor_id: causalFactorId,
+        task_description: formData.taskDescription,
+        work_conditions: formData.workConditions,
+        time_of_day: formData.timeOfDay,
+        workload_demands: formData.workloadDemands,
+        time_available: formData.timeAvailable,
+        procedural_guidance: formData.proceduralGuidance,
+        training_experience: formData.trainingExperience,
+        equipment_design: formData.equipmentDesign,
+        communication_teamwork: formData.communicationTeamwork,
+        supervisory_support: formData.supervisorySupport,
+        organizational_culture: formData.organizationalCulture,
+        what_made_sense: formData.whatMadeSense,
+        local_rationality: formData.localRationality,
+        tradeoffs_decisions: formData.tradeoffsDecisions,
+        system_improvements: formData.systemImprovements,
+        learning_points: formData.learningPoints,
+        status: 'complete',
+        completed_at: new Date().toISOString(),
+        updated_at: new Date().toISOString()
+      };
+
+      if (assessmentId) {
+        const { error } = await supabase
+          .from('hop_assessments')
+          .update(assessmentData)
+          .eq('id', assessmentId);
+        
+        if (error) throw error;
+      } else {
+        const { error } = await supabase
+          .from('hop_assessments')
+          .insert([assessmentData]);
+        
+        if (error) throw error;
+      }
+
+      // Update causal factor status
+      await supabase
+        .from('causal_factors')
+        .update({ analysis_status: 'analysis_complete' })
+        .eq('id', causalFactorId);
+
+      alert('HOP Assessment completed! Returning to causal analysis...');
+      router.push('/step4');
+    } catch (error) {
+      console.error('Error completing:', error);
+      alert('Error completing assessment');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 p-6 flex items-center justify-center">
+        <div className="text-slate-600">Loading assessment...</div>
+      </div>
+    );
+  }
 
   const sections = [
     { id: 1, name: 'Context', icon: '📋' },
@@ -93,27 +267,29 @@ export default function HOPAssessment() {
               </p>
               <div className="mt-2 text-sm">
                 <span className="text-slate-500">Investigation:</span>{' '}
-                <span className="font-medium text-slate-700">{investigation.number}</span>
+                <span className="font-medium text-slate-700">{investigation?.investigation_number || 'Loading...'}</span>
               </div>
               <div className="text-sm">
                 <span className="text-slate-500">Causal Factor:</span>{' '}
-                <span className="font-medium text-slate-700">{causalFactor.title}</span>
+                <span className="font-medium text-slate-700">{causalFactor?.causal_factor_title || 'Loading...'}</span>
               </div>
             </div>
             <div className="flex gap-2">
               <button
                 onClick={handleSave}
-                className="flex items-center gap-2 px-4 py-2 border border-slate-300 text-slate-700 rounded-lg hover:bg-slate-50 transition-colors"
+                disabled={saving}
+                className="flex items-center gap-2 px-4 py-2 border border-slate-300 text-slate-700 rounded-lg hover:bg-slate-50 transition-colors disabled:opacity-50"
               >
                 <Save className="w-4 h-4" />
-                Save Draft
+                {saving ? 'Saving...' : 'Save Draft'}
               </button>
               <button
                 onClick={handleComplete}
-                className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
+                disabled={saving}
+                className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors disabled:opacity-50"
               >
                 <CheckCircle className="w-4 h-4" />
-                Complete Assessment
+                {saving ? 'Saving...' : 'Complete Assessment'}
               </button>
             </div>
           </div>
