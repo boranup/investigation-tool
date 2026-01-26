@@ -58,7 +58,7 @@ export default function InvestigationInitiationForm() {
     'Custom/Hybrid'
   ];
 
-  const handleChange = (field, value) => {
+  const handleChange = (field: string, value: any) => {
     setFormData(prev => ({ ...prev, [field]: value }));
   };
 
