@@ -393,7 +393,7 @@ export default function CausalAnalysis() {
                         <div className="flex gap-2">
                           {needsHFAT && (
                             <button 
-                              onClick={() => router.push('/hfat-new')}
+                              onClick={() => router.push(`/hfat-new?investigationId=${investigation.id}&causalFactorId=${factor.id}`)}
                               className="flex items-center gap-2 px-3 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors text-sm">
                               <ArrowRight className="w-4 h-4" />
                               Launch HFAT Assessment
@@ -401,7 +401,7 @@ export default function CausalAnalysis() {
                           )}
                           {needsHOP && (
                             <button 
-                              onClick={() => router.push('/hop-new')}
+                              onClick={() => router.push(`/hop-new?investigationId=${investigation.id}&causalFactorId=${factor.id}`)}
                               className="flex items-center gap-2 px-3 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors text-sm">
                               <ArrowRight className="w-4 h-4" />
                               Launch HOP Assessment
