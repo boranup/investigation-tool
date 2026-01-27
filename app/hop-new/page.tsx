@@ -219,7 +219,7 @@ export default function HOPAssessment() {
         .eq('id', causalFactorId);
 
       alert('HOP Assessment completed! Returning to causal analysis...');
-      router.push('/step4');
+      router.push(`/step4?investigationId=${investigationId}`);
     } catch (error) {
       console.error('Error completing:', error);
       alert('Error completing assessment');
@@ -250,7 +250,7 @@ export default function HOPAssessment() {
       <div className="max-w-6xl mx-auto">
         <div className="bg-white rounded-lg shadow-sm border border-slate-200 p-6 mb-6">
           <button
-            onClick={() => router.push('/step4')}
+            onClick={() => router.push(`/step4?investigationId=${investigationId}`)}
             className="flex items-center gap-2 text-slate-600 hover:text-slate-900 mb-4"
           >
             <ArrowLeft className="w-4 h-4" />
