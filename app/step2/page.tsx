@@ -344,7 +344,9 @@ export default function EvidenceDataCollection() {
       </div>
     );
   }
-// CONTINUED FROM PART 1...
+
+  // CONTINUED IN PART 2...
+  // CONTINUED FROM PART 1...
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 p-6">
@@ -617,7 +619,13 @@ export default function EvidenceDataCollection() {
             Previous Step
           </button>
           <button
-            onClick={() => alert('Proceeding to Step 3: Timeline')}
+            onClick={() => {
+              if (!investigationId) {
+                alert('No investigation ID found');
+                return;
+              }
+              window.location.href = `/step3?investigationId=${investigationId}`;
+            }}
             className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
           >
             Next: Timeline
@@ -933,4 +941,3 @@ export default function EvidenceDataCollection() {
     </div>
   );
 }
-  
