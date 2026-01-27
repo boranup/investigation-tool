@@ -1,9 +1,12 @@
 'use client'
 
 import React, { useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { Calendar, MapPin, Users, ClipboardList, AlertTriangle } from 'lucide-react';
+import { supabase } from '@/lib/supabase';
 
 export default function InvestigationInitiationForm() {
+  const router = useRouter();
   const [formData, setFormData] = useState({
     incidentDate: '',
     incidentTime: '',
@@ -16,13 +19,13 @@ export default function InvestigationInitiationForm() {
     actualSeverity: '',
     incidentDescription: '',
     immediateActions: '',
-    investigationMethod: '',
     investigationLeader: '',
     teamMembers: [],
     targetCompletionDate: ''
   });
 
   const [step, setStep] = useState(1);
+  const [submitting, setSubmitting] = useState(false);
 
   const incidentTypes = [
     'Actual Incident',
@@ -49,96 +52,113 @@ export default function InvestigationInitiationForm() {
     { value: '5', label: '5 - Catastrophic' }
   ];
 
-  const investigationMethods = [
-    'ICAM (Incident Cause Analysis Method)',
-    'TapRooT',
-    '5-Whys',
-    'Bow-Tie Analysis',
-    'AcciMap',
-    'Custom/Hybrid'
-  ];
-
   const handleChange = (field: string, value: any) => {
     setFormData(prev => ({ ...prev, [field]: value }));
   };
 
-  const handleSubmit = () => {
-    if (!formData.incidentDate || !formData.locationFacility || !formData.incidentDescription || !formData.incidentType || !formData.investigationLeader) {
+  const handleSubmit = async () => {
+    if (!formData.incidentDate || !formData.locationFacility || !formData.incidentDescription || !formData.incidentType) {
       alert('Please fill in all required fields (marked with *)');
       return;
     }
-    console.log('Investigation Initiated:', formData);
-    // Here you would submit to Supabase
-    alert('Investigation initiated successfully!\nInvestigation Number: INV-2026-001');
+
+    setSubmitting(true);
+    
+    try {
+      // Generate investigation number
+      const year = new Date().getFullYear();
+      const { count } = await supabase
+        .from('investigations')
+        .select('*', { count: 'exact', head: true })
+        .gte('created_at', `${year}-01-01`);
+      
+      const invNumber = `INV-${year}-${String((count || 0) + 1).padStart(3, '0')}`;
+
+      // Insert investigation
+      const { data, error } = await supabase
+        .from('investigations')
+        .insert([{
+          investigation_number: invNumber,
+          incident_date: formData.incidentDate,
+          incident_time: formData.incidentTime || null,
+          location_facility: formData.locationFacility,
+          location_unit: formData.locationUnit || null,
+          location_area: formData.locationArea || null,
+          incident_type: formData.incidentType,
+          consequence_category: formData.consequenceCategory || null,
+          potential_severity: formData.potentialSeverity || null,
+          actual_severity: formData.actualSeverity || null,
+          incident_description: formData.incidentDescription,
+          immediate_actions_taken: formData.immediateActions || null,
+          target_completion_date: formData.targetCompletionDate || null,
+          status: 'initiated'
+        }])
+        .select()
+        .single();
+
+      if (error) {
+        console.error('Error creating investigation:', error);
+        alert('Error creating investigation: ' + error.message);
+        return;
+      }
+
+      alert(`Investigation ${invNumber} created successfully!`);
+      // Navigate to step 2 (evidence collection) for this investigation
+      router.push(`/step2?investigationId=${data.id}`);
+      
+    } catch (error) {
+      console.error('Unexpected error:', error);
+      alert('An unexpected error occurred');
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 p-6">
       <div className="max-w-4xl mx-auto">
-        {/* Header */}
-        <div className="bg-white rounded-lg shadow-sm border border-slate-200 p-6 mb-6">
-          <div className="flex items-center gap-3 mb-2">
-            <div className="p-2 bg-blue-100 rounded-lg">
-              <ClipboardList className="w-6 h-6 text-blue-600" />
-            </div>
-            <div>
-              <h1 className="text-2xl font-bold text-slate-900">
-                Investigation Initiation
-              </h1>
-              <p className="text-sm text-slate-600">
-                Step 1: Initial Response & Incident Details
-              </p>
-            </div>
+        <div className="bg-white rounded-lg shadow-sm border border-slate-200 p-8">
+          <div className="mb-8">
+            <h1 className="text-3xl font-bold text-slate-900">Investigation Initiation</h1>
+            <p className="text-slate-600 mt-2">Begin a new incident investigation</p>
           </div>
-        </div>
 
-        {/* Progress Indicator */}
-        <div className="bg-white rounded-lg shadow-sm border border-slate-200 p-4 mb-6">
-          <div className="flex items-center justify-between">
-            <div className={`flex items-center gap-2 ${step >= 1 ? 'text-blue-600' : 'text-slate-400'}`}>
-              <div className={`w-8 h-8 rounded-full flex items-center justify-center ${step >= 1 ? 'bg-blue-600 text-white' : 'bg-slate-200'}`}>
-                1
-              </div>
-              <span className="text-sm font-medium">Incident Details</span>
-            </div>
-            <div className="h-px bg-slate-200 flex-1 mx-4"></div>
-            <div className={`flex items-center gap-2 ${step >= 2 ? 'text-blue-600' : 'text-slate-400'}`}>
-              <div className={`w-8 h-8 rounded-full flex items-center justify-center ${step >= 2 ? 'bg-blue-600 text-white' : 'bg-slate-200'}`}>
-                2
-              </div>
-              <span className="text-sm font-medium">Classification</span>
-            </div>
-            <div className="h-px bg-slate-200 flex-1 mx-4"></div>
-            <div className={`flex items-center gap-2 ${step >= 3 ? 'text-blue-600' : 'text-slate-400'}`}>
-              <div className={`w-8 h-8 rounded-full flex items-center justify-center ${step >= 3 ? 'bg-blue-600 text-white' : 'bg-slate-200'}`}>
-                3
-              </div>
-              <span className="text-sm font-medium">Investigation Setup</span>
-            </div>
-          </div>
-        </div>
-
-        {/* Step 1: Incident Details */}
-        {step === 1 && (
-          <div className="bg-white rounded-lg shadow-sm border border-slate-200 p-6 mb-6">
-            <div className="flex items-center gap-2 mb-6">
-              <MapPin className="w-5 h-5 text-blue-600" />
-              <h2 className="text-lg font-semibold text-slate-900">
+          {/* Progress Indicator */}
+          <div className="mb-8">
+            <div className="flex items-center justify-between mb-2">
+              <span className={`text-sm font-medium ${step >= 1 ? 'text-blue-600' : 'text-slate-400'}`}>
                 Incident Details
-              </h2>
+              </span>
+              <span className={`text-sm font-medium ${step >= 2 ? 'text-blue-600' : 'text-slate-400'}`}>
+                Classification
+              </span>
+              <span className={`text-sm font-medium ${step >= 3 ? 'text-blue-600' : 'text-slate-400'}`}>
+                Investigation Setup
+              </span>
             </div>
+            <div className="h-2 bg-slate-200 rounded-full overflow-hidden">
+              <div
+                className="h-full bg-blue-600 transition-all duration-300"
+                style={{ width: `${(step / 3) * 100}%` }}
+              />
+            </div>
+          </div>
 
-            <div className="space-y-4">
-              <div className="grid grid-cols-2 gap-4">
+          {/* Step 1: Incident Details */}
+          {step === 1 && (
+            <div className="space-y-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div>
                   <label className="block text-sm font-medium text-slate-700 mb-2">
+                    <Calendar className="w-4 h-4 inline mr-1" />
                     Incident Date *
                   </label>
                   <input
                     type="date"
+                    className="w-full border border-slate-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                     value={formData.incidentDate}
                     onChange={(e) => handleChange('incidentDate', e.target.value)}
-                    className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    required
                   />
                 </div>
                 <div>
@@ -147,37 +167,39 @@ export default function InvestigationInitiationForm() {
                   </label>
                   <input
                     type="time"
+                    className="w-full border border-slate-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                     value={formData.incidentTime}
                     onChange={(e) => handleChange('incidentTime', e.target.value)}
-                    className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                   />
                 </div>
               </div>
 
               <div>
                 <label className="block text-sm font-medium text-slate-700 mb-2">
-                  Facility *
+                  <MapPin className="w-4 h-4 inline mr-1" />
+                  Facility/Location *
                 </label>
                 <input
                   type="text"
+                  className="w-full border border-slate-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  placeholder="e.g., Offshore Platform Alpha, Refinery Unit 3"
                   value={formData.locationFacility}
                   onChange={(e) => handleChange('locationFacility', e.target.value)}
-                  placeholder="e.g., Offshore Platform Alpha, Refinery B"
-                  className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  required
                 />
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div>
                   <label className="block text-sm font-medium text-slate-700 mb-2">
-                    Unit/Process Area
+                    Unit/Area
                   </label>
                   <input
                     type="text"
+                    className="w-full border border-slate-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    placeholder="e.g., Compressor Station, Processing Unit"
                     value={formData.locationUnit}
                     onChange={(e) => handleChange('locationUnit', e.target.value)}
-                    placeholder="e.g., Crude Unit, Compression Train 1"
-                    className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                   />
                 </div>
                 <div>
@@ -186,24 +208,26 @@ export default function InvestigationInitiationForm() {
                   </label>
                   <input
                     type="text"
+                    className="w-full border border-slate-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    placeholder="e.g., Control Room, Pump Room"
                     value={formData.locationArea}
                     onChange={(e) => handleChange('locationArea', e.target.value)}
-                    placeholder="e.g., Pump Room, Control Room"
-                    className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                   />
                 </div>
               </div>
 
               <div>
                 <label className="block text-sm font-medium text-slate-700 mb-2">
-                  Brief Description of Incident *
+                  <ClipboardList className="w-4 h-4 inline mr-1" />
+                  Incident Description *
                 </label>
                 <textarea
+                  className="w-full border border-slate-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  rows={4}
+                  placeholder="Provide a brief description of what happened..."
                   value={formData.incidentDescription}
                   onChange={(e) => handleChange('incidentDescription', e.target.value)}
-                  rows={4}
-                  placeholder="Provide a brief factual description of what happened..."
-                  className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  required
                 />
               </div>
 
@@ -212,45 +236,29 @@ export default function InvestigationInitiationForm() {
                   Immediate Actions Taken
                 </label>
                 <textarea
+                  className="w-full border border-slate-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  rows={3}
+                  placeholder="What immediate actions were taken to secure the scene, provide aid, prevent escalation, etc.?"
                   value={formData.immediateActions}
                   onChange={(e) => handleChange('immediateActions', e.target.value)}
-                  rows={3}
-                  placeholder="Describe immediate response actions, scene preservation, emergency response..."
-                  className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                 />
               </div>
             </div>
+          )}
 
-            <div className="flex justify-end mt-6">
-              <button
-                onClick={() => setStep(2)}
-                className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-              >
-                Next: Classification
-              </button>
-            </div>
-          </div>
-        )}
-
-        {/* Step 2: Classification */}
-        {step === 2 && (
-          <div className="bg-white rounded-lg shadow-sm border border-slate-200 p-6 mb-6">
-            <div className="flex items-center gap-2 mb-6">
-              <AlertTriangle className="w-5 h-5 text-blue-600" />
-              <h2 className="text-lg font-semibold text-slate-900">
-                Incident Classification (IOGP)
-              </h2>
-            </div>
-
-            <div className="space-y-4">
+          {/* Step 2: Classification */}
+          {step === 2 && (
+            <div className="space-y-6">
               <div>
                 <label className="block text-sm font-medium text-slate-700 mb-2">
+                  <AlertTriangle className="w-4 h-4 inline mr-1" />
                   Incident Type *
                 </label>
                 <select
+                  className="w-full border border-slate-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                   value={formData.incidentType}
                   onChange={(e) => handleChange('incidentType', e.target.value)}
-                  className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  required
                 >
                   <option value="">Select incident type...</option>
                   {incidentTypes.map(type => (
@@ -261,12 +269,12 @@ export default function InvestigationInitiationForm() {
 
               <div>
                 <label className="block text-sm font-medium text-slate-700 mb-2">
-                  Actual Consequence Category
+                  Consequence Category
                 </label>
                 <select
+                  className="w-full border border-slate-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                   value={formData.consequenceCategory}
                   onChange={(e) => handleChange('consequenceCategory', e.target.value)}
-                  className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                 >
                   <option value="">Select consequence...</option>
                   {consequenceCategories.map(cat => (
@@ -275,104 +283,57 @@ export default function InvestigationInitiationForm() {
                 </select>
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div>
                   <label className="block text-sm font-medium text-slate-700 mb-2">
-                    Actual Severity (IOGP 1-5)
+                    Potential Severity (IOGP Scale)
                   </label>
                   <select
-                    value={formData.actualSeverity}
-                    onChange={(e) => handleChange('actualSeverity', e.target.value)}
-                    className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                  >
-                    <option value="">Select severity...</option>
-                    {severityLevels.map(level => (
-                      <option key={level.value} value={level.value}>
-                        {level.label}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-2">
-                    Potential Severity (IOGP 1-5)
-                  </label>
-                  <select
+                    className="w-full border border-slate-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                     value={formData.potentialSeverity}
                     onChange={(e) => handleChange('potentialSeverity', e.target.value)}
-                    className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                   >
-                    <option value="">Select severity...</option>
+                    <option value="">Select potential severity...</option>
                     {severityLevels.map(level => (
-                      <option key={level.value} value={level.value}>
-                        {level.label}
-                      </option>
+                      <option key={level.value} value={level.value}>{level.label}</option>
                     ))}
                   </select>
-                  <p className="text-xs text-slate-500 mt-1">
-                    What could have happened in credible worst case?
-                  </p>
+                  <p className="text-xs text-slate-500 mt-1">What could have happened?</p>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-2">
+                    Actual Severity (IOGP Scale)
+                  </label>
+                  <select
+                    className="w-full border border-slate-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    value={formData.actualSeverity}
+                    onChange={(e) => handleChange('actualSeverity', e.target.value)}
+                  >
+                    <option value="">Select actual severity...</option>
+                    {severityLevels.map(level => (
+                      <option key={level.value} value={level.value}>{level.label}</option>
+                    ))}
+                  </select>
+                  <p className="text-xs text-slate-500 mt-1">What actually happened?</p>
                 </div>
               </div>
             </div>
+          )}
 
-            <div className="flex justify-between mt-6">
-              <button
-                onClick={() => setStep(1)}
-                className="px-6 py-2 border border-slate-300 text-slate-700 rounded-lg hover:bg-slate-50 transition-colors"
-              >
-                Back
-              </button>
-              <button
-                onClick={() => setStep(3)}
-                className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-              >
-                Next: Investigation Setup
-              </button>
-            </div>
-          </div>
-        )}
-
-        {/* Step 3: Investigation Setup */}
-        {step === 3 && (
-          <div className="bg-white rounded-lg shadow-sm border border-slate-200 p-6 mb-6">
-            <div className="flex items-center gap-2 mb-6">
-              <Users className="w-5 h-5 text-blue-600" />
-              <h2 className="text-lg font-semibold text-slate-900">
-                Investigation Team & Methodology
-              </h2>
-            </div>
-
-            <div className="space-y-4">
+          {/* Step 3: Investigation Setup */}
+          {step === 3 && (
+            <div className="space-y-6">
               <div>
                 <label className="block text-sm font-medium text-slate-700 mb-2">
-                  Investigation Methodology
-                </label>
-                <select
-                  value={formData.investigationMethod}
-                  onChange={(e) => handleChange('investigationMethod', e.target.value)}
-                  className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                >
-                  <option value="">Select methodology...</option>
-                  {investigationMethods.map(method => (
-                    <option key={method} value={method}>{method}</option>
-                  ))}
-                </select>
-                <p className="text-xs text-slate-500 mt-1">
-                  This can be changed later as investigation progresses
-                </p>
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-slate-700 mb-2">
-                  Investigation Leader *
+                  <Users className="w-4 h-4 inline mr-1" />
+                  Investigation Leader
                 </label>
                 <input
                   type="text"
+                  className="w-full border border-slate-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  placeholder="Name of investigation leader"
                   value={formData.investigationLeader}
                   onChange={(e) => handleChange('investigationLeader', e.target.value)}
-                  placeholder="Enter name or select from team"
-                  className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                 />
               </div>
 
@@ -382,55 +343,47 @@ export default function InvestigationInitiationForm() {
                 </label>
                 <input
                   type="date"
+                  className="w-full border border-slate-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                   value={formData.targetCompletionDate}
                   onChange={(e) => handleChange('targetCompletionDate', e.target.value)}
-                  className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                 />
-                <p className="text-xs text-slate-500 mt-1">
-                  IOGP recommends 30-90 days depending on complexity
-                </p>
               </div>
 
               <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-                <h3 className="text-sm font-semibold text-blue-900 mb-2">
-                  Note: Team Member Management
-                </h3>
+                <h3 className="font-semibold text-blue-900 mb-2">Ready to Initiate Investigation</h3>
                 <p className="text-sm text-blue-800">
-                  Additional team members can be added after initiation through the 
-                  investigation dashboard. This allows flexibility as the investigation 
-                  progresses and specialist expertise is identified.
+                  Review your information and click "Initiate Investigation" to create the investigation record and proceed to evidence collection.
                 </p>
               </div>
             </div>
+          )}
 
-            <div className="flex justify-between mt-6">
+          {/* Navigation Buttons */}
+          <div className="flex justify-between mt-8 pt-6 border-t border-slate-200">
+            <button
+              onClick={() => setStep(Math.max(1, step - 1))}
+              disabled={step === 1}
+              className="px-6 py-2 text-slate-700 border border-slate-300 rounded-lg hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+            >
+              Previous
+            </button>
+            {step < 3 ? (
               <button
-                onClick={() => setStep(2)}
-                className="px-6 py-2 border border-slate-300 text-slate-700 rounded-lg hover:bg-slate-50 transition-colors"
+                onClick={() => setStep(step + 1)}
+                className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
               >
-                Back
+                Next
               </button>
+            ) : (
               <button
                 onClick={handleSubmit}
-                className="px-6 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors font-semibold"
+                disabled={submitting}
+                className="px-6 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
               >
-                Initiate Investigation
+                {submitting ? 'Creating...' : 'Initiate Investigation'}
               </button>
-            </div>
+            )}
           </div>
-        )}
-
-        {/* Information Box */}
-        <div className="bg-slate-100 border border-slate-200 rounded-lg p-4">
-          <h3 className="text-sm font-semibold text-slate-900 mb-2">
-            What happens next?
-          </h3>
-          <ul className="text-sm text-slate-700 space-y-1">
-            <li>• Investigation workspace will be created with unique investigation number</li>
-            <li>• Investigation team will have access to data collection tools</li>
-            <li>• Timeline builder and evidence management will be activated</li>
-            <li>• Progress will be tracked through the investigation workflow stages</li>
-          </ul>
         </div>
       </div>
     </div>
