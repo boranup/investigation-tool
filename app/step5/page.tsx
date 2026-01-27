@@ -4,6 +4,7 @@ import React, { useState, useEffect } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { Lightbulb, Plus, Edit2, Trash2, Filter, Target, Calendar, Users, Shield, CheckCircle, X, Save } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
+import StepNavigation from '@/components/StepNavigation';
 
 export default function RecommendationsDevelopment() {
   const searchParams = useSearchParams();
@@ -250,32 +251,40 @@ export default function RecommendationsDevelopment() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 p-6">
-      <div className="max-w-7xl mx-auto">
-        {/* Header */}
-        <div className="bg-white rounded-lg shadow-sm border border-slate-200 p-6 mb-6">
-          <div className="flex items-center justify-between">
-            <div>
-              <h1 className="text-2xl font-bold text-slate-900">Step 5: Recommendations</h1>
-              <p className="text-slate-600 mt-1">Develop corrective and preventive actions</p>
-              {investigation && (
-                <div className="mt-2 text-sm">
-                  <span className="text-slate-500">Investigation:</span>{' '}
-                  <span className="font-medium text-slate-700">{investigation.investigation_number}</span>
-                  {' - '}
-                  <span className="text-slate-600">{investigation.incident_description}</span>
-                </div>
-              )}
+    <>
+      {investigation && (
+        <StepNavigation 
+          investigationId={investigationId} 
+          currentStep={5}
+          investigationNumber={investigation.investigation_number}
+        />
+      )}
+      <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 p-6">
+        <div className="max-w-7xl mx-auto">
+          {/* Header */}
+          <div className="bg-white rounded-lg shadow-sm border border-slate-200 p-6 mb-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <h1 className="text-2xl font-bold text-slate-900">Step 5: Recommendations</h1>
+                <p className="text-slate-600 mt-1">Develop corrective and preventive actions</p>
+                {investigation && (
+                  <div className="mt-2 text-sm">
+                    <span className="text-slate-500">Investigation:</span>{' '}
+                    <span className="font-medium text-slate-700">{investigation.investigation_number}</span>
+                    {' - '}
+                    <span className="text-slate-600">{investigation.incident_description}</span>
+                  </div>
+                )}
+              </div>
+              <button
+                onClick={() => setShowAddRecommendation(true)}
+                className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+              >
+                <Plus className="w-4 h-4" />
+                Add Recommendation
+              </button>
             </div>
-            <button
-              onClick={() => setShowAddRecommendation(true)}
-              className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-            >
-              <Plus className="w-4 h-4" />
-              Add Recommendation
-            </button>
           </div>
-        </div>
 
         {/* Filters */}
         <div className="bg-white rounded-lg shadow-sm border border-slate-200 p-4 mb-6">
@@ -606,5 +615,6 @@ export default function RecommendationsDevelopment() {
         </div>
       )}
     </div>
+    </>
   );
 }
