@@ -395,9 +395,13 @@ export default function CausalAnalysis() {
             onClick={() => {
               if (!allAnalysisComplete) {
                 alert('Please complete all required assessments before proceeding to recommendations.');
-              } else {
-                alert('Proceeding to Step 5: Recommendations');
+                return;
               }
+              if (!investigationId) {
+                alert('No investigation ID found');
+                return;
+              }
+              window.location.href = `/step5?investigationId=${investigationId}`;
             }}
             disabled={!allAnalysisComplete}
             className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
@@ -406,7 +410,9 @@ export default function CausalAnalysis() {
           </button>
         </div>
       </div>
-{/* Add Causal Factor Modal */}
+
+      {/* CONTINUED IN PART 2 */}
+      {/* Add Causal Factor Modal */}
       {showAddFactor && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
           <div className="bg-white rounded-lg p-6 max-w-2xl w-full max-h-[90vh] overflow-y-auto">
