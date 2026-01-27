@@ -198,7 +198,8 @@ export default function CausalAnalysis() {
         title: '',
         description: '',
         factorType: 'contributing',
-        factorCategory: 'equipment'
+        factorCategory: 'equipment',
+        linkedTimelineEvents: []
       });
 
       setShowAddFactor(false);
