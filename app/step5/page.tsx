@@ -1,17 +1,33 @@
 'use client'
 
-import React, { useState } from 'react';
-import { Lightbulb, Plus, Edit2, Trash2, Filter, Target, Calendar, Users, Shield } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { useSearchParams } from 'next/navigation';
+import { Lightbulb, Plus, Edit2, Trash2, Filter, Target, Calendar, Users, Shield, CheckCircle, X, Save } from 'lucide-react';
+import { supabase } from '@/lib/supabase';
 
 export default function RecommendationsDevelopment() {
+  const searchParams = useSearchParams();
+  const investigationId = searchParams.get('investigationId');
+
   const [showAddRecommendation, setShowAddRecommendation] = useState(false);
   const [filterType, setFilterType] = useState('all');
   const [filterPriority, setFilterPriority] = useState('all');
+  const [saving, setSaving] = useState(false);
 
-  const investigation = {
-    number: 'INV-2026-001',
-    description: 'Pressure relief valve failure during startup'
-  };
+  const [investigation, setInvestigation] = useState<any>(null);
+  const [recommendations, setRecommendations] = useState<any[]>([]);
+  const [causalFactors, setCausalFactors] = useState<any[]>([]);
+
+  const [newRecommendation, setNewRecommendation] = useState({
+    title: '',
+    description: '',
+    linkedFactors: [] as string[],
+    controlType: 'engineering',
+    priority: 'high',
+    responsibility: '',
+    targetDate: '',
+    estimatedCost: 'Medium'
+  });
 
   const controlTypes = [
     { 
@@ -51,44 +67,148 @@ export default function RecommendationsDevelopment() {
     }
   ];
 
-  const [recommendations, setRecommendations] = useState([
-    {
-      id: '1',
-      title: 'Implement automated valve testing program',
-      description: 'Install automated testing system to verify PSV lift pressure every 6 months without manual intervention',
-      linkedCausalFactors: ['cf-004'],
-      controlType: 'engineering',
-      priority: 'high',
-      responsibility: 'Maintenance Manager',
-      targetDate: '2026-04-01',
-      estimatedCost: 'Medium',
-      status: 'proposed'
-    },
-    {
-      id: '2',
-      title: 'Enhance DCS alarm configuration',
-      description: 'Add predictive pressure trend alarm at 10% below relief set point with escalating notifications',
-      linkedCausalFactors: ['cf-003'],
-      controlType: 'engineering',
-      priority: 'high',
-      responsibility: 'Instrumentation Lead',
-      targetDate: '2026-03-15',
-      estimatedCost: 'Low',
-      status: 'proposed'
-    },
-    {
-      id: '3',
-      title: 'Update operator training on trend monitoring',
-      description: 'Develop and deliver training module on recognizing early deviation trends and intervention protocols',
-      linkedCausalFactors: ['cf-003'],
-      controlType: 'administrative',
-      priority: 'medium',
-      responsibility: 'Training Coordinator',
-      targetDate: '2026-05-01',
-      estimatedCost: 'Low',
-      status: 'proposed'
+  useEffect(() => {
+    if (investigationId) {
+      loadInvestigation();
+      loadRecommendations();
+      loadCausalFactors();
     }
-  ]);
+  }, [investigationId]);
+
+  const loadInvestigation = async () => {
+    const { data } = await supabase
+      .from('investigations')
+      .select('*')
+      .eq('id', investigationId)
+      .single();
+    
+    setInvestigation(data);
+  };
+
+  const loadRecommendations = async () => {
+    if (!investigationId) return;
+
+    try {
+      const { data, error } = await supabase
+        .from('recommendations')
+        .select('*')
+        .eq('investigation_id', investigationId)
+        .order('created_at', { ascending: false });
+
+      if (error) {
+        console.error('Error loading recommendations:', error);
+      } else {
+        setRecommendations(data || []);
+      }
+    } catch (error) {
+      console.error('Error loading recommendations:', error);
+    }
+  };
+
+  const loadCausalFactors = async () => {
+    if (!investigationId) return;
+
+    try {
+      const { data, error } = await supabase
+        .from('causal_factors')
+        .select('*')
+        .eq('investigation_id', investigationId)
+        .order('created_at', { ascending: true });
+
+      if (error) {
+        console.error('Error loading causal factors:', error);
+      } else {
+        setCausalFactors(data || []);
+      }
+    } catch (error) {
+      console.error('Error loading causal factors:', error);
+    }
+  };
+
+  const handleAddRecommendation = async () => {
+    if (!newRecommendation.title || !newRecommendation.description) {
+      alert('Please fill in title and description');
+      return;
+    }
+
+    if (!investigationId) {
+      alert('No investigation selected');
+      return;
+    }
+
+    setSaving(true);
+
+    try {
+      const { data, error } = await supabase
+        .from('recommendations')
+        .insert([{
+          investigation_id: investigationId,
+          title: newRecommendation.title,
+          description: newRecommendation.description,
+          linked_causal_factors: newRecommendation.linkedFactors,
+          control_type: newRecommendation.controlType,
+          priority: newRecommendation.priority,
+          responsibility: newRecommendation.responsibility || null,
+          target_date: newRecommendation.targetDate || null,
+          estimated_cost: newRecommendation.estimatedCost,
+          status: 'proposed'
+        }])
+        .select()
+        .single();
+
+      if (error) {
+        console.error('Database error:', error);
+        alert('Error saving recommendation');
+        return;
+      }
+
+      // Add to local state
+      setRecommendations([data, ...recommendations]);
+
+      // Reset form
+      setNewRecommendation({
+        title: '',
+        description: '',
+        linkedFactors: [],
+        controlType: 'engineering',
+        priority: 'high',
+        responsibility: '',
+        targetDate: '',
+        estimatedCost: 'Medium'
+      });
+
+      setShowAddRecommendation(false);
+      alert('Recommendation added successfully!');
+    } catch (error) {
+      console.error('Error adding recommendation:', error);
+      alert('Error adding recommendation');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const deleteRecommendation = async (id: string) => {
+    if (!confirm('Delete this recommendation?')) return;
+
+    try {
+      const { error } = await supabase
+        .from('recommendations')
+        .delete()
+        .eq('id', id);
+
+      if (error) {
+        console.error('Error deleting recommendation:', error);
+        alert('Error deleting recommendation');
+        return;
+      }
+
+      setRecommendations(recommendations.filter(r => r.id !== id));
+      alert('Recommendation deleted');
+    } catch (error) {
+      console.error('Error:', error);
+      alert('Error deleting recommendation');
+    }
+  };
 
   const getPriorityColor = (priority: string) => {
     const colors: Record<string, string> = {
@@ -103,17 +223,31 @@ export default function RecommendationsDevelopment() {
     return controlTypes.find(ct => ct.value === type);
   };
 
-  const deleteRecommendation = (id: string) => {
-    if (confirm('Delete this recommendation?')) {
-      setRecommendations(recommendations.filter(r => r.id !== id));
-    }
-  };
-
   const filteredRecommendations = recommendations.filter(rec => {
-    const matchesType = filterType === 'all' || rec.controlType === filterType;
+    const matchesType = filterType === 'all' || rec.control_type === filterType;
     const matchesPriority = filterPriority === 'all' || rec.priority === filterPriority;
     return matchesType && matchesPriority;
   });
+
+  const toggleFactorSelection = (factorId: string) => {
+    setNewRecommendation(prev => ({
+      ...prev,
+      linkedFactors: prev.linkedFactors.includes(factorId)
+        ? prev.linkedFactors.filter(id => id !== factorId)
+        : [...prev.linkedFactors, factorId]
+    }));
+  };
+
+  if (!investigationId) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 p-6 flex items-center justify-center">
+        <div className="text-center">
+          <h2 className="text-xl font-semibold text-slate-900 mb-2">No Investigation Selected</h2>
+          <p className="text-slate-600">Please start from Step 1 to create an investigation.</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 p-6">
@@ -124,12 +258,14 @@ export default function RecommendationsDevelopment() {
             <div>
               <h1 className="text-2xl font-bold text-slate-900">Step 5: Recommendations</h1>
               <p className="text-slate-600 mt-1">Develop corrective and preventive actions</p>
-              <div className="mt-2 text-sm">
-                <span className="text-slate-500">Investigation:</span>{' '}
-                <span className="font-medium text-slate-700">{investigation.number}</span>
-                {' - '}
-                <span className="text-slate-600">{investigation.description}</span>
-              </div>
+              {investigation && (
+                <div className="mt-2 text-sm">
+                  <span className="text-slate-500">Investigation:</span>{' '}
+                  <span className="font-medium text-slate-700">{investigation.investigation_number}</span>
+                  {' - '}
+                  <span className="text-slate-600">{investigation.incident_description}</span>
+                </div>
+              )}
             </div>
             <button
               onClick={() => setShowAddRecommendation(true)}
@@ -180,7 +316,7 @@ export default function RecommendationsDevelopment() {
         {/* Recommendations List */}
         <div className="space-y-4">
           {filteredRecommendations.map((rec) => {
-            const controlInfo = getControlTypeInfo(rec.controlType);
+            const controlInfo = getControlTypeInfo(rec.control_type);
             
             return (
               <div key={rec.id} className="bg-white rounded-lg shadow-sm border border-slate-200 p-6">
@@ -207,27 +343,33 @@ export default function RecommendationsDevelopment() {
                         </div>
 
                         <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
-                          <div className="flex items-center gap-2 text-slate-600">
-                            <Users className="w-4 h-4" />
-                            <div>
-                              <div className="text-xs text-slate-500">Responsibility</div>
-                              <div className="font-medium">{rec.responsibility}</div>
+                          {rec.responsibility && (
+                            <div className="flex items-center gap-2 text-slate-600">
+                              <Users className="w-4 h-4" />
+                              <div>
+                                <div className="text-xs text-slate-500">Responsibility</div>
+                                <div className="font-medium">{rec.responsibility}</div>
+                              </div>
                             </div>
-                          </div>
-                          <div className="flex items-center gap-2 text-slate-600">
-                            <Calendar className="w-4 h-4" />
-                            <div>
-                              <div className="text-xs text-slate-500">Target Date</div>
-                              <div className="font-medium">{rec.targetDate}</div>
+                          )}
+                          {rec.target_date && (
+                            <div className="flex items-center gap-2 text-slate-600">
+                              <Calendar className="w-4 h-4" />
+                              <div>
+                                <div className="text-xs text-slate-500">Target Date</div>
+                                <div className="font-medium">{rec.target_date}</div>
+                              </div>
                             </div>
-                          </div>
-                          <div className="flex items-center gap-2 text-slate-600">
-                            <Target className="w-4 h-4" />
-                            <div>
-                              <div className="text-xs text-slate-500">Cost Estimate</div>
-                              <div className="font-medium">{rec.estimatedCost}</div>
+                          )}
+                          {rec.estimated_cost && (
+                            <div className="flex items-center gap-2 text-slate-600">
+                              <Target className="w-4 h-4" />
+                              <div>
+                                <div className="text-xs text-slate-500">Cost Estimate</div>
+                                <div className="font-medium">{rec.estimated_cost}</div>
+                              </div>
                             </div>
-                          </div>
+                          )}
                           <div className="flex items-center gap-2 text-slate-600">
                             <Shield className="w-4 h-4" />
                             <div>
@@ -237,14 +379,17 @@ export default function RecommendationsDevelopment() {
                           </div>
                         </div>
 
-                        {rec.linkedCausalFactors.length > 0 && (
+                        {rec.linked_causal_factors && rec.linked_causal_factors.length > 0 && (
                           <div className="mt-3 flex items-center gap-2 text-xs text-slate-500">
                             <span>Addresses:</span>
-                            {rec.linkedCausalFactors.map((cf, idx) => (
-                              <span key={idx} className="px-2 py-1 bg-blue-50 text-blue-700 rounded border border-blue-200">
-                                {cf}
-                              </span>
-                            ))}
+                            {rec.linked_causal_factors.map((cfId: string, idx: number) => {
+                              const factor = causalFactors.find(cf => cf.id === cfId);
+                              return (
+                                <span key={idx} className="px-2 py-1 bg-blue-50 text-blue-700 rounded border border-blue-200">
+                                  {factor ? factor.causal_factor_title : cfId}
+                                </span>
+                              );
+                            })}
                           </div>
                         )}
                       </div>
@@ -252,12 +397,6 @@ export default function RecommendationsDevelopment() {
                   </div>
 
                   <div className="flex items-center gap-2">
-                    <button
-                      className="p-2 text-slate-600 hover:bg-slate-100 rounded-lg transition-colors"
-                      title="Edit recommendation"
-                    >
-                      <Edit2 className="w-4 h-4" />
-                    </button>
                     <button
                       onClick={() => deleteRecommendation(rec.id)}
                       className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
@@ -296,7 +435,7 @@ export default function RecommendationsDevelopment() {
             Previous Step
           </button>
           <button
-            onClick={() => alert('Investigation complete! Generate final report.')}
+            onClick={() => alert('Investigation complete! You can now generate the final report.')}
             className="px-6 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
           >
             Complete Investigation
@@ -308,7 +447,15 @@ export default function RecommendationsDevelopment() {
       {showAddRecommendation && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
           <div className="bg-white rounded-lg p-6 max-w-3xl w-full max-h-[90vh] overflow-y-auto">
-            <h2 className="text-xl font-bold mb-4">Add Recommendation</h2>
+            <div className="flex justify-between items-center mb-6">
+              <h2 className="text-xl font-bold">Add Recommendation</h2>
+              <button
+                onClick={() => setShowAddRecommendation(false)}
+                className="p-2 hover:bg-slate-100 rounded-lg transition-colors"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
             
             <div className="space-y-4">
               <div>
@@ -317,6 +464,8 @@ export default function RecommendationsDevelopment() {
                 </label>
                 <input
                   type="text"
+                  value={newRecommendation.title}
+                  onChange={(e) => setNewRecommendation({ ...newRecommendation, title: e.target.value })}
                   className="w-full border border-slate-300 rounded-lg px-4 py-2"
                   placeholder="Brief description of the recommendation"
                 />
@@ -327,6 +476,8 @@ export default function RecommendationsDevelopment() {
                   Detailed Description *
                 </label>
                 <textarea
+                  value={newRecommendation.description}
+                  onChange={(e) => setNewRecommendation({ ...newRecommendation, description: e.target.value })}
                   className="w-full border border-slate-300 rounded-lg px-4 py-2"
                   rows={4}
                   placeholder="Provide detailed explanation of what should be done..."
@@ -337,8 +488,11 @@ export default function RecommendationsDevelopment() {
                 <label className="block text-sm font-medium text-slate-700 mb-2">
                   Control Type (Hierarchy of Controls) *
                 </label>
-                <select className="w-full border border-slate-300 rounded-lg px-4 py-2">
-                  <option value="">Select control type...</option>
+                <select 
+                  value={newRecommendation.controlType}
+                  onChange={(e) => setNewRecommendation({ ...newRecommendation, controlType: e.target.value })}
+                  className="w-full border border-slate-300 rounded-lg px-4 py-2"
+                >
                   {controlTypes.map((ct, idx) => (
                     <option key={ct.value} value={ct.value}>
                       {idx + 1}. {ct.label} - {ct.description}
@@ -350,13 +504,40 @@ export default function RecommendationsDevelopment() {
                 </p>
               </div>
 
+              {causalFactors.length > 0 && (
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-2">
+                    Link to Causal Factors
+                  </label>
+                  <div className="border border-slate-300 rounded-lg p-3 max-h-40 overflow-y-auto">
+                    {causalFactors.map(factor => (
+                      <label key={factor.id} className="flex items-start gap-2 py-2 hover:bg-slate-50 px-2 rounded cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={newRecommendation.linkedFactors.includes(factor.id)}
+                          onChange={() => toggleFactorSelection(factor.id)}
+                          className="mt-1"
+                        />
+                        <span className="text-sm text-slate-700">{factor.causal_factor_title}</span>
+                      </label>
+                    ))}
+                  </div>
+                  <p className="text-xs text-slate-500 mt-1">
+                    Select which causal factors this recommendation addresses
+                  </p>
+                </div>
+              )}
+
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-medium text-slate-700 mb-2">
                     Priority *
                   </label>
-                  <select className="w-full border border-slate-300 rounded-lg px-4 py-2">
-                    <option value="">Select priority...</option>
+                  <select 
+                    value={newRecommendation.priority}
+                    onChange={(e) => setNewRecommendation({ ...newRecommendation, priority: e.target.value })}
+                    className="w-full border border-slate-300 rounded-lg px-4 py-2"
+                  >
                     <option value="high">High</option>
                     <option value="medium">Medium</option>
                     <option value="low">Low</option>
@@ -366,8 +547,11 @@ export default function RecommendationsDevelopment() {
                   <label className="block text-sm font-medium text-slate-700 mb-2">
                     Cost Estimate
                   </label>
-                  <select className="w-full border border-slate-300 rounded-lg px-4 py-2">
-                    <option value="">Select cost range...</option>
+                  <select 
+                    value={newRecommendation.estimatedCost}
+                    onChange={(e) => setNewRecommendation({ ...newRecommendation, estimatedCost: e.target.value })}
+                    className="w-full border border-slate-300 rounded-lg px-4 py-2"
+                  >
                     <option value="Low">Low (&lt;$10k)</option>
                     <option value="Medium">Medium ($10k-$100k)</option>
                     <option value="High">High (&gt;$100k)</option>
@@ -382,6 +566,8 @@ export default function RecommendationsDevelopment() {
                   </label>
                   <input
                     type="text"
+                    value={newRecommendation.responsibility}
+                    onChange={(e) => setNewRecommendation({ ...newRecommendation, responsibility: e.target.value })}
                     className="w-full border border-slate-300 rounded-lg px-4 py-2"
                     placeholder="Department or role"
                   />
@@ -392,6 +578,8 @@ export default function RecommendationsDevelopment() {
                   </label>
                   <input
                     type="date"
+                    value={newRecommendation.targetDate}
+                    onChange={(e) => setNewRecommendation({ ...newRecommendation, targetDate: e.target.value })}
                     className="w-full border border-slate-300 rounded-lg px-4 py-2"
                   />
                 </div>
@@ -400,14 +588,16 @@ export default function RecommendationsDevelopment() {
 
             <div className="flex gap-3 mt-6">
               <button
-                onClick={() => setShowAddRecommendation(false)}
-                className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                onClick={handleAddRecommendation}
+                disabled={saving}
+                className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
               >
-                Add Recommendation
+                {saving ? 'Adding...' : 'Add Recommendation'}
               </button>
               <button
                 onClick={() => setShowAddRecommendation(false)}
-                className="px-4 py-2 border border-slate-300 rounded-lg hover:bg-slate-50 transition-colors"
+                disabled={saving}
+                className="px-4 py-2 border border-slate-300 rounded-lg hover:bg-slate-50 disabled:opacity-50 transition-colors"
               >
                 Cancel
               </button>
