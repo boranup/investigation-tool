@@ -1,91 +1,247 @@
-import Link from 'next/link'
-import { ClipboardList, Database, Clock, GitBranch, Lightbulb } from 'lucide-react'
+'use client'
 
-export default function Home() {
-  return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 p-6">
-      <div className="max-w-6xl mx-auto">
-        <div className="bg-white rounded-lg shadow-sm border border-slate-200 p-8 mb-6">
-          <h1 className="text-3xl font-bold text-slate-900 mb-2">
-            Investigation Tool
-          </h1>
-          <p className="text-slate-600">
-            Systematic incident investigation from data collection through recommendations
-          </p>
-        </div>
+import React, { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
+import { Plus, Search, Filter, Calendar, MapPin, AlertCircle, Clock, CheckCircle, FileText, ChevronRight } from 'lucide-react';
+import { supabase } from '@/lib/supabase';
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          <Link href="/step1" className="bg-white rounded-lg shadow-sm border border-slate-200 p-6 hover:shadow-md transition-shadow">
-            <div className="flex items-center gap-3 mb-3">
-              <div className="p-2 bg-blue-100 rounded-lg">
-                <ClipboardList className="w-6 h-6 text-blue-600" />
-              </div>
-              <h2 className="text-xl font-semibold text-slate-900">Step 1: Investigation Initiation</h2>
-            </div>
-            <p className="text-sm text-slate-600">
-              Create new investigation, capture incident details, assign team
-            </p>
-          </Link>
+export default function InvestigationDashboard() {
+  const router = useRouter();
+  
+  const [investigations, setInvestigations] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [filterStatus, setFilterStatus] = useState('all');
+  const [filterType, setFilterType] = useState('all');
 
-          <Link href="/step2" className="bg-white rounded-lg shadow-sm border border-slate-200 p-6 hover:shadow-md transition-shadow">
-            <div className="flex items-center gap-3 mb-3">
-              <div className="p-2 bg-blue-100 rounded-lg">
-                <Database className="w-6 h-6 text-blue-600" />
-              </div>
-              <h2 className="text-xl font-semibold text-slate-900">Step 2: Data Collection</h2>
-            </div>
-            <p className="text-sm text-slate-600">
-              Gather evidence, conduct interviews, collect documentation
-            </p>
-          </Link>
+  useEffect(() => {
+    loadInvestigations();
+  }, []);
 
-          <Link href="/step3" className="bg-white rounded-lg shadow-sm border border-slate-200 p-6 hover:shadow-md transition-shadow">
-            <div className="flex items-center gap-3 mb-3">
-              <div className="p-2 bg-blue-100 rounded-lg">
-                <Clock className="w-6 h-6 text-blue-600" />
-              </div>
-              <h2 className="text-xl font-semibold text-slate-900">Step 3: Timeline Construction</h2>
-            </div>
-            <p className="text-sm text-slate-600">
-              Build chronological sequence of events
-            </p>
-          </Link>
+  const loadInvestigations = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('investigations')
+        .select('*')
+        .order('incident_date', { ascending: false });
 
-          <Link href="/step4" className="bg-white rounded-lg shadow-sm border border-slate-200 p-6 hover:shadow-md transition-shadow">
-            <div className="flex items-center gap-3 mb-3">
-              <div className="p-2 bg-blue-100 rounded-lg">
-                <GitBranch className="w-6 h-6 text-blue-600" />
-              </div>
-              <h2 className="text-xl font-semibold text-slate-900">Step 4: Causal Analysis</h2>
-            </div>
-            <p className="text-sm text-slate-600">
-              Identify causal factors, conduct HFAT/HOP analysis
-            </p>
-          </Link>
+      if (error) {
+        console.error('Error loading investigations:', error);
+      } else {
+        setInvestigations(data || []);
+      }
+    } catch (error) {
+      console.error('Error:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
 
-          <Link href="/step5" className="bg-white rounded-lg shadow-sm border border-slate-200 p-6 hover:shadow-md transition-shadow col-span-1 md:col-span-2">
-            <div className="flex items-center gap-3 mb-3">
-              <div className="p-2 bg-blue-100 rounded-lg">
-                <Lightbulb className="w-6 h-6 text-blue-600" />
-              </div>
-              <h2 className="text-xl font-semibold text-slate-900">Step 5: Recommendations</h2>
-            </div>
-            <p className="text-sm text-slate-600">
-              Develop actionable recommendations based on validated causal factors
-            </p>
-          </Link>
-        </div>
+  const getStatusInfo = (status: string) => {
+    const statuses: Record<string, any> = {
+      initiated: { label: 'Initiated', color: 'bg-slate-100 text-slate-700', icon: Clock },
+      data_collection: { label: 'Data Collection', color: 'bg-blue-100 text-blue-700', icon: FileText },
+      timeline_construction: { label: 'Timeline', color: 'bg-purple-100 text-purple-700', icon: Clock },
+      causal_analysis: { label: 'Analysis', color: 'bg-amber-100 text-amber-700', icon: AlertCircle },
+      recommendations: { label: 'Recommendations', color: 'bg-orange-100 text-orange-700', icon: FileText },
+      completed: { label: 'Completed', color: 'bg-green-100 text-green-700', icon: CheckCircle }
+    };
+    return statuses[status] || statuses.initiated;
+  };
 
-        <div className="bg-amber-50 border border-amber-200 rounded-lg p-4 mt-6">
-          <h3 className="text-sm font-semibold text-amber-900 mb-2">
-            User Testing Version
-          </h3>
-          <p className="text-sm text-amber-800">
-            This is a prototype for trusted user testing. All data is for demonstration purposes.
-            Please provide feedback on workflow, usability, and missing features.
-          </p>
+  const getSeverityColor = (severity: string) => {
+    const colors: Record<string, string> = {
+      '1': 'bg-green-100 text-green-700 border-green-200',
+      '2': 'bg-blue-100 text-blue-700 border-blue-200',
+      '3': 'bg-amber-100 text-amber-700 border-amber-200',
+      '4': 'bg-orange-100 text-orange-700 border-orange-200',
+      '5': 'bg-red-100 text-red-700 border-red-200'
+    };
+    return colors[severity] || 'bg-slate-100 text-slate-700 border-slate-200';
+  };
+
+  const filteredInvestigations = investigations.filter(inv => {
+    const matchesSearch = !searchTerm || 
+      inv.investigation_number.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      inv.incident_description.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      inv.location_facility.toLowerCase().includes(searchTerm.toLowerCase());
+    
+    const matchesStatus = filterStatus === 'all' || inv.status === filterStatus;
+    const matchesType = filterType === 'all' || inv.incident_type === filterType;
+    
+    return matchesSearch && matchesStatus && matchesType;
+  });
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+          <p className="text-slate-600">Loading investigations...</p>
         </div>
       </div>
+    );
+  }
+
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 p-6">
+      <div className="max-w-7xl mx-auto">
+        {/* Header */}
+        <div className="bg-white rounded-lg shadow-sm border border-slate-200 p-6 mb-6">
+          <div className="flex items-center justify-between">
+            <div>
+              <h1 className="text-3xl font-bold text-slate-900">Investigation Tool</h1>
+              <p className="text-slate-600 mt-1">Manage and track incident investigations</p>
+            </div>
+            <button
+              onClick={() => router.push('/step1')}
+              className="flex items-center gap-2 px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors shadow-sm"
+            >
+              <Plus className="w-5 h-5" />
+              New Investigation
+            </button>
+          </div>
+        </div>
+
+        {/* Filters */}
+        <div className="bg-white rounded-lg shadow-sm border border-slate-200 p-4 mb-6">
+          <div className="flex flex-col md:flex-row gap-4">
+            <div className="flex-1">
+              <div className="relative">
+                <Search className="w-4 h-4 absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400" />
+                <input
+                  type="text"
+                  placeholder="Search by number, description, or location..."
+                  className="w-full pl-10 pr-4 py-2 border border-slate-300 rounded-lg text-sm"
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                />
+              </div>
+            </div>
+            <div className="flex gap-2">
+              <select
+                value={filterStatus}
+                onChange={(e) => setFilterStatus(e.target.value)}
+                className="border border-slate-300 rounded-lg px-3 py-2 text-sm"
+              >
+                <option value="all">All Status</option>
+                <option value="initiated">Initiated</option>
+                <option value="data_collection">Data Collection</option>
+                <option value="timeline_construction">Timeline</option>
+                <option value="causal_analysis">Analysis</option>
+                <option value="recommendations">Recommendations</option>
+                <option value="completed">Completed</option>
+              </select>
+              <select
+                value={filterType}
+                onChange={(e) => setFilterType(e.target.value)}
+                className="border border-slate-300 rounded-lg px-3 py-2 text-sm"
+              >
+                <option value="all">All Types</option>
+                <option value="Actual Incident">Actual Incident</option>
+                <option value="Near Miss">Near Miss</option>
+                <option value="High Potential Near Miss">High Potential</option>
+              </select>
+            </div>
+          </div>
+          <div className="mt-2 text-sm text-slate-600">
+            Showing {filteredInvestigations.length} of {investigations.length} investigations
+          </div>
+        </div>
+
+        {/* Investigations Grid */}
+        {filteredInvestigations.length === 0 ? (
+          <div className="bg-white rounded-lg shadow-sm border border-slate-200 p-12 text-center">
+            <FileText className="w-16 h-16 text-slate-300 mx-auto mb-4" />
+            <h3 className="text-xl font-semibold text-slate-900 mb-2">
+              {investigations.length === 0 ? 'No Investigations Yet' : 'No Matching Investigations'}
+            </h3>
+            <p className="text-slate-600 mb-6">
+              {investigations.length === 0 
+                ? 'Start by creating your first investigation'
+                : 'Try adjusting your search or filters'}
+            </p>
+            {investigations.length === 0 && (
+              <button
+                onClick={() => router.push('/step1')}
+                className="inline-flex items-center gap-2 px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+              >
+                <Plus className="w-5 h-5" />
+                Create First Investigation
+              </button>
+            )}
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {filteredInvestigations.map((investigation) => {
+              const statusInfo = getStatusInfo(investigation.status);
+              const StatusIcon = statusInfo.icon;
+
+              return (
+                <div
+                  key={investigation.id}
+                  onClick={() => router.push(`/step2?investigationId=${investigation.id}`)}
+                  className="bg-white rounded-lg shadow-sm border border-slate-200 p-6 hover:shadow-md hover:border-blue-300 transition-all cursor-pointer group"
+                >
+                  {/* Header */}
+                  <div className="flex items-start justify-between mb-4">
+                    <div className="flex-1">
+                      <div className="flex items-center gap-2 mb-2">
+                        <span className="text-sm font-mono font-semibold text-blue-600">
+                          {investigation.investigation_number}
+                        </span>
+                        <ChevronRight className="w-4 h-4 text-slate-400 group-hover:text-blue-600 transition-colors" />
+                      </div>
+                      <div className={`inline-flex items-center gap-1 px-2 py-1 rounded text-xs font-medium ${statusInfo.color}`}>
+                        <StatusIcon className="w-3 h-3" />
+                        {statusInfo.label}
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Description */}
+                  <h3 className="font-semibold text-slate-900 mb-3 line-clamp-2">
+                    {investigation.incident_description}
+                  </h3>
+
+                  {/* Details */}
+                  <div className="space-y-2 text-sm text-slate-600 mb-4">
+                    <div className="flex items-center gap-2">
+                      <Calendar className="w-4 h-4 text-slate-400" />
+                      <span>{investigation.incident_date}</span>
+                      {investigation.incident_time && (
+                        <span className="text-slate-400">• {investigation.incident_time}</span>
+                      )}
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <MapPin className="w-4 h-4 text-slate-400" />
+                      <span className="truncate">{investigation.location_facility}</span>
+                    </div>
+                    {investigation.incident_type && (
+                      <div className="flex items-center gap-2">
+                        <AlertCircle className="w-4 h-4 text-slate-400" />
+                        <span>{investigation.incident_type}</span>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Severity */}
+                  {investigation.actual_severity && (
+                    <div className="pt-3 border-t border-slate-100">
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs text-slate-500">Severity</span>
+                        <span className={`px-2 py-1 rounded text-xs font-medium border ${getSeverityColor(investigation.actual_severity)}`}>
+                          Level {investigation.actual_severity}
+                        </span>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </div>
     </div>
-  )
+  );
 }
