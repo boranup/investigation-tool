@@ -4,6 +4,7 @@ import React, { useState, useEffect } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { GitBranch, Plus, Edit2, Trash2, AlertCircle, CheckCircle, Filter, Target, ArrowRight, Lock, Unlock, Eye, X, Save } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
+import StepNavigation from '@/components/StepNavigation';
 
 export default function CausalAnalysis() {
   const router = useRouter();
@@ -17,33 +18,86 @@ export default function CausalAnalysis() {
 
   const [investigation, setInvestigation] = useState<any>(null);
   const [causalFactors, setFactors] = useState<any[]>([]);
+  const [timelineEvents, setTimelineEvents] = useState<any[]>([]);
 
   const [newFactor, setNewFactor] = useState({
     title: '',
     description: '',
     factorType: 'contributing',
-    factorCategory: 'equipment'
+    factorCategory: 'equipment',
+    linkedTimelineEvents: [] as string[]
   });
 
   const factorTypes = [
-    { value: 'immediate', label: 'Immediate Cause', color: 'bg-red-100 text-red-700 border-red-200' },
-    { value: 'contributing', label: 'Contributing Factor', color: 'bg-blue-100 text-blue-700 border-blue-200' },
-    { value: 'root', label: 'Root Cause', color: 'bg-purple-100 text-purple-700 border-purple-200' },
-    { value: 'latent', label: 'Latent Condition', color: 'bg-orange-100 text-orange-700 border-orange-200' }
+    { 
+      value: 'immediate', 
+      label: 'Immediate Cause', 
+      description: 'Direct triggers - events that directly caused the incident',
+      color: 'bg-red-100 text-red-700 border-red-200' 
+    },
+    { 
+      value: 'contributing', 
+      label: 'Contributing Factor', 
+      description: 'Conditions that enabled or allowed the incident to occur',
+      color: 'bg-blue-100 text-blue-700 border-blue-200' 
+    },
+    { 
+      value: 'root', 
+      label: 'Root Cause', 
+      description: 'Underlying systemic issues - if fixed, prevents recurrence',
+      color: 'bg-purple-100 text-purple-700 border-purple-200' 
+    },
+    { 
+      value: 'latent', 
+      label: 'Latent Condition', 
+      description: 'Pre-existing weaknesses in the system waiting to contribute',
+      color: 'bg-orange-100 text-orange-700 border-orange-200' 
+    }
   ];
 
   const factorCategories = [
-    { value: 'equipment', label: 'Equipment/System', needsHFAT: true, needsHOP: false },
-    { value: 'human_performance', label: 'Human Performance', needsHFAT: false, needsHOP: true },
-    { value: 'procedure', label: 'Procedure', needsHFAT: true, needsHOP: false },
-    { value: 'organizational', label: 'Organizational', needsHFAT: false, needsHOP: true },
-    { value: 'external', label: 'External Factor', needsHFAT: false, needsHOP: false }
+    { 
+      value: 'equipment', 
+      label: 'Equipment/System', 
+      description: 'Hardware failures, design issues, or system malfunctions',
+      needsHFAT: true, 
+      needsHOP: false 
+    },
+    { 
+      value: 'human_performance', 
+      label: 'Human Performance', 
+      description: 'Actions, decisions, or behaviors of personnel',
+      needsHFAT: false, 
+      needsHOP: true 
+    },
+    { 
+      value: 'procedure', 
+      label: 'Procedure', 
+      description: 'Issues with written instructions, work methods, or processes',
+      needsHFAT: true, 
+      needsHOP: false 
+    },
+    { 
+      value: 'organizational', 
+      label: 'Organizational', 
+      description: 'Management systems, culture, resources, or planning',
+      needsHFAT: false, 
+      needsHOP: true 
+    },
+    { 
+      value: 'external', 
+      label: 'External Factor', 
+      description: 'Outside influences beyond organizational control',
+      needsHFAT: false, 
+      needsHOP: false 
+    }
   ];
 
   useEffect(() => {
     if (investigationId) {
       loadInvestigation();
       loadCausalFactors();
+      loadTimelineEvents();
     }
   }, [investigationId]);
 
@@ -74,6 +128,27 @@ export default function CausalAnalysis() {
       }
     } catch (error) {
       console.error('Error loading causal factors:', error);
+    }
+  };
+
+  const loadTimelineEvents = async () => {
+    if (!investigationId) return;
+
+    try {
+      const { data, error } = await supabase
+        .from('timeline_events')
+        .select('*')
+        .eq('investigation_id', investigationId)
+        .order('event_date', { ascending: true })
+        .order('event_time', { ascending: true });
+
+      if (error) {
+        console.error('Error loading timeline events:', error);
+      } else {
+        setTimelineEvents(data || []);
+      }
+    } catch (error) {
+      console.error('Error loading timeline:', error);
     }
   };
 
@@ -203,21 +278,29 @@ export default function CausalAnalysis() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 p-6">
-      <div className="max-w-7xl mx-auto">
-        {/* Header */}
-        <div className="bg-white rounded-lg shadow-sm border border-slate-200 p-6 mb-6">
-          <div className="flex items-center justify-between">
-            <div>
-              <h1 className="text-2xl font-bold text-slate-900">Step 4: Causal Analysis</h1>
-              <p className="text-slate-600 mt-1">Identify and analyze causal factors</p>
-              {investigation && (
-                <div className="mt-2 text-sm">
-                  <span className="text-slate-500">Investigation:</span>{' '}
-                  <span className="font-medium text-slate-700">{investigation.investigation_number}</span>
-                  {' - '}
-                  <span className="text-slate-600">{investigation.incident_description}</span>
-                </div>
+    <>
+      {investigation && (
+        <StepNavigation 
+          investigationId={investigationId} 
+          currentStep={4}
+          investigationNumber={investigation.investigation_number}
+        />
+      )}
+      <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 p-6">
+        <div className="max-w-7xl mx-auto">
+          {/* Header */}
+          <div className="bg-white rounded-lg shadow-sm border border-slate-200 p-6 mb-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <h1 className="text-2xl font-bold text-slate-900">Step 4: Causal Analysis</h1>
+                <p className="text-slate-600 mt-1">Identify and analyze causal factors</p>
+                {investigation && (
+                  <div className="mt-2 text-sm">
+                    <span className="text-slate-500">Investigation:</span>{' '}
+                    <span className="font-medium text-slate-700">{investigation.investigation_number}</span>
+                    {' - '}
+                    <span className="text-slate-600">{investigation.incident_description}</span>
+                  </div>
               )}
             </div>
             <button
@@ -520,5 +603,6 @@ export default function CausalAnalysis() {
         </div>
       )}
     </div>
+    </>
   );
 }
