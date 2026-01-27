@@ -4,6 +4,7 @@ import React, { useState, useEffect } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { Upload, FileText, Camera, Video, Database, Users, Search, Filter, Tag, Calendar, MapPin, Trash2, Eye, Plus, Download, X } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
+import StepNavigation from '@/components/StepNavigation';
 
 export default function EvidenceDataCollection() {
   const searchParams = useSearchParams();
@@ -349,19 +350,27 @@ export default function EvidenceDataCollection() {
   // CONTINUED FROM PART 1...
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 p-6">
-      <div className="max-w-7xl mx-auto">
-        {/* Header */}
-        <div className="bg-white rounded-lg shadow-sm border border-slate-200 p-6 mb-6">
-          <div className="flex items-center justify-between">
-            <div>
-              <h1 className="text-2xl font-bold text-slate-900">Step 2: Evidence & Data Collection</h1>
-              <p className="text-slate-600 mt-1">Gather and organize investigation evidence</p>
-              {investigation && (
-                <div className="mt-2 text-sm">
-                  <span className="text-slate-500">Investigation:</span>{' '}
-                  <span className="font-medium text-slate-700">{investigation.investigation_number}</span>
-                  {' - '}
+    <>
+      {investigation && (
+        <StepNavigation 
+          investigationId={investigationId} 
+          currentStep={2}
+          investigationNumber={investigation.investigation_number}
+        />
+      )}
+      <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 p-6">
+        <div className="max-w-7xl mx-auto">
+          {/* Header */}
+          <div className="bg-white rounded-lg shadow-sm border border-slate-200 p-6 mb-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <h1 className="text-2xl font-bold text-slate-900">Step 2: Evidence & Data Collection</h1>
+                <p className="text-slate-600 mt-1">Gather and organize investigation evidence</p>
+                {investigation && (
+                  <div className="mt-2 text-sm">
+                    <span className="text-slate-500">Investigation:</span>{' '}
+                    <span className="font-medium text-slate-700">{investigation.investigation_number}</span>
+                    {' - '}
                   <span className="text-slate-600">{investigation.incident_description}</span>
                 </div>
               )}
@@ -939,5 +948,6 @@ export default function EvidenceDataCollection() {
         </div>
       )}
     </div>
+    </>
   );
 }
