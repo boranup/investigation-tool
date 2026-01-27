@@ -32,11 +32,36 @@ export default function TimelineBuilder() {
   });
 
   const eventCategories = [
-    { value: 'action', label: 'Action', color: 'bg-blue-100 text-blue-700 border-blue-200' },
-    { value: 'observation', label: 'Observation', color: 'bg-green-100 text-green-700 border-green-200' },
-    { value: 'condition', label: 'Condition', color: 'bg-purple-100 text-purple-700 border-purple-200' },
-    { value: 'decision', label: 'Decision', color: 'bg-orange-100 text-orange-700 border-orange-200' },
-    { value: 'communication', label: 'Communication', color: 'bg-cyan-100 text-cyan-700 border-cyan-200' }
+    { 
+      value: 'action', 
+      label: 'Action', 
+      description: 'Something someone did - physical actions, operations performed',
+      color: 'bg-blue-100 text-blue-700 border-blue-200' 
+    },
+    { 
+      value: 'observation', 
+      label: 'Observation', 
+      description: 'Something someone noticed or saw - visual indicators, readings',
+      color: 'bg-green-100 text-green-700 border-green-200' 
+    },
+    { 
+      value: 'condition', 
+      label: 'Condition', 
+      description: 'State of equipment, environment, or system at this time',
+      color: 'bg-purple-100 text-purple-700 border-purple-200' 
+    },
+    { 
+      value: 'decision', 
+      label: 'Decision', 
+      description: 'Choices made by personnel or automatic systems',
+      color: 'bg-orange-100 text-orange-700 border-orange-200' 
+    },
+    { 
+      value: 'communication', 
+      label: 'Communication', 
+      description: 'Information exchanged between people or systems',
+      color: 'bg-cyan-100 text-cyan-700 border-cyan-200' 
+    }
   ];
 
   useEffect(() => {
@@ -494,7 +519,9 @@ export default function TimelineBuilder() {
                   className="w-full border border-slate-300 rounded-lg px-4 py-2"
                 >
                   {eventCategories.map(cat => (
-                    <option key={cat.value} value={cat.value}>{cat.label}</option>
+                    <option key={cat.value} value={cat.value}>
+                      {cat.label} - {cat.description}
+                    </option>
                   ))}
                 </select>
               </div>
