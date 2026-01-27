@@ -4,6 +4,7 @@ import React, { useState, useEffect } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { Clock, Plus, Edit2, Trash2, AlertCircle, CheckCircle, Filter, Search, Calendar, Users, MapPin, FileText, Link as LinkIcon, X, Save } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
+import StepNavigation from '@/components/StepNavigation';
 
 export default function TimelineBuilder() {
   const searchParams = useSearchParams();
@@ -244,14 +245,22 @@ export default function TimelineBuilder() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 p-6">
-      <div className="max-w-6xl mx-auto">
-        {/* Header */}
-        <div className="bg-white rounded-lg shadow-sm border border-slate-200 p-6 mb-6">
-          <div className="flex items-center justify-between">
-            <div>
-              <h1 className="text-2xl font-bold text-slate-900">Step 3: Timeline Builder</h1>
-              <p className="text-slate-600 mt-1">Construct chronological sequence of events</p>
+    <>
+      {investigation && (
+        <StepNavigation 
+          investigationId={investigationId} 
+          currentStep={3}
+          investigationNumber={investigation.investigation_number}
+        />
+      )}
+      <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 p-6">
+        <div className="max-w-6xl mx-auto">
+          {/* Header */}
+          <div className="bg-white rounded-lg shadow-sm border border-slate-200 p-6 mb-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <h1 className="text-2xl font-bold text-slate-900">Step 3: Timeline Builder</h1>
+                <p className="text-slate-600 mt-1">Construct chronological sequence of events</p>
               {investigation && (
                 <div className="mt-2 text-sm">
                   <span className="text-slate-500">Investigation:</span>{' '}
@@ -626,5 +635,6 @@ export default function TimelineBuilder() {
         </div>
       )}
     </div>
+    </>
   );
 }
