@@ -15,7 +15,6 @@ export default function EvidenceDataCollection() {
   const [searchTerm, setSearchTerm] = useState('');
   const [filterType, setFilterType] = useState('all');
   const [uploading, setUploading] = useState(false);
-  const [uploadProgress, setUploadProgress] = useState(0);
 
   const [investigation, setInvestigation] = useState<any>(null);
   const [evidence, setEvidence] = useState<any[]>([]);
@@ -40,8 +39,7 @@ export default function EvidenceDataCollection() {
     interviewDate: new Date().toISOString().split('T')[0],
     interviewTime: '',
     type: 'witness',
-    keyFindings: '',
-    linkedEvents: 0
+    keyFindings: ''
   });
 
   useEffect(() => {
@@ -62,21 +60,37 @@ export default function EvidenceDataCollection() {
   };
 
   const loadEvidence = async () => {
-    // Load evidence from database
-    // For now using mock data
-    setEvidence([
-      {
-        id: '1',
-        type: 'photo',
-        title: 'Failed Relief Valve - Close-up',
-        description: 'Shows corrosion on valve seat',
-        collectedDate: '2026-01-20',
-        collectedBy: 'J. Smith',
-        location: 'Unit 3, PSV-101',
-        tags: ['equipment', 'corrosion', 'valve'],
-        fileUrl: null
+    if (!investigationId) return;
+    
+    try {
+      // Load evidence from database
+      const { data: evidenceData, error: evidenceError } = await supabase
+        .from('evidence')
+        .select('*')
+        .eq('investigation_id', investigationId)
+        .order('collected_date', { ascending: false });
+
+      if (evidenceError) {
+        console.error('Error loading evidence:', evidenceError);
+      } else {
+        setEvidence(evidenceData || []);
       }
-    ]);
+
+      // Load interviews from database
+      const { data: interviewData, error: interviewError } = await supabase
+        .from('interviews')
+        .select('*')
+        .eq('investigation_id', investigationId)
+        .order('interview_date', { ascending: false });
+
+      if (interviewError) {
+        console.error('Error loading interviews:', interviewError);
+      } else {
+        setInterviews(interviewData || []);
+      }
+    } catch (error) {
+      console.error('Error loading data:', error);
+    }
   };
 
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -120,6 +134,11 @@ export default function EvidenceDataCollection() {
       return;
     }
 
+    if (!investigationId) {
+      alert('No investigation selected');
+      return;
+    }
+
     setUploading(true);
     let fileUrl = null;
 
@@ -134,20 +153,31 @@ export default function EvidenceDataCollection() {
         }
       }
 
-      // Add to evidence list
-      const evidenceItem = {
-        id: String(evidence.length + 1),
-        type: newEvidence.type,
-        title: newEvidence.title,
-        description: newEvidence.description,
-        collectedDate: newEvidence.collectedDate,
-        collectedBy: newEvidence.collectedBy,
-        location: newEvidence.location,
-        tags: newEvidence.tags.split(',').map(t => t.trim()).filter(t => t),
-        fileUrl: fileUrl
-      };
+      // Insert into database with CORRECTED column name
+      const { data, error } = await supabase
+        .from('evidence')
+        .insert([{
+          investigation_id: investigationId,
+          evidence_type: newEvidence.type, // CORRECTED: was 'type'
+          title: newEvidence.title,
+          description: newEvidence.description,
+          file_url: fileUrl,
+          collected_date: newEvidence.collectedDate,
+          collected_by: newEvidence.collectedBy || null,
+          location: newEvidence.location || null,
+          tags: newEvidence.tags ? newEvidence.tags.split(',').map(t => t.trim()).filter(t => t) : []
+        }])
+        .select()
+        .single();
 
-      setEvidence([...evidence, evidenceItem]);
+      if (error) {
+        console.error('Database error:', error);
+        alert('Error saving evidence to database');
+        return;
+      }
+
+      // Add to local state
+      setEvidence([data, ...evidence]);
       
       // Reset form
       setNewEvidence({
@@ -171,45 +201,107 @@ export default function EvidenceDataCollection() {
     }
   };
 
-  const handleAddInterview = () => {
+  const handleAddInterview = async () => {
     if (!newInterview.interviewee || !newInterview.interviewDate) {
       alert('Please fill in required fields');
       return;
     }
 
-    const interview = {
-      id: String(interviews.length + 1),
-      ...newInterview,
-      status: 'completed'
-    };
+    if (!investigationId) {
+      alert('No investigation selected');
+      return;
+    }
 
-    setInterviews([...interviews, interview]);
-    
-    setNewInterview({
-      interviewee: '',
-      role: '',
-      department: '',
-      interviewer: '',
-      interviewDate: new Date().toISOString().split('T')[0],
-      interviewTime: '',
-      type: 'witness',
-      keyFindings: '',
-      linkedEvents: 0
-    });
-    
-    setShowAddInterview(false);
-    alert('Interview record added!');
-  };
+    try {
+      const { data, error } = await supabase
+        .from('interviews')
+        .insert([{
+          investigation_id: investigationId,
+          interviewee: newInterview.interviewee,
+          role: newInterview.role || null,
+          department: newInterview.department || null,
+          interviewer: newInterview.interviewer || null,
+          interview_date: newInterview.interviewDate,
+          interview_time: newInterview.interviewTime || null,
+          interview_type: newInterview.type, // CORRECTED: was 'type'
+          key_findings: newInterview.keyFindings || null,
+          status: 'completed'
+        }])
+        .select()
+        .single();
 
-  const deleteEvidence = (id: string) => {
-    if (confirm('Delete this evidence item?')) {
-      setEvidence(evidence.filter(e => e.id !== id));
+      if (error) {
+        console.error('Database error:', error);
+        alert('Error saving interview');
+        return;
+      }
+
+      // Add to local state
+      setInterviews([data, ...interviews]);
+      
+      // Reset form
+      setNewInterview({
+        interviewee: '',
+        role: '',
+        department: '',
+        interviewer: '',
+        interviewDate: new Date().toISOString().split('T')[0],
+        interviewTime: '',
+        type: 'witness',
+        keyFindings: ''
+      });
+      
+      setShowAddInterview(false);
+      alert('Interview record added!');
+    } catch (error) {
+      console.error('Error adding interview:', error);
+      alert('Error adding interview');
     }
   };
 
-  const deleteInterview = (id: string) => {
-    if (confirm('Delete this interview record?')) {
+  const deleteEvidence = async (id: string) => {
+    if (!confirm('Delete this evidence item?')) return;
+
+    try {
+      const { error } = await supabase
+        .from('evidence')
+        .delete()
+        .eq('id', id);
+
+      if (error) {
+        console.error('Error deleting evidence:', error);
+        alert('Error deleting evidence');
+        return;
+      }
+
+      setEvidence(evidence.filter(e => e.id !== id));
+      alert('Evidence deleted');
+    } catch (error) {
+      console.error('Error:', error);
+      alert('Error deleting evidence');
+    }
+  };
+
+  const deleteInterview = async (id: string) => {
+    if (!confirm('Delete this interview record?')) return;
+
+    try {
+      const { error } = await supabase
+        .from('interviews')
+        .delete()
+        .eq('id', id);
+
+      if (error) {
+        console.error('Error deleting interview:', error);
+        alert('Error deleting interview');
+        return;
+      }
+
       setInterviews(interviews.filter(i => i.id !== id));
+      alert('Interview deleted');
+    } catch (error) {
+      console.error('Error:', error);
+      alert('Error deleting interview');
     }
   };
 
@@ -235,10 +327,10 @@ export default function EvidenceDataCollection() {
   };
 
   const filteredEvidence = evidence.filter(item => {
-    const matchesType = filterType === 'all' || item.type === filterType;
+    const matchesType = filterType === 'all' || item.evidence_type === filterType;
     const matchesSearch = !searchTerm || 
       item.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      item.description.toLowerCase().includes(searchTerm.toLowerCase());
+      (item.description && item.description.toLowerCase().includes(searchTerm.toLowerCase()));
     return matchesType && matchesSearch;
   });
 
@@ -252,6 +344,7 @@ export default function EvidenceDataCollection() {
       </div>
     );
   }
+// CONTINUED FROM PART 1...
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 p-6">
@@ -351,18 +444,18 @@ export default function EvidenceDataCollection() {
                   <div className="p-4">
                     <div className="flex items-start justify-between mb-3">
                       <div className="flex items-center gap-2">
-                        <span className={`p-2 rounded-lg border ${getTypeColor(item.type)}`}>
-                          {getTypeIcon(item.type)}
+                        <span className={`p-2 rounded-lg border ${getTypeColor(item.evidence_type)}`}>
+                          {getTypeIcon(item.evidence_type)}
                         </span>
                         <div>
                           <h3 className="font-semibold text-slate-900">{item.title}</h3>
-                          <span className="text-xs text-slate-500">{item.type}</span>
+                          <span className="text-xs text-slate-500">{item.evidence_type}</span>
                         </div>
                       </div>
                       <div className="flex gap-1">
-                        {item.fileUrl && (
+                        {item.file_url && (
                           <button
-                            onClick={() => window.open(item.fileUrl, '_blank')}
+                            onClick={() => window.open(item.file_url, '_blank')}
                             className="p-1.5 text-blue-600 hover:bg-blue-50 rounded transition-colors"
                             title="View file"
                           >
@@ -384,12 +477,12 @@ export default function EvidenceDataCollection() {
                     <div className="space-y-2">
                       <div className="flex items-center gap-2 text-xs text-slate-500">
                         <Calendar className="w-3 h-3" />
-                        {item.collectedDate}
+                        {item.collected_date}
                       </div>
-                      {item.collectedBy && (
+                      {item.collected_by && (
                         <div className="flex items-center gap-2 text-xs text-slate-500">
                           <Users className="w-3 h-3" />
-                          {item.collectedBy}
+                          {item.collected_by}
                         </div>
                       )}
                       {item.location && (
@@ -431,7 +524,6 @@ export default function EvidenceDataCollection() {
           </div>
         )}
 
-        {/* CONTINUED IN PART 2 */}
         {/* Interviews Tab */}
         {activeTab === 'interviews' && (
           <div>
@@ -476,10 +568,10 @@ export default function EvidenceDataCollection() {
                     </div>
                   </div>
                   
-                  {interview.keyFindings && (
+                  {interview.key_findings && (
                     <div className="bg-slate-50 rounded-lg p-3 mb-3">
                       <p className="text-sm text-slate-700">
-                        <strong>Key Findings:</strong> {interview.keyFindings}
+                        <strong>Key Findings:</strong> {interview.key_findings}
                       </p>
                     </div>
                   )}
@@ -487,13 +579,13 @@ export default function EvidenceDataCollection() {
                   <div className="flex items-center gap-4 text-xs text-slate-500">
                     <div className="flex items-center gap-1">
                       <Calendar className="w-3 h-3" />
-                      {interview.interviewDate} {interview.interviewTime && `at ${interview.interviewTime}`}
+                      {interview.interview_date} {interview.interview_time && `at ${interview.interview_time}`}
                     </div>
                     <div className="flex items-center gap-1">
                       <Users className="w-3 h-3" />
                       Interviewer: {interview.interviewer}
                     </div>
-                    <div>Type: {interview.type}</div>
+                    <div>Type: {interview.interview_type}</div>
                   </div>
                 </div>
               ))}
@@ -841,3 +933,4 @@ export default function EvidenceDataCollection() {
     </div>
   );
 }
+  
