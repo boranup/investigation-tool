@@ -308,25 +308,36 @@ export default function HFATAssessment() {
           .update(assessmentData)
           .eq('id', assessmentId);
         
-        if (error) throw error;
+        if (error) {
+          console.error('HFAT update error:', error);
+          throw error;
+        }
       } else {
         const { error } = await supabase
           .from('hfat_assessments')
           .insert([assessmentData]);
         
-        if (error) throw error;
+        if (error) {
+          console.error('HFAT insert error:', error);
+          throw error;
+        }
       }
 
-      await supabase
+      const { error: updateError } = await supabase
         .from('causal_factors')
         .update({ analysis_status: 'analysis_complete' })
         .eq('id', causalFactorId);
 
+      if (updateError) {
+        console.error('Causal factor update error:', updateError);
+        throw updateError;
+      }
+
       alert('HFAT Assessment completed! Returning to causal analysis...');
       router.push(`/step4?investigationId=${investigationId}`);
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error completing:', error);
-      alert('Error completing assessment');
+      alert(`Error completing assessment: ${error.message || 'Unknown error'}`);
     } finally {
       setSaving(false);
     }
