@@ -429,14 +429,22 @@ export default function TimelineBuilder() {
             Previous Step
           </button>
           <button
-            onClick={() => alert('Proceeding to Step 4: Causal Analysis')}
+            onClick={() => {
+              if (!investigationId) {
+                alert('No investigation ID found');
+                return;
+              }
+              window.location.href = `/step4?investigationId=${investigationId}`;
+            }}
             className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
           >
             Next: Causal Analysis
           </button>
         </div>
       </div>
-{/* Add Event Modal */}
+
+      {/* Add Event Modal - CONTINUED IN NEXT FILE */}
+      {/* Add Event Modal */}
       {showAddEvent && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
           <div className="bg-white rounded-lg p-6 max-w-2xl w-full max-h-[90vh] overflow-y-auto">
