@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { useSearchParams } from 'next/navigation';
-import { Upload, FileText, Camera, Video, Database, Users, Search, Filter, Tag, Calendar, MapPin, Trash2, Eye, Plus, Download, X } from 'lucide-react';
+import { Upload, FileText, Camera, Video, Database, Users, Search, Filter, Tag, Calendar, MapPin, Trash2, Eye, Plus, Download, X, Edit } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import StepNavigation from '@/components/StepNavigation';
 
@@ -13,6 +13,8 @@ export default function EvidenceDataCollection() {
   const [activeTab, setActiveTab] = useState('evidence');
   const [showAddEvidence, setShowAddEvidence] = useState(false);
   const [showAddInterview, setShowAddInterview] = useState(false);
+  const [editingEvidenceId, setEditingEvidenceId] = useState<string | null>(null);
+  const [editingInterviewId, setEditingInterviewId] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [filterType, setFilterType] = useState('all');
   const [uploading, setUploading] = useState(false);
@@ -296,7 +298,7 @@ export default function EvidenceDataCollection() {
         console.error('Error deleting interview:', error);
         alert('Error deleting interview');
         return;
-      }
+        }
 
       setInterviews(interviews.filter(i => i.id !== id));
       alert('Interview deleted');
@@ -896,7 +898,7 @@ export default function EvidenceDataCollection() {
                     value={newInterview.type}
                     onChange={(e) => setNewInterview({ ...newInterview, type: e.target.value })}
                     className="w-full border border-slate-300 rounded-lg px-4 py-2"
-                  >
+                    >
                     <option value="witness">Witness</option>
                     <option value="expert">Expert/SME</option>
                     <option value="involved">Involved Party</option>
