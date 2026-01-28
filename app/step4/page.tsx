@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { GitBranch, Plus, Trash2, CheckCircle, ChevronDown, ChevronRight, ArrowRight } from 'lucide-react';
+import { GitBranch, Plus, Trash2, CheckCircle, ChevronDown, ChevronRight, ArrowRight, Edit } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import StepNavigation from '@/components/StepNavigation';
 
@@ -16,6 +16,7 @@ export default function CausalAnalysis() {
   const [showAddFactor, setShowAddFactor] = useState(false);
   const [saving, setSaving] = useState(false);
   const [expandedFactors, setExpandedFactors] = useState<Record<string, boolean>>({});
+  const [editingFactorId, setEditingFactorId] = useState<string | null>(null);
 
   const [newFactor, setNewFactor] = useState({
     title: '',
@@ -76,28 +77,44 @@ export default function CausalAnalysis() {
       const category = factorCategories.find(c => c.value === newFactor.factorCategory);
       const needsAnalysis = category && (category.needsHFAT || category.needsHOP);
       
-      const { data, error } = await supabase
-        .from('causal_factors')
-        .insert([{
-          investigation_id: investigationId,
-          causal_factor_title: newFactor.title,
-          causal_factor_description: newFactor.description || null,
-          factor_type: newFactor.factorType,
-          factor_category: newFactor.factorCategory,
-          analysis_status: needsAnalysis ? 'analysis_required' : 'identified'
-        }])
-        .select()
-        .single();
+      const factorData = {
+        investigation_id: investigationId,
+        causal_factor_title: newFactor.title,
+        causal_factor_description: newFactor.description || null,
+        factor_type: newFactor.factorType,
+        factor_category: newFactor.factorCategory,
+        analysis_status: needsAnalysis ? 'analysis_required' : 'identified'
+      };
 
-      if (error) throw error;
+      if (editingFactorId) {
+        // UPDATE existing factor
+        const { error } = await supabase
+          .from('causal_factors')
+          .update(factorData)
+          .eq('id', editingFactorId);
 
-      setFactors([...causalFactors, data]);
+        if (error) throw error;
+        alert('Causal factor updated successfully!');
+      } else {
+        // INSERT new factor
+        const { data, error } = await supabase
+          .from('causal_factors')
+          .insert([factorData])
+          .select()
+          .single();
+
+        if (error) throw error;
+        setFactors([...causalFactors, data]);
+        alert('Causal factor added successfully!');
+      }
+
       setNewFactor({ title: '', description: '', factorType: 'contributing', factorCategory: 'equipment' });
+      setEditingFactorId(null);
       setShowAddFactor(false);
-      alert('Causal factor added successfully!');
+      loadCausalFactors();
     } catch (error) {
       console.error('Error:', error);
-      alert('Error adding causal factor');
+      alert('Error saving causal factor');
     } finally {
       setSaving(false);
     }
@@ -245,6 +262,22 @@ export default function CausalAnalysis() {
 
                             <div className="flex gap-2 pt-3 border-t border-slate-200">
                               <button
+                                onClick={() => {
+                                  setEditingFactorId(factor.id);
+                                  setNewFactor({
+                                    title: factor.causal_factor_title,
+                                    description: factor.causal_factor_description || '',
+                                    factorType: factor.factor_type,
+                                    factorCategory: factor.factor_category
+                                  });
+                                  setShowAddFactor(true);
+                                }}
+                                className="flex items-center gap-2 px-3 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm"
+                              >
+                                <Edit className="w-4 h-4" />
+                                Edit
+                              </button>
+                              <button
                                 onClick={() => deleteFactor(factor.id)}
                                 className="flex items-center gap-2 px-3 py-2 bg-red-100 text-red-700 border border-red-300 rounded-lg hover:bg-red-200 transition-colors text-sm"
                               >
@@ -321,7 +354,7 @@ export default function CausalAnalysis() {
       {showAddFactor && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
           <div className="bg-white rounded-lg p-6 max-w-2xl w-full max-h-[90vh] overflow-y-auto">
-            <h2 className="text-xl font-bold mb-6">Add Causal Factor</h2>
+            <h2 className="text-xl font-bold mb-6">{editingFactorId ? 'Edit Causal Factor' : 'Add Causal Factor'}</h2>
 
             <div className="space-y-4">
               <div>
@@ -383,10 +416,14 @@ export default function CausalAnalysis() {
                 disabled={saving}
                 className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 transition-colors"
               >
-                {saving ? 'Adding...' : 'Add Causal Factor'}
+                {saving ? 'Saving...' : editingFactorId ? 'Update Causal Factor' : 'Add Causal Factor'}
               </button>
               <button
-                onClick={() => setShowAddFactor(false)}
+                onClick={() => {
+                  setShowAddFactor(false);
+                  setEditingFactorId(null);
+                  setNewFactor({ title: '', description: '', factorType: 'contributing', factorCategory: 'equipment' });
+                }}
                 disabled={saving}
                 className="px-4 py-2 border border-slate-300 rounded-lg hover:bg-slate-50 disabled:opacity-50 transition-colors"
               >
