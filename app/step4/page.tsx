@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { GitBranch, Plus, Edit2, Trash2, AlertCircle, CheckCircle, Filter, Target, ArrowRight, Lock, Unlock, Eye, X, Save } from 'lucide-react';
+import { GitBranch, Plus, Edit2, Trash2, AlertCircle, CheckCircle, Filter, Target, ArrowRight, Lock, Unlock, Eye, X, Save, ChevronDown, ChevronRight, Edit } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import StepNavigation from '@/components/StepNavigation';
 
@@ -19,6 +19,9 @@ export default function CausalAnalysis() {
   const [investigation, setInvestigation] = useState<any>(null);
   const [causalFactors, setFactors] = useState<any[]>([]);
   const [timelineEvents, setTimelineEvents] = useState<any[]>([]);
+  
+  // Track which factors are expanded
+  const [expandedFactors, setExpandedFactors] = useState<Record<string, boolean>>({});
 
   const [newFactor, setNewFactor] = useState({
     title: '',
@@ -235,6 +238,13 @@ export default function CausalAnalysis() {
     }
   };
 
+  const toggleFactor = (factorId: string) => {
+    setExpandedFactors(prev => ({
+      ...prev,
+      [factorId]: !prev[factorId]
+    }));
+  };
+
   const getTypeColor = (type: string) => {
     const factorType = factorTypes.find(t => t.value === type);
     return factorType?.color || 'bg-gray-100 text-gray-700 border-gray-200';
@@ -389,27 +399,111 @@ export default function CausalAnalysis() {
               (factor.analysis_status === 'analysis_required' || factor.analysis_status === 'analysis_in_progress');
 
             return (
-              <div key={factor.id} className="bg-white rounded-lg shadow-sm border border-slate-200 p-6">
-                <div className="flex items-start gap-4">
-                  <div className="flex-1">
-                    <div className="flex items-start justify-between mb-3">
-                      <div className="flex-1">
-                        <div className="flex items-center gap-2 mb-2">
-                          <span className={`px-3 py-1 rounded-full text-xs font-medium border ${getTypeColor(factor.factor_type)}`}>
-                            {factorTypes.find(t => t.value === factor.factor_type)?.label}
-                          </span>
-                          <span className="px-3 py-1 rounded-full text-xs font-medium bg-slate-100 text-slate-700">
-                            {factorCategories.find(c => c.value === factor.factor_category)?.label}
-                          </span>
-                          {getStatusBadge(factor.analysis_status)}
-                        </div>
-                        <h3 className="font-semibold text-lg text-slate-900 mb-2">{factor.causal_factor_title}</h3>
-                        {factor.causal_factor_description && (
-                          <p className="text-slate-600 text-sm mb-3">{factor.causal_factor_description}</p>
-                        )}
+              <div key={factor.id} className="bg-white rounded-lg shadow-sm border border-slate-200">
+                <div className="p-6">
+                  <div className="flex items-start gap-4">
+                    <button
+                      onClick={() => toggleFactor(factor.id)}
+                      className="p-2 hover:bg-slate-100 rounded-lg transition-colors mt-1"
+                    >
+                      {expandedFactors[factor.id] ? (
+                        <ChevronDown className="w-5 h-5 text-slate-600" />
+                      ) : (
+                        <ChevronRight className="w-5 h-5 text-slate-600" />
+                      )}
+                    </button>
+                    
+                    <div className="flex-1">
+                      <div className="flex items-start justify-between mb-3">
+                        <div className="flex-1">
+                          <div className="flex items-center gap-2 mb-2">
+                            <span className={`px-3 py-1 rounded-full text-xs font-medium border ${getTypeColor(factor.factor_type)}`}>
+                              {factorTypes.find(t => t.value === factor.factor_type)?.label}
+                            </span>
+                            <span className="px-3 py-1 rounded-full text-xs font-medium bg-slate-100 text-slate-700">
+                              {factorCategories.find(c => c.value === factor.factor_category)?.label}
+                            </span>
+                            {getStatusBadge(factor.analysis_status)}
+                          </div>
+                          <h3 className="font-semibold text-lg text-slate-900 mb-2">{factor.causal_factor_title}</h3>
+                          {!expandedFactors[factor.id] && factor.causal_factor_description && (
+                            <p className="text-slate-600 text-sm line-clamp-2">{factor.causal_factor_description}</p>
+                          )}
 
-                        {/* Assessment Actions */}
-                        <div className="flex gap-2 mt-3">
+                          {/* Expanded Content */}
+                          {expandedFactors[factor.id] && (
+                            <div className="mt-3 space-y-3">
+                              {factor.causal_factor_description && (
+                                <div className="bg-slate-50 rounded-lg p-4 border border-slate-200">
+                                  <label className="block text-xs font-semibold text-slate-700 mb-2">Description</label>
+                                  <p className="text-slate-900 text-sm whitespace-pre-wrap">{factor.causal_factor_description}</p>
+                                </div>
+                              )}
+                              
+                              <div className="grid grid-cols-2 gap-4 text-sm">
+                                <div className="bg-slate-50 rounded-lg p-3 border border-slate-200">
+                                  <label className="block text-xs font-semibold text-slate-700 mb-1">Factor Type</label>
+                                  <p className="text-slate-900">{factorTypes.find(t => t.value === factor.factor_type)?.label}</p>
+                                  <p className="text-xs text-slate-600 mt-1">{factorTypes.find(t => t.value === factor.factor_type)?.description}</p>
+                                </div>
+                                <div className="bg-slate-50 rounded-lg p-3 border border-slate-200">
+                                  <label className="block text-xs font-semibold text-slate-700 mb-1">Category</label>
+                                  <p className="text-slate-900">{factorCategories.find(c => c.value === factor.factor_category)?.label}</p>
+                                  <p className="text-xs text-slate-600 mt-1">{factorCategories.find(c => c.value === factor.factor_category)?.description}</p>
+                                </div>
+                              </div>
+                              
+                              {/* Edit/Delete Actions */}
+                              <div className="flex gap-2 pt-3 border-t border-slate-200">
+                                <button
+                                  onClick={() => {
+                                    setNewFactor({
+                                      title: factor.causal_factor_title,
+                                      description: factor.causal_factor_description || '',
+                                      factorType: factor.factor_type,
+                                      factorCategory: factor.factor_category,
+                                      linkedTimelineEvents: []
+                                    });
+                                    setShowAddFactor(true);
+                                    // Scroll to form
+                                    setTimeout(() => {
+                                      document.getElementById('add-factor-form')?.scrollIntoView({ behavior: 'smooth' });
+                                    }, 100);
+                                  }}
+                                  className="flex items-center gap-2 px-3 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm"
+                                >
+                                  <Edit className="w-4 h-4" />
+                                  Edit Factor
+                                </button>
+                                <button
+                                  onClick={async () => {
+                                    if (confirm('Are you sure you want to delete this causal factor?')) {
+                                      try {
+                                        const { error } = await supabase
+                                          .from('causal_factors')
+                                          .delete()
+                                          .eq('id', factor.id);
+                                        
+                                        if (error) throw error;
+                                        
+                                        // Reload factors
+                                        loadFactors();
+                                      } catch (error: any) {
+                                        alert(`Error deleting factor: ${error.message}`);
+                                      }
+                                    }
+                                  }}
+                                  className="flex items-center gap-2 px-3 py-2 bg-red-100 text-red-700 border border-red-300 rounded-lg hover:bg-red-200 transition-colors text-sm"
+                                >
+                                  <Trash2 className="w-4 h-4" />
+                                  Delete
+                                </button>
+                              </div>
+                            </div>
+                          )}
+
+                          {/* Assessment Actions */}
+                          <div className="flex gap-2 mt-3">
                           {needsHFAT && (
                             <button 
                               onClick={() => router.push(`/hfat-new?investigationId=${investigationId}&causalFactorId=${factor.id}`)}
@@ -506,7 +600,7 @@ export default function CausalAnalysis() {
       {/* CONTINUED IN PART 2 */}
       {/* Add Causal Factor Modal */}
       {showAddFactor && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50" id="add-factor-form">
           <div className="bg-white rounded-lg p-6 max-w-2xl w-full max-h-[90vh] overflow-y-auto">
             <div className="flex justify-between items-center mb-6">
               <h2 className="text-xl font-bold">Add Causal Factor</h2>
