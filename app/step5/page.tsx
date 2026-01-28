@@ -14,6 +14,7 @@ export default function RecommendationsDevelopment() {
   const [filterType, setFilterType] = useState('all');
   const [filterPriority, setFilterPriority] = useState('all');
   const [saving, setSaving] = useState(false);
+  const [editingRecommendationId, setEditingRecommendationId] = useState<string | null>(null);
 
   const [investigation, setInvestigation] = useState<any>(null);
   const [recommendations, setRecommendations] = useState<any[]>([]);
@@ -140,31 +141,51 @@ export default function RecommendationsDevelopment() {
     setSaving(true);
 
     try {
-      const { data, error } = await supabase
-        .from('recommendations')
-        .insert([{
-          investigation_id: investigationId,
-          title: newRecommendation.title,
-          description: newRecommendation.description,
-          linked_causal_factors: newRecommendation.linkedFactors,
-          control_type: newRecommendation.controlType,
-          priority: newRecommendation.priority,
-          responsibility: newRecommendation.responsibility || null,
-          target_date: newRecommendation.targetDate || null,
-          estimated_cost: newRecommendation.estimatedCost,
-          status: 'proposed'
-        }])
-        .select()
-        .single();
+      const recommendationData = {
+        investigation_id: investigationId,
+        title: newRecommendation.title,
+        description: newRecommendation.description,
+        linked_causal_factors: newRecommendation.linkedFactors,
+        control_type: newRecommendation.controlType,
+        priority: newRecommendation.priority,
+        responsibility: newRecommendation.responsibility || null,
+        target_date: newRecommendation.targetDate || null,
+        estimated_cost: newRecommendation.estimatedCost,
+        status: 'proposed'
+      };
 
-      if (error) {
-        console.error('Database error:', error);
-        alert('Error saving recommendation');
-        return;
+      if (editingRecommendationId) {
+        // UPDATE existing recommendation
+        const { error } = await supabase
+          .from('recommendations')
+          .update(recommendationData)
+          .eq('id', editingRecommendationId);
+
+        if (error) {
+          console.error('Database error:', error);
+          alert('Error updating recommendation');
+          return;
+        }
+
+        alert('Recommendation updated successfully!');
+      } else {
+        // INSERT new recommendation
+        const { data, error } = await supabase
+          .from('recommendations')
+          .insert([recommendationData])
+          .select()
+          .single();
+
+        if (error) {
+          console.error('Database error:', error);
+          alert('Error saving recommendation');
+          return;
+        }
+
+        // Add to local state
+        setRecommendations([data, ...recommendations]);
+        alert('Recommendation added successfully!');
       }
-
-      // Add to local state
-      setRecommendations([data, ...recommendations]);
 
       // Reset form
       setNewRecommendation({
@@ -177,12 +198,12 @@ export default function RecommendationsDevelopment() {
         targetDate: '',
         estimatedCost: 'Medium'
       });
-
+      setEditingRecommendationId(null);
       setShowAddRecommendation(false);
-      alert('Recommendation added successfully!');
+      loadRecommendations();
     } catch (error) {
-      console.error('Error adding recommendation:', error);
-      alert('Error adding recommendation');
+      console.error('Error:', error);
+      alert('Error saving recommendation');
     } finally {
       setSaving(false);
     }
@@ -407,6 +428,26 @@ export default function RecommendationsDevelopment() {
 
                   <div className="flex items-center gap-2">
                     <button
+                      onClick={() => {
+                        setEditingRecommendationId(rec.id);
+                        setNewRecommendation({
+                          title: rec.title,
+                          description: rec.description,
+                          linkedFactors: rec.linked_causal_factors || [],
+                          controlType: rec.control_type,
+                          priority: rec.priority,
+                          responsibility: rec.responsibility || '',
+                          targetDate: rec.target_date || '',
+                          estimatedCost: rec.estimated_cost
+                        });
+                        setShowAddRecommendation(true);
+                      }}
+                      className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                      title="Edit recommendation"
+                    >
+                      <Edit2 className="w-4 h-4" />
+                    </button>
+                    <button
                       onClick={() => deleteRecommendation(rec.id)}
                       className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
                       title="Delete recommendation"
@@ -457,9 +498,22 @@ export default function RecommendationsDevelopment() {
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
           <div className="bg-white rounded-lg p-6 max-w-3xl w-full max-h-[90vh] overflow-y-auto">
             <div className="flex justify-between items-center mb-6">
-              <h2 className="text-xl font-bold">Add Recommendation</h2>
+              <h2 className="text-xl font-bold">{editingRecommendationId ? 'Edit Recommendation' : 'Add Recommendation'}</h2>
               <button
-                onClick={() => setShowAddRecommendation(false)}
+                onClick={() => {
+                  setShowAddRecommendation(false);
+                  setEditingRecommendationId(null);
+                  setNewRecommendation({
+                    title: '',
+                    description: '',
+                    linkedFactors: [],
+                    controlType: 'engineering',
+                    priority: 'high',
+                    responsibility: '',
+                    targetDate: '',
+                    estimatedCost: 'Medium'
+                  });
+                }}
                 className="p-2 hover:bg-slate-100 rounded-lg transition-colors"
               >
                 <X className="w-5 h-5" />
@@ -601,10 +655,23 @@ export default function RecommendationsDevelopment() {
                 disabled={saving}
                 className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
               >
-                {saving ? 'Adding...' : 'Add Recommendation'}
+                {saving ? 'Saving...' : editingRecommendationId ? 'Update Recommendation' : 'Add Recommendation'}
               </button>
               <button
-                onClick={() => setShowAddRecommendation(false)}
+                onClick={() => {
+                  setShowAddRecommendation(false);
+                  setEditingRecommendationId(null);
+                  setNewRecommendation({
+                    title: '',
+                    description: '',
+                    linkedFactors: [],
+                    controlType: 'engineering',
+                    priority: 'high',
+                    responsibility: '',
+                    targetDate: '',
+                    estimatedCost: 'Medium'
+                  });
+                }}
                 disabled={saving}
                 className="px-4 py-2 border border-slate-300 rounded-lg hover:bg-slate-50 disabled:opacity-50 transition-colors"
               >
