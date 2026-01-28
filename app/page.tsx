@@ -180,7 +180,7 @@ export default function InvestigationDashboard() {
               return (
                 <div
                   key={investigation.id}
-                  onClick={() => router.push(`/step2?investigationId=${investigation.id}`)}
+                  onClick={() => router.push(`/step1?investigationId=${investigation.id}`)}
                   className="bg-white rounded-lg shadow-sm border border-slate-200 p-6 hover:shadow-md hover:border-blue-300 transition-all cursor-pointer group"
                 >
                   {/* Header */}
