@@ -2,8 +2,25 @@
 
 import React, { useState, useEffect } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { ArrowLeft, Save, CheckCircle } from 'lucide-react';
+import { ArrowLeft, Save, CheckCircle, Target, HelpCircle } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
+
+const Tooltip = ({ text, children }: { text: string; children: React.ReactNode }) => {
+  const [show, setShow] = useState(false);
+  return (
+    <div className="relative inline-block">
+      <div onMouseEnter={() => setShow(true)} onMouseLeave={() => setShow(false)} className="cursor-help">
+        {children}
+      </div>
+      {show && (
+        <div className="absolute z-50 w-64 p-2 text-xs bg-gray-900 text-white rounded shadow-lg -top-2 left-6">
+          {text}
+          <div className="absolute w-2 h-2 bg-gray-900 transform rotate-45 -left-1 top-3"></div>
+        </div>
+      )}
+    </div>
+  );
+};
 
 export default function HOPAssessment() {
   const router = useRouter();
@@ -17,27 +34,11 @@ export default function HOPAssessment() {
   const [investigation, setInvestigation] = useState<any>(null);
   const [causalFactor, setCausalFactor] = useState<any>(null);
 
-  // Contributing or Causal classification
-  const [classification, setClassification] = useState<'contributing' | 'causal'>('contributing');
-
-  // Form data for HOP assessment
   const [formData, setFormData] = useState({
-    taskDescription: '',
-    workConditions: '',
-    timeOfDay: '',
-    workloadDemands: '',
-    timeAvailable: '',
-    proceduralGuidance: '',
-    trainingExperience: '',
-    equipmentDesign: '',
-    communicationTeamwork: '',
-    supervisorySupport: '',
-    organizationalCulture: '',
-    whatMadeSense: '',
-    localRationality: '',
-    tradeoffsDecisions: '',
-    systemImprovements: '',
-    learningPoints: ''
+    errorPrecursors: '',
+    systemDefenses: '',
+    vulnerabilities: '',
+    systemImprovements: ''
   });
 
   useEffect(() => {
@@ -63,7 +64,7 @@ export default function HOPAssessment() {
           .single();
         setCausalFactor(cfData);
 
-        // Load existing HOP assessment if exists
+        // Load existing HOP assessment
         const { data: hopData } = await supabase
           .from('hop_assessments')
           .select('*')
@@ -71,24 +72,11 @@ export default function HOPAssessment() {
           .single();
 
         if (hopData) {
-          setClassification(hopData.classification || 'contributing');
           setFormData({
-            taskDescription: hopData.task_description || '',
-            workConditions: hopData.work_conditions || '',
-            timeOfDay: hopData.time_of_day || '',
-            workloadDemands: hopData.workload_demands || '',
-            timeAvailable: hopData.time_available || '',
-            proceduralGuidance: hopData.procedural_guidance || '',
-            trainingExperience: hopData.training_experience || '',
-            equipmentDesign: hopData.equipment_design || '',
-            communicationTeamwork: hopData.communication_teamwork || '',
-            supervisorySupport: hopData.supervisory_support || '',
-            organizationalCulture: hopData.organizational_culture || '',
-            whatMadeSense: hopData.what_made_sense || '',
-            localRationality: hopData.local_rationality || '',
-            tradeoffsDecisions: hopData.tradeoffs_decisions || '',
-            systemImprovements: hopData.system_improvements || '',
-            learningPoints: hopData.learning_points || ''
+            errorPrecursors: hopData.workload_demands || '',
+            systemDefenses: hopData.procedural_guidance || '',
+            vulnerabilities: hopData.what_made_sense || '',
+            systemImprovements: hopData.system_improvements || ''
           });
         }
       }
@@ -110,23 +98,22 @@ export default function HOPAssessment() {
       const assessmentData = {
         investigation_id: investigationId,
         causal_factor_id: causalFactorId,
-        classification: classification,
-        task_description: formData.taskDescription,
-        work_conditions: formData.workConditions,
-        time_of_day: formData.timeOfDay,
-        workload_demands: formData.workloadDemands,
-        time_available: formData.timeAvailable,
-        procedural_guidance: formData.proceduralGuidance,
-        training_experience: formData.trainingExperience,
-        equipment_design: formData.equipmentDesign,
-        communication_teamwork: formData.communicationTeamwork,
-        supervisory_support: formData.supervisorySupport,
-        organizational_culture: formData.organizationalCulture,
-        what_made_sense: formData.whatMadeSense,
-        local_rationality: formData.localRationality,
-        tradeoffs_decisions: formData.tradeoffsDecisions,
+        workload_demands: formData.errorPrecursors,
+        procedural_guidance: formData.systemDefenses,
+        what_made_sense: formData.vulnerabilities,
         system_improvements: formData.systemImprovements,
-        learning_points: formData.learningPoints,
+        task_description: '',
+        work_conditions: '',
+        time_of_day: '',
+        time_available: '',
+        training_experience: '',
+        equipment_design: '',
+        communication_teamwork: '',
+        supervisory_support: '',
+        organizational_culture: '',
+        local_rationality: '',
+        tradeoffs_decisions: '',
+        learning_points: '',
         status: 'complete',
         completed_at: new Date().toISOString(),
         updated_at: new Date().toISOString()
@@ -140,35 +127,29 @@ export default function HOPAssessment() {
         .single();
 
       if (existing) {
-        // Update existing
         const { error } = await supabase
           .from('hop_assessments')
           .update(assessmentData)
           .eq('id', existing.id);
-
         if (error) throw error;
       } else {
-        // Insert new
         const { error } = await supabase
           .from('hop_assessments')
           .insert([assessmentData]);
-
         if (error) throw error;
       }
 
       // Update causal factor status
-      const { error: updateError } = await supabase
+      await supabase
         .from('causal_factors')
         .update({ analysis_status: 'analysis_complete' })
         .eq('id', causalFactorId);
 
-      if (updateError) throw updateError;
-
       alert('HOP Assessment completed!');
       router.push(`/step4?investigationId=${investigationId}`);
     } catch (error: any) {
-      console.error('Error completing:', error);
-      alert(`Error completing assessment: ${error.message || 'Unknown error'}`);
+      console.error('Error:', error);
+      alert(`Error: ${error.message || 'Unknown error'}`);
     } finally {
       setSaving(false);
     }
@@ -176,312 +157,130 @@ export default function HOPAssessment() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 flex items-center justify-center">
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
-          <p className="text-slate-600">Loading assessment...</p>
+          <p className="text-gray-600">Loading...</p>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 p-6">
+    <div className="min-h-screen bg-gray-50 p-6">
       <div className="max-w-4xl mx-auto">
-        <div className="bg-white rounded-lg shadow-sm border border-slate-200 p-6">
+        <div className="mb-6">
           <button
             onClick={() => router.push(`/step4?investigationId=${investigationId}`)}
-            className="flex items-center gap-2 text-slate-600 hover:text-slate-900 mb-4"
+            className="flex items-center gap-2 text-gray-600 hover:text-gray-900 mb-4"
           >
             <ArrowLeft className="w-4 h-4" />
             Back to Causal Analysis
           </button>
           
-          <div className="mb-6">
-            <h1 className="text-2xl font-bold text-slate-900">HOP Assessment</h1>
-            <p className="text-slate-600 mt-1">Human & Organizational Performance</p>
+          <div className="bg-white rounded-lg border p-4">
+            <div className="flex items-center gap-2 mb-2">
+              <Target className="w-6 h-6 text-blue-600" />
+              <h1 className="text-2xl font-bold text-gray-900">HOP Assessment</h1>
+            </div>
+            <p className="text-sm text-gray-600">Human & Organizational Performance</p>
             {investigation && (
-              <div className="mt-2 text-sm text-slate-500">
-                Investigation: <span className="font-medium text-slate-900">{investigation.investigation_number}</span>
+              <div className="mt-3 text-sm text-gray-600">
+                Investigation: <span className="font-medium text-gray-900">{investigation.investigation_number}</span>
               </div>
             )}
             {causalFactor && (
-              <div className="mt-1 text-sm text-slate-500">
-                Causal Factor: <span className="font-medium text-slate-900">{causalFactor.causal_factor_title}</span>
+              <div className="text-sm text-gray-600">
+                Causal Factor: <span className="font-medium text-gray-900">{causalFactor.causal_factor_title}</span>
               </div>
             )}
           </div>
+        </div>
 
-          {/* Classification Selection */}
-          <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
-            <label className="block text-sm font-semibold text-blue-900 mb-3">Factor Classification</label>
-            <div className="flex gap-3">
-              <button
-                onClick={() => setClassification('contributing')}
-                className={`flex-1 px-4 py-3 rounded-lg font-medium transition-all ${
-                  classification === 'contributing'
-                    ? 'bg-orange-500 text-white shadow-md'
-                    : 'bg-white text-slate-700 border border-slate-300 hover:bg-slate-50'
-                }`}
-              >
-                Contributing Factor
-              </button>
-              <button
-                onClick={() => setClassification('causal')}
-                className={`flex-1 px-4 py-3 rounded-lg font-medium transition-all ${
-                  classification === 'causal'
-                    ? 'bg-red-500 text-white shadow-md'
-                    : 'bg-white text-slate-700 border border-slate-300 hover:bg-slate-50'
-                }`}
-              >
-                Causal Factor
-              </button>
-            </div>
-            <p className="text-xs text-slate-600 mt-2">
-              <strong>Contributing:</strong> Enabled the incident • <strong>Causal:</strong> Direct cause
-            </p>
+        {/* HOP Assessment Fields */}
+        <div className="bg-white border rounded p-4 space-y-4">
+          <div>
+            <label className="block text-sm font-medium mb-1 flex items-center gap-1">
+              Error Precursors
+              <Tooltip text="Were there changes, time pressure, distractions, or missing information that made error more likely?">
+                <HelpCircle className="w-4 h-4 text-blue-500" />
+              </Tooltip>
+            </label>
+            <textarea
+              value={formData.errorPrecursors}
+              onChange={(e) => setFormData({ ...formData, errorPrecursors: e.target.value })}
+              className="w-full border rounded px-3 py-2 text-sm"
+              rows={3}
+              placeholder="Identify conditions that made errors likely (changes, time pressure, unclear information, etc.)..."
+            />
           </div>
 
-          {/* HOP Assessment Fields */}
-          <div className="space-y-6">
-            {/* Context */}
-            <div>
-              <h3 className="font-semibold text-lg text-slate-900 mb-3 pb-2 border-b border-slate-200">
-                Context
-              </h3>
-              <div className="space-y-4">
-                <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-2">
-                    Task/Activity Description
-                  </label>
-                  <textarea
-                    value={formData.taskDescription}
-                    onChange={(e) => setFormData({ ...formData, taskDescription: e.target.value })}
-                    className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm"
-                    rows={2}
-                    placeholder="What was the person doing at the time of the incident?"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-2">
-                    Work Conditions
-                  </label>
-                  <textarea
-                    value={formData.workConditions}
-                    onChange={(e) => setFormData({ ...formData, workConditions: e.target.value })}
-                    className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm"
-                    rows={2}
-                    placeholder="Describe the working environment and conditions"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-2">
-                    Time of Day
-                  </label>
-                  <input
-                    type="text"
-                    value={formData.timeOfDay}
-                    onChange={(e) => setFormData({ ...formData, timeOfDay: e.target.value })}
-                    className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm"
-                    placeholder="e.g., Night shift, early morning"
-                  />
-                </div>
-              </div>
-            </div>
-
-            {/* Performance Influencing Factors */}
-            <div>
-              <h3 className="font-semibold text-lg text-slate-900 mb-3 pb-2 border-b border-slate-200">
-                Performance Influencing Factors
-              </h3>
-              <div className="space-y-4">
-                <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-2">
-                    Workload & Demands
-                  </label>
-                  <textarea
-                    value={formData.workloadDemands}
-                    onChange={(e) => setFormData({ ...formData, workloadDemands: e.target.value })}
-                    className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm"
-                    rows={2}
-                    placeholder="What were the workload demands and pressures?"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-2">
-                    Time Available
-                  </label>
-                  <textarea
-                    value={formData.timeAvailable}
-                    onChange={(e) => setFormData({ ...formData, timeAvailable: e.target.value })}
-                    className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm"
-                    rows={2}
-                    placeholder="Was there adequate time to complete the task safely?"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-2">
-                    Procedural Guidance
-                  </label>
-                  <textarea
-                    value={formData.proceduralGuidance}
-                    onChange={(e) => setFormData({ ...formData, proceduralGuidance: e.target.value })}
-                    className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm"
-                    rows={2}
-                    placeholder="What procedures or guidance were available?"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-2">
-                    Training & Experience
-                  </label>
-                  <textarea
-                    value={formData.trainingExperience}
-                    onChange={(e) => setFormData({ ...formData, trainingExperience: e.target.value })}
-                    className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm"
-                    rows={2}
-                    placeholder="What training and experience did the person have?"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-2">
-                    Equipment Design
-                  </label>
-                  <textarea
-                    value={formData.equipmentDesign}
-                    onChange={(e) => setFormData({ ...formData, equipmentDesign: e.target.value })}
-                    className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm"
-                    rows={2}
-                    placeholder="How did equipment design influence the situation?"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-2">
-                    Communication & Teamwork
-                  </label>
-                  <textarea
-                    value={formData.communicationTeamwork}
-                    onChange={(e) => setFormData({ ...formData, communicationTeamwork: e.target.value })}
-                    className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm"
-                    rows={2}
-                    placeholder="How did communication and teamwork factors play a role?"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-2">
-                    Supervisory Support
-                  </label>
-                  <textarea
-                    value={formData.supervisorySupport}
-                    onChange={(e) => setFormData({ ...formData, supervisorySupport: e.target.value })}
-                    className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm"
-                    rows={2}
-                    placeholder="What supervisory support was available?"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-2">
-                    Organizational Culture
-                  </label>
-                  <textarea
-                    value={formData.organizationalCulture}
-                    onChange={(e) => setFormData({ ...formData, organizationalCulture: e.target.value })}
-                    className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm"
-                    rows={2}
-                    placeholder="How did organizational culture and norms influence behavior?"
-                  />
-                </div>
-              </div>
-            </div>
-
-            {/* Learning from Incident */}
-            <div>
-              <h3 className="font-semibold text-lg text-slate-900 mb-3 pb-2 border-b border-slate-200">
-                Learning from the Incident
-              </h3>
-              <div className="space-y-4">
-                <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-2">
-                    What Made Sense to the Worker?
-                  </label>
-                  <textarea
-                    value={formData.whatMadeSense}
-                    onChange={(e) => setFormData({ ...formData, whatMadeSense: e.target.value })}
-                    className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm"
-                    rows={3}
-                    placeholder="From the worker's perspective, why did their actions make sense at the time?"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-2">
-                    Local Rationality
-                  </label>
-                  <textarea
-                    value={formData.localRationality}
-                    onChange={(e) => setFormData({ ...formData, localRationality: e.target.value })}
-                    className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm"
-                    rows={3}
-                    placeholder="What information and context shaped their decisions?"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-2">
-                    Tradeoffs & Decisions
-                  </label>
-                  <textarea
-                    value={formData.tradeoffsDecisions}
-                    onChange={(e) => setFormData({ ...formData, tradeoffsDecisions: e.target.value })}
-                    className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm"
-                    rows={3}
-                    placeholder="What tradeoffs or competing goals were they managing?"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-2">
-                    System Improvements
-                  </label>
-                  <textarea
-                    value={formData.systemImprovements}
-                    onChange={(e) => setFormData({ ...formData, systemImprovements: e.target.value })}
-                    className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm"
-                    rows={3}
-                    placeholder="What system changes could prevent similar incidents?"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-2">
-                    Key Learning Points
-                  </label>
-                  <textarea
-                    value={formData.learningPoints}
-                    onChange={(e) => setFormData({ ...formData, learningPoints: e.target.value })}
-                    className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm"
-                    rows={3}
-                    placeholder="What are the key takeaways from this assessment?"
-                  />
-                </div>
-              </div>
-            </div>
+          <div>
+            <label className="block text-sm font-medium mb-1 flex items-center gap-1">
+              System Defenses
+              <Tooltip text="What barriers existed? Which failed or were bypassed? Could the error have been caught?">
+                <HelpCircle className="w-4 h-4 text-blue-500" />
+              </Tooltip>
+            </label>
+            <textarea
+              value={formData.systemDefenses}
+              onChange={(e) => setFormData({ ...formData, systemDefenses: e.target.value })}
+              className="w-full border rounded px-3 py-2 text-sm"
+              rows={3}
+              placeholder="What defenses/barriers failed or were absent? Could error have been detected earlier?..."
+            />
           </div>
 
-          {/* Action Buttons */}
-          <div className="flex gap-3 mt-8 pt-6 border-t border-slate-200">
-            <button
-              onClick={handleComplete}
-              disabled={saving}
-              className="flex items-center gap-2 px-6 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50 transition-colors"
-            >
-              <CheckCircle className="w-5 h-5" />
-              {saving ? 'Saving...' : 'Complete Assessment'}
-            </button>
-            <button
-              onClick={() => router.push(`/step4?investigationId=${investigationId}`)}
-              disabled={saving}
-              className="px-6 py-3 text-slate-700 border border-slate-300 rounded-lg hover:bg-slate-50 transition-colors"
-            >
-              Cancel
-            </button>
+          <div>
+            <label className="block text-sm font-medium mb-1 flex items-center gap-1">
+              System Vulnerabilities
+              <Tooltip text="What systemic weaknesses exist? What assumptions about human performance were flawed?">
+                <HelpCircle className="w-4 h-4 text-blue-500" />
+              </Tooltip>
+            </label>
+            <textarea
+              value={formData.vulnerabilities}
+              onChange={(e) => setFormData({ ...formData, vulnerabilities: e.target.value })}
+              className="w-full border rounded px-3 py-2 text-sm"
+              rows={3}
+              placeholder="Identify systemic weaknesses and error-likely situations that could affect others..."
+            />
           </div>
+
+          <div>
+            <label className="block text-sm font-medium mb-1 flex items-center gap-1">
+              System Improvements
+              <Tooltip text="What system changes will reduce error-likely conditions and strengthen defenses?">
+                <HelpCircle className="w-4 h-4 text-blue-500" />
+              </Tooltip>
+            </label>
+            <textarea
+              value={formData.systemImprovements}
+              onChange={(e) => setFormData({ ...formData, systemImprovements: e.target.value })}
+              className="w-full border rounded px-3 py-2 text-sm"
+              rows={3}
+              placeholder="Recommend system-level improvements to reduce error precursors and strengthen defenses..."
+            />
+          </div>
+        </div>
+
+        {/* Action Buttons */}
+        <div className="flex gap-3 mt-6">
+          <button
+            onClick={handleComplete}
+            disabled={saving}
+            className="flex items-center gap-2 px-6 py-3 bg-green-600 text-white rounded hover:bg-green-700 disabled:opacity-50"
+          >
+            <CheckCircle className="w-5 h-5" />
+            {saving ? 'Saving...' : 'Complete Assessment'}
+          </button>
+          <button
+            onClick={() => router.push(`/step4?investigationId=${investigationId}`)}
+            disabled={saving}
+            className="px-6 py-3 text-gray-700 border border-gray-300 rounded hover:bg-gray-50"
+          >
+            Cancel
+          </button>
         </div>
       </div>
     </div>
