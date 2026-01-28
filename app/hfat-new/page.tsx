@@ -408,66 +408,65 @@ export default function HFATAssessment() {
               )}
             </div>
           ))}
+
+          {/* Just Culture Assessment */}
+          <div className="bg-white border rounded">
+            <button
+              onClick={() => setShowJustCulture(!showJustCulture)}
+              className="w-full flex items-center justify-between p-3 hover:bg-gray-50"
+            >
+              <div className="flex items-center gap-2">
+                <Shield className="w-4 h-4" />
+                <h4 className="font-semibold text-sm">Just Culture Assessment</h4>
+              </div>
+              {showJustCulture ? <ChevronDown className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
+            </button>
+            {showJustCulture && (
+              <div className="p-3 border-t space-y-3">
+                <div>
+                  <label className="block text-xs font-medium mb-1 flex items-center gap-1">
+                    Classification
+                    <Tooltip text="Human Error: Unintended mistake anyone could make in same situation. At-Risk: Risky choice with unrecognized danger. Reckless: Deliberate disregard of known substantial risk.">
+                      <HelpCircle className="w-3 h-3 text-blue-500" />
+                    </Tooltip>
+                  </label>
+                  <select
+                    value={justCulture.classification}
+                    onChange={(e) => setJustCulture({ ...justCulture, classification: e.target.value })}
+                    className="w-full border rounded px-2 py-1 text-sm"
+                  >
+                    <option value="">Select...</option>
+                    <option value="Human Error">Human Error - Unintended action, system focus</option>
+                    <option value="At-Risk Behavior">At-Risk Behavior - Coaching & remove risk incentives</option>
+                    <option value="Reckless Behavior">Reckless Behavior - Conscious disregard of risk</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-xs font-medium mb-1">Justification</label>
+                  <textarea
+                    value={justCulture.justification}
+                    onChange={(e) => setJustCulture({ ...justCulture, justification: e.target.value })}
+                    className="w-full border rounded px-2 py-1 text-sm"
+                    rows={2}
+                    placeholder="Document reasoning and evidence for this classification..."
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium mb-1">Response Actions</label>
+                  <textarea
+                    value={justCulture.responseActions}
+                    onChange={(e) => setJustCulture({ ...justCulture, responseActions: e.target.value })}
+                    className="w-full border rounded px-2 py-1 text-sm"
+                    rows={2}
+                    placeholder="Recommended actions based on classification (Console, coach, or punish)"
+                  />
+                </div>
+              </div>
+            )}
+          </div>
         </div>
 
-        {/* Just Culture Assessment */}
-        <div className="bg-white border rounded">
-          <button
-            onClick={() => setShowJustCulture(!showJustCulture)}
-            className="w-full flex items-center justify-between p-3 hover:bg-gray-50"
-          >
-            <div className="flex items-center gap-2">
-              <Shield className="w-4 h-4" />
-              <h4 className="font-semibold text-sm">Just Culture Assessment</h4>
-            </div>
-            {showJustCulture ? <ChevronDown className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
-          </button>
-          {showJustCulture && (
-            <div className="p-3 border-t space-y-3">
-              <div>
-                <label className="block text-xs font-medium mb-1 flex items-center gap-1">
-                  Classification
-                  <Tooltip text="Human Error: Unintended mistake anyone could make in same situation. At-Risk: Risky choice with unrecognized danger. Reckless: Deliberate disregard of known substantial risk.">
-                    <HelpCircle className="w-3 h-3 text-blue-500" />
-                  </Tooltip>
-                </label>
-                <select
-                  value={justCulture.classification}
-                  onChange={(e) => setJustCulture({ ...justCulture, classification: e.target.value })}
-                  className="w-full border rounded px-2 py-1 text-sm"
-                >
-                  <option value="">Select...</option>
-                  <option value="Human Error">Human Error - Unintended action, system focus</option>
-                  <option value="At-Risk Behavior">At-Risk Behavior - Coaching & remove risk incentives</option>
-                  <option value="Reckless Behavior">Reckless Behavior - Conscious disregard of risk</option>
-                </select>
-              </div>
-              <div>
-                <label className="block text-xs font-medium mb-1">Justification</label>
-                <textarea
-                  value={justCulture.justification}
-                  onChange={(e) => setJustCulture({ ...justCulture, justification: e.target.value })}
-                  className="w-full border rounded px-2 py-1 text-sm"
-                  rows={2}
-                  placeholder="Document reasoning and evidence for this classification..."
-                />
-              </div>
-              <div>
-                <label className="block text-xs font-medium mb-1">Response Actions</label>
-                <textarea
-                  value={justCulture.responseActions}
-                  onChange={(e) => setJustCulture({ ...justCulture, responseActions: e.target.value })}
-                  className="w-full border rounded px-2 py-1 text-sm"
-                  rows={2}
-                  placeholder="Recommended actions based on classification (Console, coach, or punish)"
-                />
-              </div>
-            </div>
-          )}
-        </div>
-      </div>
-
-      {/* Action Buttons */}
+        {/* Action Buttons */}
         <div className="flex gap-3 mt-6">
           <button
             onClick={handleComplete}
