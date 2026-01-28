@@ -2,8 +2,25 @@
 
 import React, { useState, useEffect } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { ArrowLeft, Save, CheckCircle } from 'lucide-react';
+import { ArrowLeft, Save, CheckCircle, ChevronDown, ChevronRight, Users, Brain, Shield, HelpCircle } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
+
+const Tooltip = ({ text, children }: { text: string; children: React.ReactNode }) => {
+  const [show, setShow] = useState(false);
+  return (
+    <div className="relative inline-block">
+      <div onMouseEnter={() => setShow(true)} onMouseLeave={() => setShow(false)} className="cursor-help">
+        {children}
+      </div>
+      {show && (
+        <div className="absolute z-50 w-64 p-2 text-xs bg-gray-900 text-white rounded shadow-lg -top-2 left-6">
+          {text}
+          <div className="absolute w-2 h-2 bg-gray-900 transform rotate-45 -left-1 top-3"></div>
+        </div>
+      )}
+    </div>
+  );
+};
 
 export default function HFATAssessment() {
   const router = useRouter();
@@ -17,35 +34,141 @@ export default function HFATAssessment() {
   const [investigation, setInvestigation] = useState<any>(null);
   const [causalFactor, setCausalFactor] = useState<any>(null);
 
-  // Contributing or Causal classification
-  const [classification, setClassification] = useState<'contributing' | 'causal'>('contributing');
-
-  // Form data for each HFAT category
-  const [formData, setFormData] = useState({
-    // Individual Factors (IOGP 4.2.1)
-    fatigue: '',
-    competency: '',
-    awareness: '',
-    stress: '',
-    physical: '',
-    
-    // Task Factors (IOGP 4.2.2)
-    taskDesign: '',
-    procedures: '',
-    equipment: '',
-    environment: '',
-    
-    // Team Factors (IOGP 4.2.3)
-    communication: '',
-    teamwork: '',
-    supervision: '',
-    
-    // Organizational Factors (IOGP 4.2.4)
-    culture: '',
-    resources: '',
-    planning: '',
-    policies: ''
+  // Track which sections are expanded
+  const [expandedSections, setExpandedSections] = useState<Record<string, boolean>>({
+    individual: true,
+    task: false,
+    organizational: false
   });
+
+  // Store ratings and notes for each factor
+  const [humanFactors, setHumanFactors] = useState<Record<string, { rating: string; notes: string }>>({});
+
+  const factorCategories = {
+    individual: {
+      title: "Individual Factors (IOGP 621: 4.2.1)",
+      icon: <Users className="w-5 h-5" />,
+      items: [
+        {
+          id: 'fatigue',
+          label: 'Fatigue / Alertness',
+          taproot: 'Human Engineering',
+          iogp: '4.2.1.1',
+          tooltip: 'Consider work schedules, shift patterns, rest periods, and whether the individual was adequately rested and alert for the task.'
+        },
+        {
+          id: 'competency',
+          label: 'Competency / Training',
+          taproot: 'Training Deficiency',
+          iogp: '4.2.1.2',
+          tooltip: 'Assess if the person had appropriate qualifications, training, and experience for the task they were performing.'
+        },
+        {
+          id: 'situational',
+          label: 'Situational Awareness',
+          taproot: 'Management System',
+          iogp: '4.2.1.3',
+          tooltip: 'Evaluate whether the individual understood the current situation, recognized hazards, and anticipated potential consequences.'
+        },
+        {
+          id: 'stress',
+          label: 'Stress / Workload',
+          taproot: 'Human Engineering',
+          iogp: '4.2.1.4',
+          tooltip: 'Consider time pressure, task complexity, mental/physical demands, and any personal or organizational stressors present.'
+        },
+        {
+          id: 'health',
+          label: 'Physical/Mental Health',
+          taproot: 'Safeguards',
+          iogp: '4.2.1.5',
+          tooltip: 'Assess whether physical fitness, mental wellbeing, medication, or health conditions affected the individual\'s performance.'
+        }
+      ]
+    },
+    task: {
+      title: "Task/Work Factors (IOGP 621: 4.2.2)",
+      icon: <Brain className="w-5 h-5" />,
+      items: [
+        {
+          id: 'procedure',
+          label: 'Procedure Quality',
+          taproot: 'Procedure Not Adequate',
+          iogp: '4.2.2.1',
+          tooltip: 'Evaluate if procedures were available, accurate, easy to follow, and appropriate for the actual working conditions.'
+        },
+        {
+          id: 'complexity',
+          label: 'Task Complexity',
+          taproot: 'Human Engineering',
+          iogp: '4.2.2.2',
+          tooltip: 'Consider the number of steps, decision points, simultaneous activities, and cognitive demands required by the task.'
+        },
+        {
+          id: 'time',
+          label: 'Time Pressure',
+          taproot: 'Management System',
+          iogp: '4.2.2.3',
+          tooltip: 'Assess whether deadlines, production targets, or scheduling created pressure that affected decision-making or performance.'
+        },
+        {
+          id: 'tools',
+          label: 'Tools/Equipment Design',
+          taproot: 'Equipment Deficiency',
+          iogp: '4.2.2.4',
+          tooltip: 'Evaluate if tools and equipment were fit for purpose, properly maintained, ergonomically designed, and had adequate safety features.'
+        },
+        {
+          id: 'communication',
+          label: 'Communication',
+          taproot: 'Communication Problem',
+          iogp: '4.2.2.5',
+          tooltip: 'Consider clarity of instructions, handovers, team coordination, language barriers, and effectiveness of information exchange.'
+        }
+      ]
+    },
+    organizational: {
+      title: "Organizational Factors (IOGP 621: 4.2.3)",
+      icon: <Shield className="w-5 h-5" />,
+      items: [
+        {
+          id: 'culture',
+          label: 'Safety Culture',
+          taproot: 'Management System',
+          iogp: '4.2.3.1',
+          tooltip: 'Assess organizational attitudes toward safety, reporting culture, management commitment, and whether safety is prioritized over production.'
+        },
+        {
+          id: 'resources',
+          label: 'Resource Allocation',
+          taproot: 'Management System',
+          iogp: '4.2.3.2',
+          tooltip: 'Evaluate if adequate people, equipment, time, and budget were provided to complete the work safely and effectively.'
+        },
+        {
+          id: 'supervision',
+          label: 'Supervision/Leadership',
+          taproot: 'Management System',
+          iogp: '4.2.3.3',
+          tooltip: 'Consider quality of oversight, leadership presence, supervisor competence, and whether appropriate guidance was available when needed.'
+        },
+        {
+          id: 'planning',
+          label: 'Work Planning',
+          taproot: 'Planning/Scheduling',
+          iogp: '4.2.3.4',
+          tooltip: 'Assess whether the work was properly planned, hazards identified, controls implemented, and coordination with other activities considered.'
+        },
+        {
+          id: 'change',
+          label: 'Change Management',
+          taproot: 'Management of Change',
+          iogp: '4.2.3.5',
+          tooltip: 'Evaluate if changes to equipment, procedures, personnel, or conditions were properly assessed, communicated, and controlled.'
+        }
+      ]
+    }
+  };
 
   useEffect(() => {
     loadData();
@@ -70,7 +193,7 @@ export default function HFATAssessment() {
           .single();
         setCausalFactor(cfData);
 
-        // Load existing HFAT assessment if exists
+        // Load existing HFAT assessment
         const { data: hfatData } = await supabase
           .from('hfat_assessments')
           .select('*')
@@ -78,9 +201,7 @@ export default function HFATAssessment() {
           .single();
 
         if (hfatData && hfatData.notes) {
-          const notes = hfatData.notes;
-          if (notes.classification) setClassification(notes.classification);
-          if (notes.factors) setFormData(notes.factors);
+          setHumanFactors(hfatData.notes || {});
         }
       }
     } catch (error) {
@@ -88,6 +209,36 @@ export default function HFATAssessment() {
     } finally {
       setLoading(false);
     }
+  };
+
+  const toggleSection = (section: string) => {
+    setExpandedSections(prev => ({
+      ...prev,
+      [section]: !prev[section]
+    }));
+  };
+
+  const updateHumanFactor = (category: string, itemId: string, rating: string) => {
+    const key = `${category}_${itemId}`;
+    setHumanFactors(prev => ({
+      ...prev,
+      [key]: {
+        ...prev[key],
+        rating: prev[key]?.rating === rating ? '' : rating, // Toggle off if clicking same button
+        notes: prev[key]?.notes || ''
+      }
+    }));
+  };
+
+  const updateFactorNotes = (category: string, itemId: string, notes: string) => {
+    const key = `${category}_${itemId}`;
+    setHumanFactors(prev => ({
+      ...prev,
+      [key]: {
+        rating: prev[key]?.rating || '',
+        notes: notes
+      }
+    }));
   };
 
   const handleComplete = async () => {
@@ -101,10 +252,7 @@ export default function HFATAssessment() {
       const assessmentData = {
         investigation_id: investigationId,
         causal_factor_id: causalFactorId,
-        notes: {
-          classification: classification,
-          factors: formData
-        },
+        notes: humanFactors,
         ratings: {}, // Empty for compatibility
         status: 'complete',
         completed_at: new Date().toISOString(),
@@ -119,35 +267,29 @@ export default function HFATAssessment() {
         .single();
 
       if (existing) {
-        // Update existing
         const { error } = await supabase
           .from('hfat_assessments')
           .update(assessmentData)
           .eq('id', existing.id);
-
         if (error) throw error;
       } else {
-        // Insert new
         const { error } = await supabase
           .from('hfat_assessments')
           .insert([assessmentData]);
-
         if (error) throw error;
       }
 
       // Update causal factor status
-      const { error: updateError } = await supabase
+      await supabase
         .from('causal_factors')
         .update({ analysis_status: 'analysis_complete' })
         .eq('id', causalFactorId);
 
-      if (updateError) throw updateError;
-
       alert('HFAT Assessment completed!');
       router.push(`/step4?investigationId=${investigationId}`);
     } catch (error: any) {
-      console.error('Error completing:', error);
-      alert(`Error completing assessment: ${error.message || 'Unknown error'}`);
+      console.error('Error:', error);
+      alert(`Error: ${error.message || 'Unknown error'}`);
     } finally {
       setSaving(false);
     }
@@ -155,321 +297,134 @@ export default function HFATAssessment() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 flex items-center justify-center">
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
-          <p className="text-slate-600">Loading assessment...</p>
+          <p className="text-gray-600">Loading...</p>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 p-6">
-      <div className="max-w-4xl mx-auto">
-        <div className="bg-white rounded-lg shadow-sm border border-slate-200 p-6">
+    <div className="min-h-screen bg-gray-50 p-6">
+      <div className="max-w-5xl mx-auto">
+        <div className="mb-6">
           <button
             onClick={() => router.push(`/step4?investigationId=${investigationId}`)}
-            className="flex items-center gap-2 text-slate-600 hover:text-slate-900 mb-4"
+            className="flex items-center gap-2 text-gray-600 hover:text-gray-900 mb-4"
           >
             <ArrowLeft className="w-4 h-4" />
             Back to Causal Analysis
           </button>
           
-          <div className="mb-6">
-            <h1 className="text-2xl font-bold text-slate-900">HFAT Assessment</h1>
-            <p className="text-slate-600 mt-1">Human Factors Analysis Tool (IOGP 621)</p>
+          <div className="bg-white rounded-lg border p-4">
+            <h1 className="text-2xl font-bold text-gray-900">HFAT Assessment</h1>
+            <p className="text-sm text-gray-600 mt-1">Human Factors Analysis Tool | IOGP 621</p>
             {investigation && (
-              <div className="mt-2 text-sm text-slate-500">
-                Investigation: <span className="font-medium text-slate-900">{investigation.investigation_number}</span>
+              <div className="mt-3 text-sm text-gray-600">
+                Investigation: <span className="font-medium text-gray-900">{investigation.investigation_number}</span>
               </div>
             )}
             {causalFactor && (
-              <div className="mt-1 text-sm text-slate-500">
-                Causal Factor: <span className="font-medium text-slate-900">{causalFactor.causal_factor_title}</span>
+              <div className="text-sm text-gray-600">
+                Causal Factor: <span className="font-medium text-gray-900">{causalFactor.causal_factor_title}</span>
               </div>
             )}
           </div>
+        </div>
 
-          {/* Classification Selection */}
-          <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
-            <label className="block text-sm font-semibold text-blue-900 mb-3">Factor Classification</label>
-            <div className="flex gap-3">
+        {/* Factor Categories */}
+        <div className="space-y-3">
+          {Object.entries(factorCategories).map(([key, cat]) => (
+            <div key={key} className="bg-white border rounded">
               <button
-                onClick={() => setClassification('contributing')}
-                className={`flex-1 px-4 py-3 rounded-lg font-medium transition-all ${
-                  classification === 'contributing'
-                    ? 'bg-orange-500 text-white shadow-md'
-                    : 'bg-white text-slate-700 border border-slate-300 hover:bg-slate-50'
-                }`}
+                onClick={() => toggleSection(key)}
+                className="w-full flex items-center justify-between p-3 hover:bg-gray-50"
               >
-                Contributing Factor
+                <div className="flex items-center gap-3">
+                  {cat.icon}
+                  <h4 className="font-semibold text-sm">{cat.title}</h4>
+                </div>
+                {expandedSections[key] ? <ChevronDown className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
               </button>
-              <button
-                onClick={() => setClassification('causal')}
-                className={`flex-1 px-4 py-3 rounded-lg font-medium transition-all ${
-                  classification === 'causal'
-                    ? 'bg-red-500 text-white shadow-md'
-                    : 'bg-white text-slate-700 border border-slate-300 hover:bg-slate-50'
-                }`}
-              >
-                Causal Factor
-              </button>
+              
+              {expandedSections[key] && (
+                <div className="p-3 border-t space-y-3">
+                  {cat.items.map(item => {
+                    const factorKey = `${key}_${item.id}`;
+                    const factor = humanFactors[factorKey];
+                    
+                    return (
+                      <div key={item.id} className="border-l-4 border-blue-500 pl-3 py-2">
+                        <div className="flex justify-between mb-2">
+                          <div className="flex-1">
+                            <div className="flex items-center gap-2">
+                              <span className="font-medium text-sm">{item.label}</span>
+                              <Tooltip text={item.tooltip}>
+                                <HelpCircle className="w-4 h-4 text-blue-500" />
+                              </Tooltip>
+                            </div>
+                            <div className="text-xs text-gray-600 mt-1">
+                              IOGP: {item.iogp} | TapRooT®: {item.taproot}
+                            </div>
+                          </div>
+                          <div className="flex gap-2">
+                            <button
+                              onClick={() => updateHumanFactor(key, item.id, 'contributing')}
+                              className={`px-3 py-1 text-xs rounded ${
+                                factor?.rating === 'contributing'
+                                  ? 'bg-orange-500 text-white'
+                                  : 'bg-orange-100 text-orange-700'
+                              }`}
+                            >
+                              Contributing
+                            </button>
+                            <button
+                              onClick={() => updateHumanFactor(key, item.id, 'causal')}
+                              className={`px-3 py-1 text-xs rounded ${
+                                factor?.rating === 'causal'
+                                  ? 'bg-red-500 text-white'
+                                  : 'bg-red-100 text-red-700'
+                              }`}
+                            >
+                              Causal
+                            </button>
+                          </div>
+                        </div>
+                        <textarea
+                          value={factor?.notes || ''}
+                          onChange={(e) => updateFactorNotes(key, item.id, e.target.value)}
+                          className="w-full text-sm border rounded px-3 py-2"
+                          rows={2}
+                          placeholder="Describe how this factor contributed..."
+                        />
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
             </div>
-            <p className="text-xs text-slate-600 mt-2">
-              <strong>Contributing:</strong> Enabled the incident • <strong>Causal:</strong> Direct cause
-            </p>
-          </div>
+          ))}
+        </div>
 
-          {/* HFAT Categories */}
-          <div className="space-y-6">
-            {/* Individual Factors */}
-            <div>
-              <h3 className="font-semibold text-lg text-slate-900 mb-3 pb-2 border-b border-slate-200">
-                Individual Factors (IOGP 4.2.1)
-              </h3>
-              <div className="space-y-4">
-                <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-2">
-                    Fatigue / Alertness (IOGP 4.2.1.1)
-                  </label>
-                  <textarea
-                    value={formData.fatigue}
-                    onChange={(e) => setFormData({ ...formData, fatigue: e.target.value })}
-                    className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm"
-                    rows={2}
-                    placeholder="Was the person adequately rested? Consider shift patterns, work hours..."
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-2">
-                    Competency / Training (IOGP 4.2.1.2)
-                  </label>
-                  <textarea
-                    value={formData.competency}
-                    onChange={(e) => setFormData({ ...formData, competency: e.target.value })}
-                    className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm"
-                    rows={2}
-                    placeholder="Did the person have adequate training and competency?"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-2">
-                    Situational Awareness (IOGP 4.2.1.3)
-                  </label>
-                  <textarea
-                    value={formData.awareness}
-                    onChange={(e) => setFormData({ ...formData, awareness: e.target.value })}
-                    className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm"
-                    rows={2}
-                    placeholder="Did the person have adequate awareness of the situation and hazards?"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-2">
-                    Stress / Workload (IOGP 4.2.1.4)
-                  </label>
-                  <textarea
-                    value={formData.stress}
-                    onChange={(e) => setFormData({ ...formData, stress: e.target.value })}
-                    className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm"
-                    rows={2}
-                    placeholder="Was there excessive workload or stress affecting performance?"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-2">
-                    Physical / Medical Factors (IOGP 4.2.1.5)
-                  </label>
-                  <textarea
-                    value={formData.physical}
-                    onChange={(e) => setFormData({ ...formData, physical: e.target.value })}
-                    className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm"
-                    rows={2}
-                    placeholder="Any physical or medical conditions affecting performance?"
-                  />
-                </div>
-              </div>
-            </div>
-
-            {/* Task/Work Factors */}
-            <div>
-              <h3 className="font-semibold text-lg text-slate-900 mb-3 pb-2 border-b border-slate-200">
-                Task/Work Factors (IOGP 4.2.2)
-              </h3>
-              <div className="space-y-4">
-                <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-2">
-                    Task Design / Complexity (IOGP 4.2.2.1)
-                  </label>
-                  <textarea
-                    value={formData.taskDesign}
-                    onChange={(e) => setFormData({ ...formData, taskDesign: e.target.value })}
-                    className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm"
-                    rows={2}
-                    placeholder="Was the task design appropriate? Was it too complex?"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-2">
-                    Procedures / Work Instructions (IOGP 4.2.2.2)
-                  </label>
-                  <textarea
-                    value={formData.procedures}
-                    onChange={(e) => setFormData({ ...formData, procedures: e.target.value })}
-                    className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm"
-                    rows={2}
-                    placeholder="Were procedures available, adequate, and followed?"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-2">
-                    Equipment / Tools (IOGP 4.2.2.3)
-                  </label>
-                  <textarea
-                    value={formData.equipment}
-                    onChange={(e) => setFormData({ ...formData, equipment: e.target.value })}
-                    className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm"
-                    rows={2}
-                    placeholder="Was equipment/tool design user-friendly and appropriate?"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-2">
-                    Environment / Conditions (IOGP 4.2.2.4)
-                  </label>
-                  <textarea
-                    value={formData.environment}
-                    onChange={(e) => setFormData({ ...formData, environment: e.target.value })}
-                    className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm"
-                    rows={2}
-                    placeholder="Were environmental conditions suitable (lighting, noise, weather)?"
-                  />
-                </div>
-              </div>
-            </div>
-
-            {/* Team/Communication Factors */}
-            <div>
-              <h3 className="font-semibold text-lg text-slate-900 mb-3 pb-2 border-b border-slate-200">
-                Team/Communication Factors (IOGP 4.2.3)
-              </h3>
-              <div className="space-y-4">
-                <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-2">
-                    Communication (IOGP 4.2.3.1)
-                  </label>
-                  <textarea
-                    value={formData.communication}
-                    onChange={(e) => setFormData({ ...formData, communication: e.target.value })}
-                    className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm"
-                    rows={2}
-                    placeholder="Was communication clear and effective?"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-2">
-                    Teamwork / Coordination (IOGP 4.2.3.2)
-                  </label>
-                  <textarea
-                    value={formData.teamwork}
-                    onChange={(e) => setFormData({ ...formData, teamwork: e.target.value })}
-                    className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm"
-                    rows={2}
-                    placeholder="Did the team work together effectively?"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-2">
-                    Supervision / Leadership (IOGP 4.2.3.3)
-                  </label>
-                  <textarea
-                    value={formData.supervision}
-                    onChange={(e) => setFormData({ ...formData, supervision: e.target.value })}
-                    className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm"
-                    rows={2}
-                    placeholder="Was supervision adequate and supportive?"
-                  />
-                </div>
-              </div>
-            </div>
-
-            {/* Organizational Factors */}
-            <div>
-              <h3 className="font-semibold text-lg text-slate-900 mb-3 pb-2 border-b border-slate-200">
-                Organizational Factors (IOGP 4.2.4)
-              </h3>
-              <div className="space-y-4">
-                <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-2">
-                    Safety Culture (IOGP 4.2.4.1)
-                  </label>
-                  <textarea
-                    value={formData.culture}
-                    onChange={(e) => setFormData({ ...formData, culture: e.target.value })}
-                    className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm"
-                    rows={2}
-                    placeholder="Did organizational culture support safe operations?"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-2">
-                    Resources / Staffing (IOGP 4.2.4.2)
-                  </label>
-                  <textarea
-                    value={formData.resources}
-                    onChange={(e) => setFormData({ ...formData, resources: e.target.value })}
-                    className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm"
-                    rows={2}
-                    placeholder="Were adequate resources and staffing provided?"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-2">
-                    Work Planning / Scheduling (IOGP 4.2.4.3)
-                  </label>
-                  <textarea
-                    value={formData.planning}
-                    onChange={(e) => setFormData({ ...formData, planning: e.target.value })}
-                    className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm"
-                    rows={2}
-                    placeholder="Was work adequately planned and scheduled?"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-2">
-                    Policies / Standards (IOGP 4.2.4.4)
-                  </label>
-                  <textarea
-                    value={formData.policies}
-                    onChange={(e) => setFormData({ ...formData, policies: e.target.value })}
-                    className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm"
-                    rows={2}
-                    placeholder="Were policies and standards clear and appropriate?"
-                  />
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* Action Buttons */}
-          <div className="flex gap-3 mt-8 pt-6 border-t border-slate-200">
-            <button
-              onClick={handleComplete}
-              disabled={saving}
-              className="flex items-center gap-2 px-6 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50 transition-colors"
-            >
-              <CheckCircle className="w-5 h-5" />
-              {saving ? 'Saving...' : 'Complete Assessment'}
-            </button>
-            <button
-              onClick={() => router.push(`/step4?investigationId=${investigationId}`)}
-              disabled={saving}
-              className="px-6 py-3 text-slate-700 border border-slate-300 rounded-lg hover:bg-slate-50 transition-colors"
-            >
-              Cancel
-            </button>
-          </div>
+        {/* Action Buttons */}
+        <div className="flex gap-3 mt-6">
+          <button
+            onClick={handleComplete}
+            disabled={saving}
+            className="flex items-center gap-2 px-6 py-3 bg-green-600 text-white rounded hover:bg-green-700 disabled:opacity-50"
+          >
+            <CheckCircle className="w-5 h-5" />
+            {saving ? 'Saving...' : 'Complete Assessment'}
+          </button>
+          <button
+            onClick={() => router.push(`/step4?investigationId=${investigationId}`)}
+            disabled={saving}
+            className="px-6 py-3 text-gray-700 border border-gray-300 rounded hover:bg-gray-50"
+          >
+            Cancel
+          </button>
         </div>
       </div>
     </div>
