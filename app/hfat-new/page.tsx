@@ -41,8 +41,17 @@ export default function HFATAssessment() {
     organizational: false
   });
 
+  const [showJustCulture, setShowJustCulture] = useState(false);
+
   // Store ratings and notes for each factor
   const [humanFactors, setHumanFactors] = useState<Record<string, { rating: string; notes: string }>>({});
+
+  // Just Culture assessment
+  const [justCulture, setJustCulture] = useState({
+    classification: '',
+    justification: '',
+    responseActions: ''
+  });
 
   const factorCategories = {
     individual: {
@@ -52,35 +61,30 @@ export default function HFATAssessment() {
         {
           id: 'fatigue',
           label: 'Fatigue / Alertness',
-          taproot: 'Human Engineering',
           iogp: '4.2.1.1',
           tooltip: 'Consider work schedules, shift patterns, rest periods, and whether the individual was adequately rested and alert for the task.'
         },
         {
           id: 'competency',
           label: 'Competency / Training',
-          taproot: 'Training Deficiency',
           iogp: '4.2.1.2',
           tooltip: 'Assess if the person had appropriate qualifications, training, and experience for the task they were performing.'
         },
         {
           id: 'situational',
           label: 'Situational Awareness',
-          taproot: 'Management System',
           iogp: '4.2.1.3',
           tooltip: 'Evaluate whether the individual understood the current situation, recognized hazards, and anticipated potential consequences.'
         },
         {
           id: 'stress',
           label: 'Stress / Workload',
-          taproot: 'Human Engineering',
           iogp: '4.2.1.4',
           tooltip: 'Consider time pressure, task complexity, mental/physical demands, and any personal or organizational stressors present.'
         },
         {
           id: 'health',
           label: 'Physical/Mental Health',
-          taproot: 'Safeguards',
           iogp: '4.2.1.5',
           tooltip: 'Assess whether physical fitness, mental wellbeing, medication, or health conditions affected the individual\'s performance.'
         }
@@ -93,35 +97,30 @@ export default function HFATAssessment() {
         {
           id: 'procedure',
           label: 'Procedure Quality',
-          taproot: 'Procedure Not Adequate',
           iogp: '4.2.2.1',
           tooltip: 'Evaluate if procedures were available, accurate, easy to follow, and appropriate for the actual working conditions.'
         },
         {
           id: 'complexity',
           label: 'Task Complexity',
-          taproot: 'Human Engineering',
           iogp: '4.2.2.2',
           tooltip: 'Consider the number of steps, decision points, simultaneous activities, and cognitive demands required by the task.'
         },
         {
           id: 'time',
           label: 'Time Pressure',
-          taproot: 'Management System',
           iogp: '4.2.2.3',
           tooltip: 'Assess whether deadlines, production targets, or scheduling created pressure that affected decision-making or performance.'
         },
         {
           id: 'tools',
           label: 'Tools/Equipment Design',
-          taproot: 'Equipment Deficiency',
           iogp: '4.2.2.4',
           tooltip: 'Evaluate if tools and equipment were fit for purpose, properly maintained, ergonomically designed, and had adequate safety features.'
         },
         {
           id: 'communication',
           label: 'Communication',
-          taproot: 'Communication Problem',
           iogp: '4.2.2.5',
           tooltip: 'Consider clarity of instructions, handovers, team coordination, language barriers, and effectiveness of information exchange.'
         }
@@ -134,35 +133,30 @@ export default function HFATAssessment() {
         {
           id: 'culture',
           label: 'Safety Culture',
-          taproot: 'Management System',
           iogp: '4.2.3.1',
           tooltip: 'Assess organizational attitudes toward safety, reporting culture, management commitment, and whether safety is prioritized over production.'
         },
         {
           id: 'resources',
           label: 'Resource Allocation',
-          taproot: 'Management System',
           iogp: '4.2.3.2',
           tooltip: 'Evaluate if adequate people, equipment, time, and budget were provided to complete the work safely and effectively.'
         },
         {
           id: 'supervision',
           label: 'Supervision/Leadership',
-          taproot: 'Management System',
           iogp: '4.2.3.3',
           tooltip: 'Consider quality of oversight, leadership presence, supervisor competence, and whether appropriate guidance was available when needed.'
         },
         {
           id: 'planning',
           label: 'Work Planning',
-          taproot: 'Planning/Scheduling',
           iogp: '4.2.3.4',
           tooltip: 'Assess whether the work was properly planned, hazards identified, controls implemented, and coordination with other activities considered.'
         },
         {
           id: 'change',
           label: 'Change Management',
-          taproot: 'Management of Change',
           iogp: '4.2.3.5',
           tooltip: 'Evaluate if changes to equipment, procedures, personnel, or conditions were properly assessed, communicated, and controlled.'
         }
@@ -201,7 +195,12 @@ export default function HFATAssessment() {
           .single();
 
         if (hfatData && hfatData.notes) {
-          setHumanFactors(hfatData.notes || {});
+          setHumanFactors(hfatData.notes.humanFactors || {});
+          setJustCulture(hfatData.notes.justCulture || {
+            classification: '',
+            justification: '',
+            responseActions: ''
+          });
         }
       }
     } catch (error) {
@@ -252,7 +251,10 @@ export default function HFATAssessment() {
       const assessmentData = {
         investigation_id: investigationId,
         causal_factor_id: causalFactorId,
-        notes: humanFactors,
+        notes: {
+          humanFactors: humanFactors,
+          justCulture: justCulture
+        },
         ratings: {}, // Empty for compatibility
         status: 'complete',
         completed_at: new Date().toISOString(),
@@ -366,7 +368,7 @@ export default function HFATAssessment() {
                               </Tooltip>
                             </div>
                             <div className="text-xs text-gray-600 mt-1">
-                              IOGP: {item.iogp} | TapRooT®: {item.taproot}
+                              IOGP: {item.iogp}
                             </div>
                           </div>
                           <div className="flex gap-2">
@@ -408,7 +410,64 @@ export default function HFATAssessment() {
           ))}
         </div>
 
-        {/* Action Buttons */}
+        {/* Just Culture Assessment */}
+        <div className="bg-white border rounded">
+          <button
+            onClick={() => setShowJustCulture(!showJustCulture)}
+            className="w-full flex items-center justify-between p-3 hover:bg-gray-50"
+          >
+            <div className="flex items-center gap-2">
+              <Shield className="w-4 h-4" />
+              <h4 className="font-semibold text-sm">Just Culture Assessment</h4>
+            </div>
+            {showJustCulture ? <ChevronDown className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
+          </button>
+          {showJustCulture && (
+            <div className="p-3 border-t space-y-3">
+              <div>
+                <label className="block text-xs font-medium mb-1 flex items-center gap-1">
+                  Classification
+                  <Tooltip text="Human Error: Unintended mistake anyone could make in same situation. At-Risk: Risky choice with unrecognized danger. Reckless: Deliberate disregard of known substantial risk.">
+                    <HelpCircle className="w-3 h-3 text-blue-500" />
+                  </Tooltip>
+                </label>
+                <select
+                  value={justCulture.classification}
+                  onChange={(e) => setJustCulture({ ...justCulture, classification: e.target.value })}
+                  className="w-full border rounded px-2 py-1 text-sm"
+                >
+                  <option value="">Select...</option>
+                  <option value="Human Error">Human Error - Unintended action, system focus</option>
+                  <option value="At-Risk Behavior">At-Risk Behavior - Coaching & remove risk incentives</option>
+                  <option value="Reckless Behavior">Reckless Behavior - Conscious disregard of risk</option>
+                </select>
+              </div>
+              <div>
+                <label className="block text-xs font-medium mb-1">Justification</label>
+                <textarea
+                  value={justCulture.justification}
+                  onChange={(e) => setJustCulture({ ...justCulture, justification: e.target.value })}
+                  className="w-full border rounded px-2 py-1 text-sm"
+                  rows={2}
+                  placeholder="Document reasoning and evidence for this classification..."
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-medium mb-1">Response Actions</label>
+                <textarea
+                  value={justCulture.responseActions}
+                  onChange={(e) => setJustCulture({ ...justCulture, responseActions: e.target.value })}
+                  className="w-full border rounded px-2 py-1 text-sm"
+                  rows={2}
+                  placeholder="Recommended actions based on classification (Console, coach, or punish)"
+                />
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Action Buttons */}
         <div className="flex gap-3 mt-6">
           <button
             onClick={handleComplete}
