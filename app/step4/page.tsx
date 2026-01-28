@@ -697,6 +697,7 @@ export default function CausalAnalysis() {
           </div>
         </div>
       )}
+      </div>
     </div>
     </>
   );
