@@ -413,25 +413,33 @@ export default function CausalAnalysis() {
                           {needsHFAT && (
                             <button 
                               onClick={() => router.push(`/hfat-new?investigationId=${investigationId}&causalFactorId=${factor.id}`)}
-                              className="flex items-center gap-2 px-3 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors text-sm"
+                              className={`flex items-center gap-2 px-3 py-2 rounded-lg transition-colors text-sm ${
+                                factor.analysis_status === 'analysis_complete'
+                                  ? 'bg-purple-100 text-purple-700 border border-purple-300 hover:bg-purple-200'
+                                  : 'bg-purple-600 text-white hover:bg-purple-700'
+                              }`}
                             >
                               <ArrowRight className="w-4 h-4" />
-                              Launch HFAT Assessment
+                              {factor.analysis_status === 'analysis_complete' ? 'View HFAT Assessment' : 'Launch HFAT Assessment'}
                             </button>
                           )}
                           {needsHOP && (
                             <button 
                               onClick={() => router.push(`/hop-new?investigationId=${investigationId}&causalFactorId=${factor.id}`)}
-                              className="flex items-center gap-2 px-3 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors text-sm"
+                              className={`flex items-center gap-2 px-3 py-2 rounded-lg transition-colors text-sm ${
+                                factor.analysis_status === 'analysis_complete'
+                                  ? 'bg-green-100 text-green-700 border border-green-300 hover:bg-green-200'
+                                  : 'bg-green-600 text-white hover:bg-green-700'
+                              }`}
                             >
                               <ArrowRight className="w-4 h-4" />
-                              Launch HOP Assessment
+                              {factor.analysis_status === 'analysis_complete' ? 'View HOP Assessment' : 'Launch HOP Assessment'}
                             </button>
                           )}
                           {factor.analysis_status === 'analysis_complete' && (
                             <div className="flex items-center gap-2 text-sm text-green-700">
                               <CheckCircle className="w-4 h-4" />
-                              <span>Assessment Complete</span>
+                              <span>Complete</span>
                             </div>
                           )}
                         </div>
