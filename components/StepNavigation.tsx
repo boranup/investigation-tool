@@ -16,7 +16,7 @@ export default function StepNavigation({ investigationId, currentStep, investiga
   const steps = [
     { 
       number: 1, 
-      label: 'Initiation', 
+      label: 'Overview', 
       icon: Home, 
       path: `/step1?investigationId=${investigationId}`,
       color: 'blue'
