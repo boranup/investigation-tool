@@ -2,7 +2,7 @@
 
 import React from 'react';
 import { useRouter } from 'next/navigation';
-import { Home, Upload, Clock, GitBranch, Lightbulb, CheckCircle } from 'lucide-react';
+import { Home, Upload, Clock, GitBranch, Lightbulb, CheckCircle, FileText } from 'lucide-react';
 
 interface StepNavigationProps {
   investigationId: string;
@@ -48,6 +48,13 @@ export default function StepNavigation({ investigationId, currentStep, investiga
       icon: Lightbulb, 
       path: `/step5?investigationId=${investigationId}`,
       color: 'green'
+    },
+    { 
+      number: 6, 
+      label: 'Report', 
+      icon: FileText, 
+      path: `/report?investigationId=${investigationId}`,
+      color: 'indigo'
     }
   ];
 
