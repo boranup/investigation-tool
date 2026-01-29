@@ -270,18 +270,59 @@ export default function InvestigationReport() {
                 <h2 className="text-2xl font-bold text-slate-900 mb-4 pb-2 border-b border-slate-300">
                   4. TIMELINE OF EVENTS
                 </h2>
-                <div className="space-y-2">
-                  {timeline.map((event) => (
-                    <div key={event.id} className="flex gap-4 pl-4 border-l-2 border-cyan-500">
-                      <div className="font-mono text-sm text-slate-600 min-w-[120px]">
-                        {formatDateTime(event.event_date, event.event_time)}
+                <div className="space-y-3">
+                  {timeline.filter(e => !e.parent_event_id).map((event) => (
+                    <div key={event.id}>
+                      {/* Parent Event */}
+                      <div className="flex gap-4 pl-4 border-l-4 border-cyan-600">
+                        <div className="font-mono text-sm font-semibold text-slate-700 min-w-[140px] pt-1">
+                          {formatDateTime(event.event_date, event.event_time)}
+                        </div>
+                        <div className="flex-1 pb-2">
+                          <div className="mb-1">
+                            <span className="inline-block px-2 py-0.5 text-xs font-medium rounded bg-cyan-100 text-cyan-800 mr-2">
+                              {event.category?.toUpperCase() || 'EVENT'}
+                            </span>
+                            {event.is_incident_event && (
+                              <span className="inline-block px-2 py-0.5 text-xs font-medium rounded bg-red-100 text-red-800 mr-2">
+                                INCIDENT EVENT
+                              </span>
+                            )}
+                          </div>
+                          <div className="font-semibold text-slate-900 mb-1">{event.title}</div>
+                          {event.description && (
+                            <div className="text-slate-700 text-sm mb-1">{event.description}</div>
+                          )}
+                          {event.source && (
+                            <div className="text-xs text-slate-500 italic">Source: {event.source}</div>
+                          )}
+                          {event.involved_personnel && event.involved_personnel.length > 0 && (
+                            <div className="text-xs text-slate-600 mt-1">
+                              Personnel: {event.involved_personnel.join(', ')}
+                            </div>
+                          )}
+                        </div>
                       </div>
-                      <div className="flex-1">
-                        <span className="inline-block px-2 py-0.5 text-xs rounded bg-slate-100 text-slate-700 mr-2">
-                          {event.event_category}
-                        </span>
-                        <span className="text-slate-900">{event.event_description}</span>
-                      </div>
+                      
+                      {/* Child Events - Indented */}
+                      {timeline.filter(child => child.parent_event_id === event.id).map((childEvent) => (
+                        <div key={childEvent.id} className="flex gap-4 pl-12 ml-8 border-l-2 border-cyan-300 mt-2">
+                          <div className="font-mono text-xs text-slate-600 min-w-[140px] pt-1">
+                            {childEvent.event_time}
+                          </div>
+                          <div className="flex-1 pb-2">
+                            <div className="mb-1">
+                              <span className="inline-block px-2 py-0.5 text-xs rounded bg-cyan-50 text-cyan-700 mr-2">
+                                {childEvent.category?.toUpperCase() || 'SUB-EVENT'}
+                              </span>
+                            </div>
+                            <div className="font-medium text-slate-800 text-sm mb-1">{childEvent.title}</div>
+                            {childEvent.description && (
+                              <div className="text-slate-600 text-sm">{childEvent.description}</div>
+                            )}
+                          </div>
+                        </div>
+                      ))}
                     </div>
                   ))}
                 </div>
