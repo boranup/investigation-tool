@@ -215,8 +215,6 @@ export default function CausalAnalysis() {
           <div className="space-y-4">
             {causalFactors.map((factor) => {
               const category = factorCategories.find(c => c.value === factor.factor_category);
-              const needsHFAT = category?.needsHFAT;
-              const needsHOP = category?.needsHOP;
               const isExpanded = expandedFactors[factor.id];
 
               return (
@@ -326,7 +324,7 @@ export default function CausalAnalysis() {
 
                         {/* Assessment Buttons */}
                         <div className="flex gap-2 mt-3">
-                          {needsHFAT && (
+                          {factor.requires_hfat && (
                             <button
                               onClick={() => router.push(`/hfat-new?investigationId=${investigationId}&causalFactorId=${factor.id}`)}
                               className={`flex items-center gap-2 px-3 py-2 rounded-lg transition-colors text-sm ${
@@ -339,7 +337,7 @@ export default function CausalAnalysis() {
                               {factor.analysis_status === 'analysis_complete' ? 'View HFAT' : 'Launch HFAT'}
                             </button>
                           )}
-                          {needsHOP && (
+                          {factor.requires_hop && (
                             <button
                               onClick={() => router.push(`/hop-new?investigationId=${investigationId}&causalFactorId=${factor.id}`)}
                               className={`flex items-center gap-2 px-3 py-2 rounded-lg transition-colors text-sm ${
@@ -485,7 +483,7 @@ export default function CausalAnalysis() {
                 onClick={() => {
                   setShowAddFactor(false);
                   setEditingFactorId(null);
-                  setNewFactor({ title: '', description: '', factorType: 'contributing', factorCategory: 'equipment' });
+                  setNewFactor({ title: '', description: '', factorType: 'contributing', factorCategory: 'equipment', requiresHFAT: false, requiresHOP: false });
                 }}
                 disabled={saving}
                 className="px-4 py-2 border border-slate-300 rounded-lg hover:bg-slate-50 disabled:opacity-50 transition-colors"
