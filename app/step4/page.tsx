@@ -42,6 +42,13 @@ export default function CausalAnalysis() {
     { value: 'external', label: 'External Factor', description: 'Outside influences' }
   ];
 
+  // Auto-save handler for navigation - closes any open modals
+  const handleBeforeNavigate = async (): Promise<boolean> => {
+    setShowAddFactor(false);
+    setEditingFactorId(null);
+    return true; // Allow navigation
+  };
+
   useEffect(() => {
     if (investigationId) {
       loadInvestigation();
@@ -184,6 +191,7 @@ export default function CausalAnalysis() {
           investigationId={investigationId} 
           currentStep={4}
           investigationNumber={investigation.investigation_number}
+          onBeforeNavigate={handleBeforeNavigate}
         />
       )}
       
