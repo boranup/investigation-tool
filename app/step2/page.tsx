@@ -476,6 +476,26 @@ export default function EvidenceDataCollection() {
                           </button>
                         )}
                         <button
+                          onClick={() => {
+                            setEditingEvidenceId(item.id);
+                            setNewEvidence({
+                              type: item.evidence_type,
+                              title: item.title,
+                              description: item.description,
+                              collectedDate: item.collected_date,
+                              collectedBy: item.collected_by || '',
+                              location: item.location || '',
+                              tags: item.tags ? item.tags.join(', ') : '',
+                              file: null
+                            });
+                            setShowAddEvidence(true);
+                          }}
+                          className="p-1.5 text-green-600 hover:bg-green-50 rounded transition-colors"
+                          title="Edit"
+                        >
+                          <Edit className="w-4 h-4" />
+                        </button>
+                        <button
                           onClick={() => deleteEvidence(item.id)}
                           className="p-1.5 text-red-600 hover:bg-red-50 rounded transition-colors"
                           title="Delete"
@@ -498,7 +518,7 @@ export default function EvidenceDataCollection() {
                           {item.collected_by}
                         </div>
                       )}
-                     {item.location && (
+                      {item.location && (
                         <div className="flex items-center gap-2 text-xs text-slate-500">
                           <MapPin className="w-3 h-3" />
                           {item.location}
@@ -572,6 +592,26 @@ export default function EvidenceDataCollection() {
                       }`}>
                         {interview.status}
                       </span>
+                      <button
+                        onClick={() => {
+                          setEditingInterviewId(interview.id);
+                          setNewInterview({
+                            interviewee: interview.interviewee,
+                            role: interview.role || '',
+                            department: interview.department || '',
+                            interviewer: interview.interviewer || '',
+                            interviewDate: interview.interview_date,
+                            interviewTime: interview.interview_time || '',
+                            type: interview.interview_type,
+                            keyFindings: interview.key_findings || ''
+                          });
+                          setShowAddInterview(true);
+                        }}
+                        className="p-2 text-green-600 hover:bg-green-50 rounded-lg transition-colors"
+                        title="Edit"
+                      >
+                        <Edit className="w-4 h-4" />
+                      </button>
                       <button 
                         onClick={() => deleteInterview(interview.id)}
                         className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
@@ -649,7 +689,7 @@ export default function EvidenceDataCollection() {
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
           <div className="bg-white rounded-lg p-6 max-w-2xl w-full max-h-[90vh] overflow-y-auto">
             <div className="flex justify-between items-center mb-6">
-              <h2 className="text-xl font-bold">Add Evidence Item</h2>
+              <h2 className="text-xl font-bold">{editingEvidenceId ? 'Edit Evidence Item' : 'Add Evidence Item'}</h2>
               <button
                 onClick={() => setShowAddEvidence(false)}
                 className="p-2 hover:bg-slate-100 rounded-lg transition-colors"
@@ -801,10 +841,23 @@ export default function EvidenceDataCollection() {
                 disabled={uploading}
                 className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
               >
-                {uploading ? 'Uploading...' : 'Add Evidence'}
+                {uploading ? 'Uploading...' : editingEvidenceId ? 'Update Evidence' : 'Add Evidence'}
               </button>
               <button
-                onClick={() => setShowAddEvidence(false)}
+                onClick={() => {
+                  setShowAddEvidence(false);
+                  setEditingEvidenceId(null);
+                  setNewEvidence({
+                    type: 'photo',
+                    title: '',
+                    description: '',
+                    collectedDate: new Date().toISOString().split('T')[0],
+                    collectedBy: '',
+                    location: '',
+                    tags: '',
+                    file: null
+                  });
+                }}
                 disabled={uploading}
                 className="px-4 py-2 border border-slate-300 rounded-lg hover:bg-slate-50 disabled:opacity-50 transition-colors"
               >
@@ -820,7 +873,7 @@ export default function EvidenceDataCollection() {
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
           <div className="bg-white rounded-lg p-6 max-w-2xl w-full max-h-[90vh] overflow-y-auto">
             <div className="flex justify-between items-center mb-6">
-              <h2 className="text-xl font-bold">Add Interview Record</h2>
+              <h2 className="text-xl font-bold">{editingInterviewId ? 'Edit Interview Record' : 'Add Interview Record'}</h2>
               <button
                 onClick={() => setShowAddInterview(false)}
                 className="p-2 hover:bg-slate-100 rounded-lg transition-colors"
@@ -937,10 +990,23 @@ export default function EvidenceDataCollection() {
                 onClick={handleAddInterview}
                 className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
               >
-                Add Interview
+                {editingInterviewId ? 'Update Interview' : 'Add Interview'}
               </button>
               <button
-                onClick={() => setShowAddInterview(false)}
+                onClick={() => {
+                  setShowAddInterview(false);
+                  setEditingInterviewId(null);
+                  setNewInterview({
+                    interviewee: '',
+                    role: '',
+                    department: '',
+                    interviewer: '',
+                    interviewDate: new Date().toISOString().split('T')[0],
+                    interviewTime: '',
+                    type: 'witness',
+                    keyFindings: ''
+                  });
+                }}
                 className="px-4 py-2 border border-slate-300 rounded-lg hover:bg-slate-50 transition-colors"
               >
                 Cancel
@@ -952,4 +1018,4 @@ export default function EvidenceDataCollection() {
     </div>
     </>
   );
-} 
+}
