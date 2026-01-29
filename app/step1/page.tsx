@@ -336,22 +336,6 @@ export default function InvestigationOverview() {
                   </div>
                   
                   <div>
-                    <div className="flex items-center gap-3 h-10 px-4 bg-amber-50 border border-amber-200 rounded-lg">
-                      <input
-                        type="checkbox"
-                        id="highPotential"
-                        checked={formData.highPotential}
-                        onChange={(e) => setFormData({ ...formData, highPotential: e.target.checked })}
-                        className="w-4 h-4 text-amber-600 border-amber-300 rounded focus:ring-amber-500"
-                      />
-                      <label htmlFor="highPotential" className="text-sm text-amber-900 cursor-pointer flex items-center gap-2">
-                        <AlertTriangle className="w-4 h-4" />
-                        High Potential Incident
-                      </label>
-                    </div>
-                  </div>
-                  
-                  <div>
                     <label className="block text-sm font-medium text-slate-700 mb-2">
                       Consequence Category
                     </label>
