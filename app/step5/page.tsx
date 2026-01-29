@@ -1,12 +1,13 @@
 'use client'
 
 import React, { useState, useEffect } from 'react';
-import { useSearchParams } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { Lightbulb, Plus, Edit2, Trash2, Filter, Target, Calendar, Users, Shield, CheckCircle, X, Save } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import StepNavigation from '@/components/StepNavigation';
 
 export default function RecommendationsDevelopment() {
+  const router = useRouter();
   const searchParams = useSearchParams();
   const investigationId = searchParams.get('investigationId');
 
