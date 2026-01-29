@@ -201,7 +201,7 @@ export default function InvestigationDashboard() {
                         <h3 className="font-semibold text-slate-900 line-clamp-1">
                           {investigation.incident_description}
                         </h3>
-                        {investigation.high_potential && (
+                        {investigation.incident_type === 'High Potential Near Miss' && (
                           <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-amber-100 text-amber-800 rounded-full text-xs font-semibold whitespace-nowrap">
                             <AlertCircle className="w-3 h-3" />
                             HIGH POTENTIAL
