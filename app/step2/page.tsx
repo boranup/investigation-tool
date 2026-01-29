@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { useSearchParams } from 'next/navigation';
-import { Upload, FileText, Camera, Video, Database, Users, Search, Filter, Tag, Calendar, MapPin, Trash2, Eye, Plus, Download, X, Edit } from 'lucide-react';
+import { Upload, FileText, Camera, Video, Database, Users, Search, Filter, Tag, Calendar, MapPin, Trash2, Eye, Plus, Download, X, Edit2 } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import StepNavigation from '@/components/StepNavigation';
 
@@ -493,7 +493,7 @@ export default function EvidenceDataCollection() {
                           className="p-1.5 text-green-600 hover:bg-green-50 rounded transition-colors"
                           title="Edit"
                         >
-                          <Edit className="w-4 h-4" />
+                          <Edit2 className="w-4 h-4" />
                         </button>
                         <button
                           onClick={() => deleteEvidence(item.id)}
@@ -610,7 +610,7 @@ export default function EvidenceDataCollection() {
                         className="p-2 text-green-600 hover:bg-green-50 rounded-lg transition-colors"
                         title="Edit"
                       >
-                        <Edit className="w-4 h-4" />
+                        <Edit2 className="w-4 h-4" />
                       </button>
                       <button 
                         onClick={() => deleteInterview(interview.id)}
