@@ -195,8 +195,18 @@ export default function InvestigationReport() {
                 {investigation?.consequence_category && (
                   <p><strong>Consequence Category:</strong> {investigation.consequence_category}</p>
                 )}
-                {investigation?.actual_severity && (
-                  <p><strong>Severity (IOGP):</strong> Level {investigation.actual_severity}</p>
+                {(investigation?.potential_severity || investigation?.actual_severity) && (
+                  <div>
+                    {investigation?.potential_severity && (
+                      <p><strong>Potential Severity (IOGP):</strong> Level {investigation.potential_severity}</p>
+                    )}
+                    {investigation?.actual_severity && (
+                      <p><strong>Actual Severity (IOGP):</strong> Level {investigation.actual_severity}</p>
+                    )}
+                  </div>
+                )}
+                {investigation?.high_potential && (
+                  <p className="text-amber-900 font-semibold">⚠️ HIGH POTENTIAL NEAR MISS</p>
                 )}
                 <p><strong>Investigation Leader:</strong> {investigation?.investigation_leader || 'Not specified'}</p>
                 <p><strong>Status:</strong> {investigation?.status}</p>
