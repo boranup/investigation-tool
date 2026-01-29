@@ -205,7 +205,7 @@ export default function InvestigationReport() {
                     )}
                   </div>
                 )}
-                {investigation?.high_potential && (
+                {investigation?.incident_type === 'High Potential Near Miss' && (
                   <p className="text-amber-900 font-semibold">⚠️ HIGH POTENTIAL NEAR MISS</p>
                 )}
                 <p><strong>Investigation Leader:</strong> {investigation?.investigation_leader || 'Not specified'}</p>
