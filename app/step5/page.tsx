@@ -485,7 +485,35 @@ export default function RecommendationsDevelopment() {
             Previous Step
           </button>
           <button
-            onClick={() => alert('Investigation complete! You can now generate the final report.')}
+            onClick={async () => {
+              if (!investigationId) {
+                alert('No investigation ID found');
+                return;
+              }
+              
+              if (confirm('Mark this investigation as complete? This will update the status and you can generate the final report.')) {
+                try {
+                  const { error } = await supabase
+                    .from('investigations')
+                    .update({ 
+                      status: 'completed',
+                      completion_date: new Date().toISOString().split('T')[0]
+                    })
+                    .eq('id', investigationId);
+
+                  if (error) {
+                    console.error('Error completing investigation:', error);
+                    alert('Error updating investigation status');
+                  } else {
+                    alert('Investigation marked as complete! Redirecting to report...');
+                    router.push(`/report?investigationId=${investigationId}`);
+                  }
+                } catch (error) {
+                  console.error('Error:', error);
+                  alert('Error completing investigation');
+                }
+              }
+            }}
             className="px-6 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
           >
             Complete Investigation
