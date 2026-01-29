@@ -22,7 +22,9 @@ export default function CausalAnalysis() {
     title: '',
     description: '',
     factorType: 'contributing',
-    factorCategory: 'equipment'
+    factorCategory: 'equipment',
+    requiresHFAT: false,
+    requiresHOP: false
   });
 
   const factorTypes = [
@@ -33,11 +35,11 @@ export default function CausalAnalysis() {
   ];
 
   const factorCategories = [
-    { value: 'equipment', label: 'Equipment/System', description: 'Hardware failures, design issues', needsHFAT: true, needsHOP: false },
-    { value: 'human_performance', label: 'Human Performance', description: 'Actions, decisions, behaviors', needsHFAT: false, needsHOP: true },
-    { value: 'procedure', label: 'Procedure', description: 'Work instructions, processes', needsHFAT: true, needsHOP: false },
-    { value: 'organizational', label: 'Organizational', description: 'Management systems, culture', needsHFAT: false, needsHOP: true },
-    { value: 'external', label: 'External Factor', description: 'Outside influences', needsHFAT: false, needsHOP: false }
+    { value: 'equipment', label: 'Equipment/System', description: 'Hardware failures, design issues' },
+    { value: 'human_performance', label: 'Human Performance', description: 'Actions, decisions, behaviors' },
+    { value: 'procedure', label: 'Procedure', description: 'Work instructions, processes' },
+    { value: 'organizational', label: 'Organizational', description: 'Management systems, culture' },
+    { value: 'external', label: 'External Factor', description: 'Outside influences' }
   ];
 
   useEffect(() => {
@@ -74,8 +76,7 @@ export default function CausalAnalysis() {
 
     setSaving(true);
     try {
-      const category = factorCategories.find(c => c.value === newFactor.factorCategory);
-      const needsAnalysis = category && (category.needsHFAT || category.needsHOP);
+      const needsAnalysis = newFactor.requiresHFAT || newFactor.requiresHOP;
       
       const factorData = {
         investigation_id: investigationId,
@@ -83,6 +84,8 @@ export default function CausalAnalysis() {
         causal_factor_description: newFactor.description || null,
         factor_type: newFactor.factorType,
         factor_category: newFactor.factorCategory,
+        requires_hfat: newFactor.requiresHFAT,
+        requires_hop: newFactor.requiresHOP,
         analysis_status: needsAnalysis ? 'analysis_required' : 'identified'
       };
 
@@ -108,7 +111,7 @@ export default function CausalAnalysis() {
         alert('Causal factor added successfully!');
       }
 
-      setNewFactor({ title: '', description: '', factorType: 'contributing', factorCategory: 'equipment' });
+      setNewFactor({ title: '', description: '', factorType: 'contributing', factorCategory: 'equipment', requiresHFAT: false, requiresHOP: false });
       setEditingFactorId(null);
       setShowAddFactor(false);
       loadCausalFactors();
@@ -254,7 +257,9 @@ export default function CausalAnalysis() {
                                   title: factor.causal_factor_title,
                                   description: factor.causal_factor_description || '',
                                   factorType: factor.factor_type,
-                                  factorCategory: factor.factor_category
+                                  factorCategory: factor.factor_category,
+                                  requiresHFAT: factor.requires_hfat || false,
+                                  requiresHOP: factor.requires_hop || false
                                 });
                                 setShowAddFactor(true);
                               }}
@@ -297,7 +302,9 @@ export default function CausalAnalysis() {
                                     title: factor.causal_factor_title,
                                     description: factor.causal_factor_description || '',
                                     factorType: factor.factor_type,
-                                    factorCategory: factor.factor_category
+                                    factorCategory: factor.factor_category,
+                                    requiresHFAT: factor.requires_hfat || false,
+                                    requiresHOP: factor.requires_hop || false
                                   });
                                   setShowAddFactor(true);
                                 }}
@@ -431,11 +438,38 @@ export default function CausalAnalysis() {
                   {factorCategories.map(cat => (
                     <option key={cat.value} value={cat.value}>
                       {cat.label}
-                      {cat.needsHFAT && ' (Requires HFAT)'}
-                      {cat.needsHOP && ' (Requires HOP)'}
                     </option>
                   ))}
                 </select>
+              </div>
+              
+              {/* HFAT/HOP Analysis Checkboxes */}
+              <div className="col-span-2 bg-slate-50 border border-slate-200 rounded-lg p-4">
+                <p className="text-sm font-medium text-slate-700 mb-3">Optional Detailed Analysis</p>
+                <div className="space-y-2">
+                  <label className="flex items-center gap-3 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={newFactor.requiresHFAT}
+                      onChange={(e) => setNewFactor({ ...newFactor, requiresHFAT: e.target.checked })}
+                      className="w-4 h-4 text-blue-600 border-slate-300 rounded focus:ring-blue-500"
+                    />
+                    <span className="text-sm text-slate-700">
+                      <strong>HFAT (Human Factors Analysis Tool)</strong> - Detailed analysis of individual, task, and organizational factors
+                    </span>
+                  </label>
+                  <label className="flex items-center gap-3 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={newFactor.requiresHOP}
+                      onChange={(e) => setNewFactor({ ...newFactor, requiresHOP: e.target.checked })}
+                      className="w-4 h-4 text-blue-600 border-slate-300 rounded focus:ring-blue-500"
+                    />
+                    <span className="text-sm text-slate-700">
+                      <strong>HOP (Human & Organizational Performance)</strong> - Context-based performance evaluation
+                    </span>
+                  </label>
+                </div>
               </div>
             </div>
 
