@@ -197,9 +197,17 @@ export default function InvestigationDashboard() {
 
                     {/* Middle: Description and Details */}
                     <div className="flex-1 min-w-0">
-                      <h3 className="font-semibold text-slate-900 mb-2 line-clamp-1">
-                        {investigation.incident_description}
-                      </h3>
+                      <div className="flex items-center gap-2 mb-2">
+                        <h3 className="font-semibold text-slate-900 line-clamp-1">
+                          {investigation.incident_description}
+                        </h3>
+                        {investigation.high_potential && (
+                          <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-amber-100 text-amber-800 rounded-full text-xs font-semibold whitespace-nowrap">
+                            <AlertCircle className="w-3 h-3" />
+                            HIGH POTENTIAL
+                          </span>
+                        )}
+                      </div>
                       
                       <div className="flex items-center gap-4 text-sm text-slate-600">
                         <div className="flex items-center gap-1.5">
