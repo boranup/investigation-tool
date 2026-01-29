@@ -45,6 +45,16 @@ export default function EvidenceDataCollection() {
     keyFindings: ''
   });
 
+  // Auto-save handler for navigation - closes any open modals
+  const handleBeforeNavigate = async (): Promise<boolean> => {
+    // Close any open modals
+    setShowAddEvidence(false);
+    setShowAddInterview(false);
+    setEditingEvidenceId(null);
+    setEditingInterviewId(null);
+    return true; // Allow navigation
+  };
+
   useEffect(() => {
     if (investigationId) {
       loadInvestigation();
@@ -358,6 +368,7 @@ export default function EvidenceDataCollection() {
           investigationId={investigationId} 
           currentStep={2}
           investigationNumber={investigation.investigation_number}
+          onBeforeNavigate={handleBeforeNavigate}
         />
       )}
       <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 p-6">
