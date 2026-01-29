@@ -336,9 +336,6 @@ export default function InvestigationOverview() {
                   </div>
                   
                   <div>
-                    <label className="block text-sm font-medium text-slate-700 mb-2">
-                      High Potential
-                    </label>
                     <div className="flex items-center gap-3 h-10 px-4 bg-amber-50 border border-amber-200 rounded-lg">
                       <input
                         type="checkbox"
