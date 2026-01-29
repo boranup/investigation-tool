@@ -150,7 +150,7 @@ export default function InvestigationOverview() {
 
         if (error) {
           console.error('Error creating investigation:', error);
-          alert('Error creating investigation');
+          alert('Error creating investigation: ' + (error.message || JSON.stringify(error)));
           return;
         }
 
