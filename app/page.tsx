@@ -172,7 +172,7 @@ export default function InvestigationDashboard() {
             )}
           </div>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          <div className="space-y-3">
             {filteredInvestigations.map((investigation) => {
               const statusInfo = getStatusInfo(investigation.status);
               const StatusIcon = statusInfo.icon;
@@ -181,61 +181,60 @@ export default function InvestigationDashboard() {
                 <div
                   key={investigation.id}
                   onClick={() => router.push(`/step1?investigationId=${investigation.id}`)}
-                  className="bg-white rounded-lg shadow-sm border border-slate-200 p-6 hover:shadow-md hover:border-blue-300 transition-all cursor-pointer group"
+                  className="bg-white rounded-lg shadow-sm border border-slate-200 p-5 hover:shadow-md hover:border-blue-300 transition-all cursor-pointer group"
                 >
-                  {/* Header */}
-                  <div className="flex items-start justify-between mb-4">
-                    <div className="flex-1">
-                      <div className="flex items-center gap-2 mb-2">
-                        <span className="text-sm font-mono font-semibold text-blue-600">
-                          {investigation.investigation_number}
-                        </span>
-                        <ChevronRight className="w-4 h-4 text-slate-400 group-hover:text-blue-600 transition-colors" />
+                  <div className="flex items-start gap-6">
+                    {/* Left: Investigation Number and Status */}
+                    <div className="flex-shrink-0 w-40">
+                      <div className="text-sm font-mono font-bold text-blue-600 mb-2">
+                        {investigation.investigation_number}
                       </div>
-                      <div className={`inline-flex items-center gap-1 px-2 py-1 rounded text-xs font-medium ${statusInfo.color}`}>
+                      <div className={`inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-medium ${statusInfo.color}`}>
                         <StatusIcon className="w-3 h-3" />
                         {statusInfo.label}
                       </div>
                     </div>
-                  </div>
 
-                  {/* Description */}
-                  <h3 className="font-semibold text-slate-900 mb-3 line-clamp-2">
-                    {investigation.incident_description}
-                  </h3>
+                    {/* Middle: Description and Details */}
+                    <div className="flex-1 min-w-0">
+                      <h3 className="font-semibold text-slate-900 mb-2 line-clamp-1">
+                        {investigation.incident_description}
+                      </h3>
+                      
+                      <div className="flex items-center gap-4 text-sm text-slate-600">
+                        <div className="flex items-center gap-1.5">
+                          <Calendar className="w-4 h-4 text-slate-400" />
+                          <span>{investigation.incident_date}</span>
+                          {investigation.incident_time && (
+                            <span className="text-slate-400">• {investigation.incident_time}</span>
+                          )}
+                        </div>
+                        <div className="flex items-center gap-1.5">
+                          <MapPin className="w-4 h-4 text-slate-400" />
+                          <span className="truncate max-w-xs">{investigation.location_facility}</span>
+                        </div>
+                        {investigation.incident_type && (
+                          <div className="flex items-center gap-1.5">
+                            <AlertCircle className="w-4 h-4 text-slate-400" />
+                            <span>{investigation.incident_type}</span>
+                          </div>
+                        )}
+                      </div>
+                    </div>
 
-                  {/* Details */}
-                  <div className="space-y-2 text-sm text-slate-600 mb-4">
-                    <div className="flex items-center gap-2">
-                      <Calendar className="w-4 h-4 text-slate-400" />
-                      <span>{investigation.incident_date}</span>
-                      {investigation.incident_time && (
-                        <span className="text-slate-400">• {investigation.incident_time}</span>
+                    {/* Right: Severity and Arrow */}
+                    <div className="flex items-center gap-4">
+                      {investigation.actual_severity && (
+                        <div className="text-right">
+                          <div className="text-xs text-slate-500 mb-1">Severity</div>
+                          <span className={`inline-block px-3 py-1 rounded text-xs font-semibold border ${getSeverityColor(investigation.actual_severity)}`}>
+                            Level {investigation.actual_severity}
+                          </span>
+                        </div>
                       )}
+                      <ChevronRight className="w-5 h-5 text-slate-400 group-hover:text-blue-600 transition-colors" />
                     </div>
-                    <div className="flex items-center gap-2">
-                      <MapPin className="w-4 h-4 text-slate-400" />
-                      <span className="truncate">{investigation.location_facility}</span>
-                    </div>
-                    {investigation.incident_type && (
-                      <div className="flex items-center gap-2">
-                        <AlertCircle className="w-4 h-4 text-slate-400" />
-                        <span>{investigation.incident_type}</span>
-                      </div>
-                    )}
                   </div>
-
-                  {/* Severity */}
-                  {investigation.actual_severity && (
-                    <div className="pt-3 border-t border-slate-100">
-                      <div className="flex items-center justify-between">
-                        <span className="text-xs text-slate-500">Severity</span>
-                        <span className={`px-2 py-1 rounded text-xs font-medium border ${getSeverityColor(investigation.actual_severity)}`}>
-                          Level {investigation.actual_severity}
-                        </span>
-                      </div>
-                    </div>
-                  )}
                 </div>
               );
             })}
