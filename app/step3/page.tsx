@@ -34,6 +34,14 @@ export default function TimelineBuilder() {
     isIncidentEvent: false
   });
 
+  // Auto-save handler for navigation - closes any open modals
+  const handleBeforeNavigate = async (): Promise<boolean> => {
+    setShowAddEvent(false);
+    setEditingEventId(null);
+    setParentEventId(null);
+    return true; // Allow navigation
+  };
+
   const eventCategories = [
     { 
       value: 'action', 
@@ -275,6 +283,7 @@ export default function TimelineBuilder() {
           investigationId={investigationId} 
           currentStep={3}
           investigationNumber={investigation.investigation_number}
+          onBeforeNavigate={handleBeforeNavigate}
         />
       )}
       <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 p-6">
@@ -398,7 +407,7 @@ export default function TimelineBuilder() {
             <div className="space-y-6">
               {sortedEvents.filter(e => !e.parent_event_id).map((event) => (
                 <div key={event.id}>
-                 <div className="relative flex gap-6">
+                  <div className="relative flex gap-6">
                     {/* Timeline marker */}
                     <div className="relative z-10 flex-shrink-0">
                       {getStatusIcon(event.verification_status, event.is_incident_event || false)}
@@ -799,4 +808,4 @@ export default function TimelineBuilder() {
       </div>
     </>
   );
-} 
+}
