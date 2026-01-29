@@ -16,6 +16,8 @@ export default function TimelineBuilder() {
   const [searchTerm, setSearchTerm] = useState('');
   const [viewMode, setViewMode] = useState<'chronological' | 'category'>('chronological');
   const [saving, setSaving] = useState(false);
+  const [editingEventId, setEditingEventId] = useState<string | null>(null);
+  const [parentEventId, setParentEventId] = useState<string | null>(null);
 
   const [investigation, setInvestigation] = useState<any>(null);
   const [timelineEvents, setEvents] = useState<any[]>([]);
@@ -117,33 +119,54 @@ export default function TimelineBuilder() {
     setSaving(true);
 
     try {
-      const { data, error } = await supabase
-        .from('timeline_events')
-        .insert([{
-          investigation_id: investigationId,
-          event_date: newEvent.date,
-          event_time: newEvent.time,
-          category: newEvent.category,
-          title: newEvent.title,
-          description: newEvent.description || null,
-          source: newEvent.source || null,
-          verification_status: newEvent.verificationStatus,
-          involved_personnel: newEvent.involvedPersonnel 
-            ? newEvent.involvedPersonnel.split(',').map(p => p.trim()).filter(p => p)
-            : [],
-          is_incident_event: newEvent.isIncidentEvent
-        }])
-        .select()
-        .single();
+      const eventData = {
+        investigation_id: investigationId,
+        event_date: newEvent.date,
+        event_time: newEvent.time,
+        category: newEvent.category,
+        title: newEvent.title,
+        description: newEvent.description || null,
+        source: newEvent.source || null,
+        verification_status: newEvent.verificationStatus,
+        involved_personnel: newEvent.involvedPersonnel 
+          ? newEvent.involvedPersonnel.split(',').map(p => p.trim()).filter(p => p)
+          : [],
+        is_incident_event: newEvent.isIncidentEvent,
+        parent_event_id: parentEventId
+      };
 
-      if (error) {
-        console.error('Database error:', error);
-        alert('Error saving timeline event');
-        return;
+      if (editingEventId) {
+        // UPDATE existing event
+        const { error } = await supabase
+          .from('timeline_events')
+          .update(eventData)
+          .eq('id', editingEventId);
+
+        if (error) {
+          console.error('Database error:', error);
+          alert('Error updating timeline event');
+          return;
+        }
+
+        alert('Timeline event updated successfully!');
+      } else {
+        // INSERT new event
+        const { data, error } = await supabase
+          .from('timeline_events')
+          .insert([eventData])
+          .select()
+          .single();
+
+        if (error) {
+          console.error('Database error:', error);
+          alert('Error saving timeline event');
+          return;
+        }
+
+        // Add to local state
+        setEvents([...timelineEvents, data]);
+        alert(parentEventId ? 'Child event added successfully!' : 'Timeline event added successfully!');
       }
-
-      // Add to local state
-      setEvents([...timelineEvents, data]);
 
       // Reset form
       setNewEvent({
@@ -157,9 +180,10 @@ export default function TimelineBuilder() {
         involvedPersonnel: '',
         isIncidentEvent: false
       });
-
+      setEditingEventId(null);
+      setParentEventId(null);
       setShowAddEvent(false);
-      alert('Timeline event added successfully!');
+      loadTimelineEvents();
     } catch (error) {
       console.error('Error adding event:', error);
       alert('Error adding timeline event');
@@ -254,13 +278,13 @@ export default function TimelineBuilder() {
         />
       )}
       <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 p-6">
-        <div className="max-w-6xl mx-auto">
-          {/* Header */}
-          <div className="bg-white rounded-lg shadow-sm border border-slate-200 p-6 mb-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <h1 className="text-2xl font-bold text-slate-900">Step 3: Timeline Builder</h1>
-                <p className="text-slate-600 mt-1">Construct chronological sequence of events</p>
+      <div className="max-w-6xl mx-auto">
+        {/* Header */}
+        <div className="bg-white rounded-lg shadow-sm border border-slate-200 p-6 mb-6">
+          <div className="flex items-center justify-between">
+            <div>
+              <h1 className="text-2xl font-bold text-slate-900">Step 3: Timeline Builder</h1>
+              <p className="text-slate-600 mt-1">Construct chronological sequence of events</p>
               {investigation && (
                 <div className="mt-2 text-sm">
                   <span className="text-slate-500">Investigation:</span>{' '}
@@ -372,67 +396,173 @@ export default function TimelineBuilder() {
 
             {/* Events */}
             <div className="space-y-6">
-              {sortedEvents.map((event) => (
-                <div key={event.id} className="relative flex gap-6">
-                  {/* Timeline marker */}
-                  <div className="relative z-10 flex-shrink-0">
-                    {getStatusIcon(event.verification_status, event.is_incident_event || false)}
-                  </div>
+              {sortedEvents.filter(e => !e.parent_event_id).map((event) => (
+                <div key={event.id}>
+                 <div className="relative flex gap-6">
+                    {/* Timeline marker */}
+                    <div className="relative z-10 flex-shrink-0">
+                      {getStatusIcon(event.verification_status, event.is_incident_event || false)}
+                    </div>
 
-                  {/* Event card */}
-                  <div className="flex-1 bg-white rounded-lg shadow-sm border border-slate-200 p-6">
-                    <div className="flex items-start justify-between mb-3">
-                      <div className="flex-1">
-                        <div className="flex items-center gap-3 mb-2">
-                          <span className={`px-3 py-1 rounded-full text-xs font-medium border ${getCategoryColor(event.category)}`}>
-                            {eventCategories.find(c => c.value === event.category)?.label}
-                          </span>
-                          <div className="flex items-center gap-2 text-sm text-slate-600">
-                            <Calendar className="w-4 h-4" />
-                            {event.event_date}
+                    {/* Event card */}
+                    <div className="flex-1 bg-white rounded-lg shadow-sm border border-slate-200 p-6">
+                      <div className="flex items-start justify-between mb-3">
+                        <div className="flex-1">
+                          <div className="flex items-center gap-3 mb-2">
+                            <span className={`px-3 py-1 rounded-full text-xs font-medium border ${getCategoryColor(event.category)}`}>
+                              {eventCategories.find(c => c.value === event.category)?.label}
+                            </span>
+                            <div className="flex items-center gap-2 text-sm text-slate-600">
+                              <Calendar className="w-4 h-4" />
+                              {event.event_date}
+                            </div>
+                            <div className="flex items-center gap-2 text-sm text-slate-600">
+                              <Clock className="w-4 h-4" />
+                              {event.event_time}
+                            </div>
                           </div>
-                          <div className="flex items-center gap-2 text-sm text-slate-600">
-                            <Clock className="w-4 h-4" />
-                            {event.event_time}
+                          <h3 className="font-semibold text-lg text-slate-900 mb-2">{event.title}</h3>
+                          <p className="text-slate-600 text-sm mb-3">{event.description}</p>
+                          
+                          <div className="flex items-center gap-4 text-xs text-slate-500">
+                            {event.source && (
+                              <div className="flex items-center gap-1">
+                                <FileText className="w-3 h-3" />
+                                Source: {event.source}
+                              </div>
+                            )}
                           </div>
-                        </div>
-                        <h3 className="font-semibold text-lg text-slate-900 mb-2">{event.title}</h3>
-                        <p className="text-slate-600 text-sm mb-3">{event.description}</p>
-                        
-                        <div className="flex items-center gap-4 text-xs text-slate-500">
-                          {event.source && (
-                            <div className="flex items-center gap-1">
-                              <FileText className="w-3 h-3" />
-                              Source: {event.source}
+
+                          {event.involved_personnel && event.involved_personnel.length > 0 && (
+                            <div className="mt-3 flex items-center gap-2">
+                              <Users className="w-4 h-4 text-slate-400" />
+                              <div className="flex flex-wrap gap-2">
+                                {event.involved_personnel.map((person: string, idx: number) => (
+                                  <span key={idx} className="px-2 py-1 bg-slate-100 text-slate-700 rounded text-xs">
+                                    {person}
+                                  </span>
+                                ))}
+                              </div>
                             </div>
                           )}
                         </div>
 
-                        {event.involved_personnel && event.involved_personnel.length > 0 && (
-                          <div className="mt-3 flex items-center gap-2">
-                            <Users className="w-4 h-4 text-slate-400" />
-                            <div className="flex flex-wrap gap-2">
-                              {event.involved_personnel.map((person: string, idx: number) => (
-                                <span key={idx} className="px-2 py-1 bg-slate-100 text-slate-700 rounded text-xs">
-                                  {person}
-                                </span>
-                              ))}
-                            </div>
-                          </div>
-                        )}
-                      </div>
-
-                      <div className="flex items-center gap-2">
-                        <button
-                          onClick={() => deleteEvent(event.id)}
-                          className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
-                          title="Delete event"
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </button>
+                        <div className="flex items-center gap-2">
+                          <button
+                            onClick={() => {
+                              setEditingEventId(event.id);
+                              setNewEvent({
+                                date: event.event_date,
+                                time: event.event_time || '12:00',
+                                category: event.category,
+                                title: event.title,
+                                description: event.description || '',
+                                source: event.source || '',
+                                verificationStatus: event.verification_status,
+                                involvedPersonnel: event.involved_personnel ? event.involved_personnel.join(', ') : '',
+                                isIncidentEvent: event.is_incident_event || false
+                              });
+                              setShowAddEvent(true);
+                            }}
+                            className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                            title="Edit event"
+                          >
+                            <Edit2 className="w-4 h-4" />
+                          </button>
+                          <button
+                            onClick={() => {
+                              setParentEventId(event.id);
+                              setNewEvent({
+                                date: event.event_date,
+                                time: '',
+                                category: event.category,
+                                title: '',
+                                description: '',
+                                source: '',
+                                verificationStatus: 'needs_verification',
+                                involvedPersonnel: '',
+                                isIncidentEvent: false
+                              });
+                              setShowAddEvent(true);
+                            }}
+                            className="p-2 text-green-600 hover:bg-green-50 rounded-lg transition-colors"
+                            title="Add child event"
+                          >
+                            <Plus className="w-4 h-4" />
+                          </button>
+                          <button
+                            onClick={() => deleteEvent(event.id)}
+                            className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                            title="Delete event"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        </div>
                       </div>
                     </div>
                   </div>
+                  
+                  {/* Child events - indented */}
+                  {sortedEvents.filter(child => child.parent_event_id === event.id).map((childEvent) => (
+                    <div key={childEvent.id} className="relative flex gap-6 ml-16 mt-4">
+                      {/* Child timeline marker */}
+                      <div className="relative z-10 flex-shrink-0">
+                        <div className="w-8 h-8 rounded-full bg-blue-100 border-2 border-blue-300 flex items-center justify-center">
+                          <div className="w-2 h-2 rounded-full bg-blue-500" />
+                        </div>
+                      </div>
+
+                      {/* Child event card */}
+                      <div className="flex-1 bg-blue-50 border-l-4 border-blue-300 rounded-lg shadow-sm p-4">
+                        <div className="flex items-start justify-between mb-2">
+                          <div className="flex-1">
+                            <div className="flex items-center gap-3 mb-2">
+                              <span className={`px-2 py-1 rounded-full text-xs font-medium border ${getCategoryColor(childEvent.category)}`}>
+                                {eventCategories.find(c => c.value === childEvent.category)?.label}
+                              </span>
+                              <div className="flex items-center gap-2 text-sm text-slate-600">
+                                <Clock className="w-3 h-3" />
+                                {childEvent.event_time}
+                              </div>
+                            </div>
+                            <h4 className="font-semibold text-slate-900 mb-1">{childEvent.title}</h4>
+                            <p className="text-slate-600 text-sm">{childEvent.description}</p>
+                          </div>
+
+                          <div className="flex items-center gap-1">
+                            <button
+                              onClick={() => {
+                                setEditingEventId(childEvent.id);
+                                setNewEvent({
+                                  date: childEvent.event_date,
+                                  time: childEvent.event_time || '12:00',
+                                  category: childEvent.category,
+                                  title: childEvent.title,
+                                  description: childEvent.description || '',
+                                  source: childEvent.source || '',
+                                  verificationStatus: childEvent.verification_status,
+                                  involvedPersonnel: childEvent.involved_personnel ? childEvent.involved_personnel.join(', ') : '',
+                                  isIncidentEvent: childEvent.is_incident_event || false
+                                });
+                                setShowAddEvent(true);
+                              }}
+                              className="p-1.5 text-blue-600 hover:bg-blue-100 rounded transition-colors"
+                              title="Edit child event"
+                            >
+                              <Edit2 className="w-3 h-3" />
+                            </button>
+                            <button
+                              onClick={() => deleteEvent(childEvent.id)}
+                              className="p-1.5 text-red-600 hover:bg-red-100 rounded transition-colors"
+                              title="Delete child event"
+                            >
+                              <Trash2 className="w-3 h-3" />
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
                 </div>
               ))}
             </div>
@@ -483,9 +613,26 @@ export default function TimelineBuilder() {
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
           <div className="bg-white rounded-lg p-6 max-w-2xl w-full max-h-[90vh] overflow-y-auto">
             <div className="flex justify-between items-center mb-6">
-              <h2 className="text-xl font-bold">Add Timeline Event</h2>
+              <h2 className="text-xl font-bold">
+                {editingEventId ? 'Edit Timeline Event' : parentEventId ? 'Add Child Event' : 'Add Timeline Event'}
+              </h2>
               <button
-                onClick={() => setShowAddEvent(false)}
+                onClick={() => {
+                  setShowAddEvent(false);
+                  setEditingEventId(null);
+                  setParentEventId(null);
+                  setNewEvent({
+                    date: new Date().toISOString().split('T')[0],
+                    time: '12:00',
+                    category: 'action',
+                    title: '',
+                    description: '',
+                    source: '',
+                    verificationStatus: 'needs_verification',
+                    involvedPersonnel: '',
+                    isIncidentEvent: false
+                  });
+                }}
                 className="p-2 hover:bg-slate-100 rounded-lg transition-colors"
               >
                 <X className="w-5 h-5" />
@@ -621,10 +768,25 @@ export default function TimelineBuilder() {
                 disabled={saving}
                 className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
               >
-                {saving ? 'Adding...' : 'Add Event'}
+                {saving ? 'Saving...' : editingEventId ? 'Update Event' : parentEventId ? 'Add Child Event' : 'Add Event'}
               </button>
               <button
-                onClick={() => setShowAddEvent(false)}
+                onClick={() => {
+                  setShowAddEvent(false);
+                  setEditingEventId(null);
+                  setParentEventId(null);
+                  setNewEvent({
+                    date: new Date().toISOString().split('T')[0],
+                    time: '12:00',
+                    category: 'action',
+                    title: '',
+                    description: '',
+                    source: '',
+                    verificationStatus: 'needs_verification',
+                    involvedPersonnel: '',
+                    isIncidentEvent: false
+                  });
+                }}
                 disabled={saving}
                 className="px-4 py-2 border border-slate-300 rounded-lg hover:bg-slate-50 disabled:opacity-50 transition-colors"
               >
@@ -634,7 +796,7 @@ export default function TimelineBuilder() {
           </div>
         </div>
       )}
-    </div>
+      </div>
     </>
   );
-}
+} 
