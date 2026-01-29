@@ -26,6 +26,7 @@ export default function InvestigationOverview() {
     consequenceCategory: '',
     potentialSeverity: '',
     actualSeverity: '',
+    highPotential: false,
     incidentDescription: '',
     immediateActions: '',
     investigationLeader: '',
@@ -36,8 +37,7 @@ export default function InvestigationOverview() {
 
   const incidentTypes = [
     'Actual Incident',
-    'Near Miss',
-    'High Potential Near Miss'
+    'Near Miss'
   ];
 
   const consequenceCategories = [
@@ -91,6 +91,7 @@ export default function InvestigationOverview() {
         consequenceCategory: data.consequence_category || '',
         potentialSeverity: data.potential_severity || '',
         actualSeverity: data.actual_severity || '',
+        highPotential: data.high_potential || false,
         incidentDescription: data.incident_description || '',
         immediateActions: data.immediate_actions_taken || '',
         investigationLeader: data.investigation_leader || '',
@@ -128,6 +129,7 @@ export default function InvestigationOverview() {
         consequence_category: formData.consequenceCategory || null,
         potential_severity: formData.potentialSeverity || null,
         actual_severity: formData.actualSeverity || null,
+        high_potential: formData.highPotential,
         incident_description: formData.incidentDescription,
         immediate_actions_taken: formData.immediateActions || null,
         investigation_leader: formData.investigationLeader || null,
@@ -335,6 +337,25 @@ export default function InvestigationOverview() {
                   
                   <div>
                     <label className="block text-sm font-medium text-slate-700 mb-2">
+                      High Potential
+                    </label>
+                    <div className="flex items-center gap-3 h-10 px-4 bg-amber-50 border border-amber-200 rounded-lg">
+                      <input
+                        type="checkbox"
+                        id="highPotential"
+                        checked={formData.highPotential}
+                        onChange={(e) => setFormData({ ...formData, highPotential: e.target.checked })}
+                        className="w-4 h-4 text-amber-600 border-amber-300 rounded focus:ring-amber-500"
+                      />
+                      <label htmlFor="highPotential" className="text-sm text-amber-900 cursor-pointer flex items-center gap-2">
+                        <AlertTriangle className="w-4 h-4" />
+                        High Potential Incident
+                      </label>
+                    </div>
+                  </div>
+                  
+                  <div>
+                    <label className="block text-sm font-medium text-slate-700 mb-2">
                       Consequence Category
                     </label>
                     <select
@@ -379,6 +400,24 @@ export default function InvestigationOverview() {
                         <option key={level.value} value={level.value}>{level.label}</option>
                       ))}
                     </select>
+                  </div>
+                  
+                  <div className="md:col-span-2">
+                    <div className="flex items-center gap-3 p-4 bg-amber-50 border border-amber-200 rounded-lg">
+                      <input
+                        type="checkbox"
+                        id="highPotential"
+                        checked={formData.highPotential}
+                        onChange={(e) => setFormData({ ...formData, highPotential: e.target.checked })}
+                        className="w-5 h-5 text-amber-600 border-amber-300 rounded focus:ring-amber-500"
+                      />
+                      <label htmlFor="highPotential" className="text-sm font-medium text-amber-900 cursor-pointer">
+                        <span className="flex items-center gap-2">
+                          <AlertTriangle className="w-4 h-4" />
+                          High Potential Incident - An event that had the potential to cause a fatality or permanent disabling injury
+                        </span>
+                      </label>
+                    </div>
                   </div>
                 </div>
               </div>
