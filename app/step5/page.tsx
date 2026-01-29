@@ -128,6 +128,13 @@ export default function RecommendationsDevelopment() {
     }
   };
 
+  // Auto-save handler for navigation - closes any open modals
+  const handleBeforeNavigate = async (): Promise<boolean> => {
+    setShowAddRecommendation(false);
+    setEditingRecommendationId(null);
+    return true; // Allow navigation
+  };
+
   const handleAddRecommendation = async () => {
     if (!newRecommendation.title || !newRecommendation.description) {
       alert('Please fill in title and description');
@@ -279,6 +286,7 @@ export default function RecommendationsDevelopment() {
           investigationId={investigationId} 
           currentStep={5}
           investigationNumber={investigation.investigation_number}
+          onBeforeNavigate={handleBeforeNavigate}
         />
       )}
       <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 p-6">
@@ -497,21 +505,20 @@ export default function RecommendationsDevelopment() {
                   const { error } = await supabase
                     .from('investigations')
                     .update({ 
-                      status: 'completed',
-                      completion_date: new Date().toISOString().split('T')[0]
+                      status: 'completed'
                     })
                     .eq('id', investigationId);
 
                   if (error) {
                     console.error('Error completing investigation:', error);
-                    alert('Error updating investigation status');
+                    alert('Error updating investigation status: ' + error.message);
                   } else {
                     alert('Investigation marked as complete! Redirecting to report...');
                     router.push(`/report?investigationId=${investigationId}`);
                   }
-                } catch (error) {
+                } catch (error: any) {
                   console.error('Error:', error);
-                  alert('Error completing investigation');
+                  alert('Error completing investigation: ' + error.message);
                 }
               }
             }}
