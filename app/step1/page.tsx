@@ -40,6 +40,55 @@ export default function InvestigationOverview() {
     'Near Miss'
   ];
 
+  // Auto-save function for navigation
+  const handleAutoSave = async (): Promise<boolean> => {
+    // Check if there's any data to save
+    if (!formData.incidentDate || !formData.locationFacility || !formData.incidentDescription) {
+      // If required fields are missing, don't save, just allow navigation
+      return true;
+    }
+
+    // If this is a new investigation and no ID yet, don't auto-save
+    if (isNewInvestigation) {
+      return true;
+    }
+
+    try {
+      const investigationData = {
+        incident_date: formData.incidentDate,
+        incident_time: formData.incidentTime || null,
+        location_facility: formData.locationFacility,
+        location_unit: formData.locationUnit || null,
+        location_area: formData.locationArea || null,
+        incident_type: formData.incidentType,
+        high_potential: formData.highPotential,
+        consequence_category: formData.consequenceCategory || null,
+        potential_severity: formData.potentialSeverity || null,
+        actual_severity: formData.actualSeverity || null,
+        incident_description: formData.incidentDescription,
+        immediate_actions_taken: formData.immediateActions || null,
+        investigation_leader: formData.investigationLeader || null,
+        target_completion_date: formData.targetCompletionDate || null,
+        status: 'initiated'
+      };
+
+      const { error } = await supabase
+        .from('investigations')
+        .update(investigationData)
+        .eq('id', investigationId);
+
+      if (error) {
+        console.error('Auto-save error:', error);
+        // Don't block navigation on auto-save failure
+      }
+
+      return true; // Always allow navigation
+    } catch (error) {
+      console.error('Auto-save error:', error);
+      return true; // Always allow navigation even if save fails
+    }
+  };
+
   const consequenceCategories = [
     'Fatality',
     'Lost Time Injury',
@@ -202,6 +251,7 @@ export default function InvestigationOverview() {
           investigationId={investigationId!} 
           currentStep={1}
           investigationNumber={investigation.investigation_number}
+          onBeforeNavigate={handleAutoSave}
         />
       )}
       
