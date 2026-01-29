@@ -298,7 +298,7 @@ export default function EvidenceDataCollection() {
         console.error('Error deleting interview:', error);
         alert('Error deleting interview');
         return;
-        }
+      }
 
       setInterviews(interviews.filter(i => i.id !== id));
       alert('Interview deleted');
@@ -498,7 +498,7 @@ export default function EvidenceDataCollection() {
                           {item.collected_by}
                         </div>
                       )}
-                      {item.location && (
+                     {item.location && (
                         <div className="flex items-center gap-2 text-xs text-slate-500">
                           <MapPin className="w-3 h-3" />
                           {item.location}
@@ -898,7 +898,7 @@ export default function EvidenceDataCollection() {
                     value={newInterview.type}
                     onChange={(e) => setNewInterview({ ...newInterview, type: e.target.value })}
                     className="w-full border border-slate-300 rounded-lg px-4 py-2"
-                    >
+                  >
                     <option value="witness">Witness</option>
                     <option value="expert">Expert/SME</option>
                     <option value="involved">Involved Party</option>
@@ -952,4 +952,4 @@ export default function EvidenceDataCollection() {
     </div>
     </>
   );
-}
+} 
