@@ -232,11 +232,43 @@ export default function InvestigationReport() {
                     <div className="space-y-3">
                       {evidence.map((item, idx) => (
                         <div key={item.id} className="pl-4 border-l-2 border-blue-500">
-                          <p className="font-medium text-slate-900">{idx + 1}. {item.evidence_type}</p>
-                          <p className="text-slate-700">{item.evidence_description}</p>
-                          {item.collected_by && (
-                            <p className="text-sm text-slate-600">Collected by: {item.collected_by}</p>
-                          )}
+                          <div className="flex items-start gap-2">
+                            <span className="font-medium text-slate-900">{idx + 1}.</span>
+                            <div className="flex-1">
+                              <div className="flex items-center gap-2 mb-1">
+                                <span className="inline-block px-2 py-0.5 text-xs font-medium rounded bg-blue-100 text-blue-800">
+                                  {item.evidence_type?.toUpperCase()}
+                                </span>
+                                {item.file_url ? (
+                                  <a 
+                                    href={item.file_url} 
+                                    target="_blank" 
+                                    rel="noopener noreferrer"
+                                    className="font-semibold text-blue-600 hover:text-blue-800 underline"
+                                  >
+                                    {item.title} ↗
+                                  </a>
+                                ) : (
+                                  <span className="font-semibold text-slate-900">{item.title}</span>
+                                )}
+                              </div>
+                              <p className="text-slate-700 text-sm mb-1">{item.description}</p>
+                              <div className="text-xs text-slate-600">
+                                {item.collected_date && <span>Collected: {item.collected_date}</span>}
+                                {item.collected_by && <span className="ml-3">By: {item.collected_by}</span>}
+                                {item.location && <span className="ml-3">Location: {item.location}</span>}
+                              </div>
+                              {item.tags && item.tags.length > 0 && (
+                                <div className="mt-1">
+                                  {item.tags.map((tag: string, tagIdx: number) => (
+                                    <span key={tagIdx} className="inline-block px-2 py-0.5 text-xs rounded bg-slate-100 text-slate-600 mr-1">
+                                      {tag}
+                                    </span>
+                                  ))}
+                                </div>
+                              )}
+                            </div>
+                          </div>
                         </div>
                       ))}
                     </div>
