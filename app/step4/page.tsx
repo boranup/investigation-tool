@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { GitBranch, Plus, Trash2, CheckCircle, ChevronDown, ChevronRight, ArrowRight, Edit } from 'lucide-react';
+import { GitBranch, Plus, Trash2, CheckCircle, ChevronDown, ChevronRight, ArrowRight, Edit2 } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import StepNavigation from '@/components/StepNavigation';
 
@@ -234,14 +234,43 @@ export default function CausalAnalysis() {
 
                       <div className="flex-1">
                         {/* Factor Header */}
-                        <div className="flex items-center gap-2 mb-2">
-                          <span className={`px-3 py-1 rounded-full text-xs font-medium border ${getTypeColor(factor.factor_type)}`}>
-                            {factorTypes.find(t => t.value === factor.factor_type)?.label}
-                          </span>
-                          <span className="px-3 py-1 rounded-full text-xs font-medium bg-slate-100 text-slate-700">
-                            {factorCategories.find(c => c.value === factor.factor_category)?.label}
-                          </span>
-                          {getStatusBadge(factor.analysis_status)}
+                        <div className="flex items-center justify-between mb-2">
+                          <div className="flex items-center gap-2">
+                            <span className={`px-3 py-1 rounded-full text-xs font-medium border ${getTypeColor(factor.factor_type)}`}>
+                              {factorTypes.find(t => t.value === factor.factor_type)?.label}
+                            </span>
+                            <span className="px-3 py-1 rounded-full text-xs font-medium bg-slate-100 text-slate-700">
+                              {factorCategories.find(c => c.value === factor.factor_category)?.label}
+                            </span>
+                            {getStatusBadge(factor.analysis_status)}
+                          </div>
+                          
+                          {/* Quick Action Buttons - Always Visible */}
+                          <div className="flex items-center gap-1">
+                            <button
+                              onClick={() => {
+                                setEditingFactorId(factor.id);
+                                setNewFactor({
+                                  title: factor.causal_factor_title,
+                                  description: factor.causal_factor_description || '',
+                                  factorType: factor.factor_type,
+                                  factorCategory: factor.factor_category
+                                });
+                                setShowAddFactor(true);
+                              }}
+                              className="p-2 text-green-600 hover:bg-green-50 rounded-lg transition-colors"
+                              title="Edit causal factor"
+                            >
+                              <Edit2 className="w-4 h-4" />
+                            </button>
+                            <button
+                              onClick={() => deleteFactor(factor.id)}
+                              className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                              title="Delete causal factor"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </button>
+                          </div>
                         </div>
                         
                         <h3 className="font-semibold text-lg text-slate-900 mb-2">{factor.causal_factor_title}</h3>
@@ -274,7 +303,7 @@ export default function CausalAnalysis() {
                                 }}
                                 className="flex items-center gap-2 px-3 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm"
                               >
-                                <Edit className="w-4 h-4" />
+                                <Edit2 className="w-4 h-4" />
                                 Edit
                               </button>
                               <button
