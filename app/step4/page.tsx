@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { GitBranch, Plus, Edit2, Trash2, AlertTriangle, Lock, Unlock, ArrowRight, CheckCircle } from 'lucide-react';
+import { GitBranch, Plus, Edit2, Trash2, AlertTriangle, Lock, Unlock, ArrowRight, CheckCircle, Lightbulb } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import StepNavigation from '@/components/StepNavigation';
 
@@ -580,6 +580,34 @@ export default function CausalAnalysis() {
             <p className="text-gray-600">No causal factors match your filters</p>
           </div>
         )}
+
+        {/* Investigation Principles - Always Visible */}
+        <div className="bg-blue-50 border-2 border-blue-300 rounded-lg p-6 mt-6">
+          <div className="flex items-start gap-3">
+            <Lightbulb className="w-6 h-6 text-blue-600 flex-shrink-0 mt-1" />
+            <div>
+              <h3 className="font-bold text-blue-900 mb-3 text-lg">Key Investigation Principles:</h3>
+              <ul className="space-y-2 text-sm text-blue-900">
+                <li className="flex items-start gap-2">
+                  <span className="font-bold mt-0.5">•</span>
+                  <span><strong>Local Rationality:</strong> People's actions made sense to them at the time given their knowledge, training, and context</span>
+                </li>
+                <li className="flex items-start gap-2">
+                  <span className="font-bold mt-0.5">•</span>
+                  <span><strong>Multiple Theories:</strong> Generate at least 2-3 possible explanations before reaching conclusions</span>
+                </li>
+                <li className="flex items-start gap-2">
+                  <span className="font-bold mt-0.5">•</span>
+                  <span><strong>System Focus:</strong> Even when human action is involved, understand what system factors made the error likely</span>
+                </li>
+                <li className="flex items-start gap-2">
+                  <span className="font-bold mt-0.5">•</span>
+                  <span><strong>Don't Stop at "Human Error":</strong> That's a starting point, not a conclusion. Ask WHY the error was made</span>
+                </li>
+              </ul>
+            </div>
+          </div>
+        </div>
 
         {/* Add Causal Factor Modal */}
         {showAddFactor && (
