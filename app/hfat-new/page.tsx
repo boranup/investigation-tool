@@ -46,11 +46,10 @@ export default function HFATAssessment() {
   // Store ratings and notes for each factor
   const [humanFactors, setHumanFactors] = useState<Record<string, { rating: string; notes: string }>>({});
 
-  // Just Culture assessment
+  // Just Culture assessment - REMOVED responseActions (HR responsibility)
   const [justCulture, setJustCulture] = useState({
     classification: '',
-    justification: '',
-    responseActions: ''
+    justification: ''
   });
 
   const factorCategories = {
@@ -198,8 +197,7 @@ export default function HFATAssessment() {
           setHumanFactors(hfatData.notes.humanFactors || {});
           setJustCulture(hfatData.notes.justCulture || {
             classification: '',
-            justification: '',
-            responseActions: ''
+            justification: ''
           });
         }
       }
@@ -284,7 +282,7 @@ export default function HFATAssessment() {
       // Update causal factor status
       await supabase
         .from('causal_factors')
-        .update({ analysis_status: 'analysis_complete' })
+        .update({ analysis_status: 'validated' })
         .eq('id', causalFactorId);
 
       alert('HFAT Assessment completed!');
@@ -409,7 +407,7 @@ export default function HFATAssessment() {
             </div>
           ))}
 
-          {/* Just Culture Assessment */}
+          {/* Just Culture Assessment - REMOVED Response Actions */}
           <div className="bg-white border rounded">
             <button
               onClick={() => setShowJustCulture(!showJustCulture)}
@@ -423,6 +421,11 @@ export default function HFATAssessment() {
             </button>
             {showJustCulture && (
               <div className="p-3 border-t space-y-3">
+                <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 mb-3">
+                  <p className="text-xs text-blue-900">
+                    <strong>Note:</strong> This assessment identifies what happened and why. Personnel response decisions (disciplinary actions) are the responsibility of HR, not the investigation team.
+                  </p>
+                </div>
                 <div>
                   <label className="block text-xs font-medium mb-1 flex items-center gap-1">
                     Classification
@@ -447,18 +450,8 @@ export default function HFATAssessment() {
                     value={justCulture.justification}
                     onChange={(e) => setJustCulture({ ...justCulture, justification: e.target.value })}
                     className="w-full border rounded px-2 py-1 text-sm"
-                    rows={2}
+                    rows={3}
                     placeholder="Document reasoning and evidence for this classification..."
-                  />
-                </div>
-                <div>
-                  <label className="block text-xs font-medium mb-1">Response Actions</label>
-                  <textarea
-                    value={justCulture.responseActions}
-                    onChange={(e) => setJustCulture({ ...justCulture, responseActions: e.target.value })}
-                    className="w-full border rounded px-2 py-1 text-sm"
-                    rows={2}
-                    placeholder="Recommended actions based on classification (Console, coach, or punish)"
                   />
                 </div>
               </div>
