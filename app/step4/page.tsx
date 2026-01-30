@@ -247,6 +247,7 @@ export default function CausalAnalysis() {
       </div>
     );
   }
+
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Step Navigation */}
