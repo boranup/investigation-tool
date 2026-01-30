@@ -153,14 +153,20 @@ export default function HOPAssessment() {
           .update(hopData)
           .eq('id', assessmentId);
 
-        if (error) throw error;
+        if (error) {
+          console.error('Supabase error details:', error);
+          throw error;
+        }
       } else {
         // Create new
         const { error } = await supabase
           .from('hop_assessments')
           .insert([hopData]);
 
-        if (error) throw error;
+        if (error) {
+          console.error('Supabase error details:', error);
+          throw error;
+        }
       }
 
       // Update causal factor status
@@ -175,9 +181,9 @@ export default function HOPAssessment() {
       alert('HOP Assessment saved successfully!');
       router.back();
 
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error saving:', error);
-      alert('Error saving assessment');
+      alert(`Error saving assessment: ${error.message || 'Unknown error'}`);
     } finally {
       setSaving(false);
     }
