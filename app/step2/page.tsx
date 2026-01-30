@@ -5,6 +5,7 @@ import { useSearchParams } from 'next/navigation';
 import { Upload, FileText, Camera, Video, Database, Users, Search, Filter, Tag, Calendar, MapPin, Trash2, Eye, Plus, Download, X, Edit2 } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import StepNavigation from '@/components/StepNavigation';
+import EvidenceTags from '@/components/EvidenceTags';
 
 export default function EvidenceDataCollection() {
   const searchParams = useSearchParams();
@@ -166,31 +167,57 @@ export default function EvidenceDataCollection() {
         }
       }
 
-      // Insert into database with CORRECTED column name
-      const { data, error } = await supabase
-        .from('evidence')
-        .insert([{
-          investigation_id: investigationId,
-          evidence_type: newEvidence.type, // CORRECTED: was 'type'
-          title: newEvidence.title,
-          description: newEvidence.description,
-          file_url: fileUrl,
-          collected_date: newEvidence.collectedDate,
-          collected_by: newEvidence.collectedBy || null,
-          location: newEvidence.location || null,
-          tags: newEvidence.tags ? newEvidence.tags.split(',').map(t => t.trim()).filter(t => t) : []
-        }])
-        .select()
-        .single();
+      if (editingEvidenceId) {
+        // UPDATE existing evidence
+        const { error } = await supabase
+          .from('evidence')
+          .update({
+            evidence_type: newEvidence.type,
+            title: newEvidence.title,
+            description: newEvidence.description,
+            file_url: fileUrl || undefined,
+            collected_date: newEvidence.collectedDate,
+            collected_by: newEvidence.collectedBy || null,
+            location: newEvidence.location || null,
+            tags: newEvidence.tags ? newEvidence.tags.split(',').map(t => t.trim()).filter(t => t) : []
+          })
+          .eq('id', editingEvidenceId);
 
-      if (error) {
-        console.error('Database error:', error);
-        alert('Error saving evidence to database');
-        return;
+        if (error) {
+          console.error('Database error:', error);
+          alert('Error updating evidence');
+          return;
+        }
+
+        alert('Evidence updated successfully!');
+      } else {
+        // INSERT new evidence
+        const { data, error } = await supabase
+          .from('evidence')
+          .insert([{
+            investigation_id: investigationId,
+            evidence_type: newEvidence.type, // CORRECTED: was 'type'
+            title: newEvidence.title,
+            description: newEvidence.description,
+            file_url: fileUrl,
+            collected_date: newEvidence.collectedDate,
+            collected_by: newEvidence.collectedBy || null,
+            location: newEvidence.location || null,
+            tags: newEvidence.tags ? newEvidence.tags.split(',').map(t => t.trim()).filter(t => t) : []
+          }])
+          .select()
+          .single();
+
+        if (error) {
+          console.error('Database error:', error);
+          alert('Error saving evidence to database');
+          return;
+        }
+
+        // Add to local state
+        setEvidence([data, ...evidence]);
+        alert('Evidence added successfully!');
       }
-
-      // Add to local state
-      setEvidence([data, ...evidence]);
       
       // Reset form
       setNewEvidence({
@@ -204,8 +231,9 @@ export default function EvidenceDataCollection() {
         file: null
       });
       
+      setEditingEvidenceId(null);
       setShowAddEvidence(false);
-      alert('Evidence added successfully!');
+      loadEvidence();
     } catch (error) {
       console.error('Error adding evidence:', error);
       alert('Error adding evidence');
@@ -226,31 +254,58 @@ export default function EvidenceDataCollection() {
     }
 
     try {
-      const { data, error } = await supabase
-        .from('interviews')
-        .insert([{
-          investigation_id: investigationId,
-          interviewee: newInterview.interviewee,
-          role: newInterview.role || null,
-          department: newInterview.department || null,
-          interviewer: newInterview.interviewer || null,
-          interview_date: newInterview.interviewDate,
-          interview_time: newInterview.interviewTime || null,
-          interview_type: newInterview.type, // CORRECTED: was 'type'
-          key_findings: newInterview.keyFindings || null,
-          status: 'completed'
-        }])
-        .select()
-        .single();
+      if (editingInterviewId) {
+        // UPDATE existing interview
+        const { error } = await supabase
+          .from('interviews')
+          .update({
+            interviewee: newInterview.interviewee,
+            role: newInterview.role || null,
+            department: newInterview.department || null,
+            interviewer: newInterview.interviewer || null,
+            interview_date: newInterview.interviewDate,
+            interview_time: newInterview.interviewTime || null,
+            interview_type: newInterview.type, // CORRECTED: was 'type'
+            key_findings: newInterview.keyFindings || null
+          })
+          .eq('id', editingInterviewId);
 
-      if (error) {
-        console.error('Database error:', error);
-        alert('Error saving interview');
-        return;
+        if (error) {
+          console.error('Database error:', error);
+          alert('Error updating interview');
+          return;
+        }
+
+        alert('Interview updated successfully!');
+      } else {
+        // INSERT new interview
+        const { data, error } = await supabase
+          .from('interviews')
+          .insert([{
+            investigation_id: investigationId,
+            interviewee: newInterview.interviewee,
+            role: newInterview.role || null,
+            department: newInterview.department || null,
+            interviewer: newInterview.interviewer || null,
+            interview_date: newInterview.interviewDate,
+            interview_time: newInterview.interviewTime || null,
+            interview_type: newInterview.type, // CORRECTED: was 'type'
+            key_findings: newInterview.keyFindings || null,
+            status: 'completed'
+          }])
+          .select()
+          .single();
+
+        if (error) {
+          console.error('Database error:', error);
+          alert('Error saving interview');
+          return;
+        }
+
+        // Add to local state
+        setInterviews([data, ...interviews]);
+        alert('Interview record added!');
       }
-
-      // Add to local state
-      setInterviews([data, ...interviews]);
       
       // Reset form
       setNewInterview({
@@ -264,8 +319,9 @@ export default function EvidenceDataCollection() {
         keyFindings: ''
       });
       
+      setEditingInterviewId(null);
       setShowAddInterview(false);
-      alert('Interview record added!');
+      loadEvidence();
     } catch (error) {
       console.error('Error adding interview:', error);
       alert('Error adding interview');
@@ -358,8 +414,8 @@ export default function EvidenceDataCollection() {
     );
   }
 
-  // CONTINUED IN PART 2...
-  // CONTINUED FROM PART 1...
+  // CONTINUED IN PART B...
+  // CONTINUED FROM PART A...
 
   return (
     <>
@@ -460,7 +516,6 @@ export default function EvidenceDataCollection() {
                 </button>
               </div>
             </div>
-
             {/* Evidence Grid */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               {filteredEvidence.map((item) => (
@@ -546,6 +601,12 @@ export default function EvidenceDataCollection() {
                         ))}
                       </div>
                     )}
+
+                    {/* Evidence Tags Component - THE KEY INTEGRATION */}
+                    <EvidenceTags 
+                      evidenceId={item.id} 
+                      investigationId={investigationId}
+                    />
                   </div>
                 </div>
               ))}
