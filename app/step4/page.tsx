@@ -121,8 +121,8 @@ export default function CausalAnalysis() {
     try {
       const factorData = {
         investigation_id: investigationId,
-        title: newFactor.title,
-        description: newFactor.description,
+        causal_factor_title: newFactor.title,  // Database uses causal_factor_title
+        causal_factor_description: newFactor.description,  // Database uses causal_factor_description
         factor_type: newFactor.factorType,
         factor_category: newFactor.factorCategory,
         parent_causal_factor_id: newFactor.parentFactorId,
@@ -166,8 +166,8 @@ export default function CausalAnalysis() {
       const { error } = await supabase
         .from('causal_factors')
         .update({
-          title: editingFactor.title,
-          description: editingFactor.description,
+          causal_factor_title: editingFactor.causal_factor_title,
+          causal_factor_description: editingFactor.causal_factor_description,
           factor_type: editingFactor.factor_type,
           factor_category: editingFactor.factor_category,
           parent_causal_factor_id: editingFactor.parent_causal_factor_id,
@@ -364,14 +364,14 @@ export default function CausalAnalysis() {
                   <div className="space-y-4">
                     <input
                       type="text"
-                      value={editingFactor.title}
-                      onChange={(e) => setEditingFactor({...editingFactor, title: e.target.value})}
+                      value={editingFactor.causal_factor_title}
+                      onChange={(e) => setEditingFactor({...editingFactor, causal_factor_title: e.target.value})}
                       className="w-full border rounded-lg px-3 py-2 font-medium"
                       placeholder="Causal factor title..."
                     />
                     <textarea
-                      value={editingFactor.description}
-                      onChange={(e) => setEditingFactor({...editingFactor, description: e.target.value})}
+                      value={editingFactor.causal_factor_description}
+                      onChange={(e) => setEditingFactor({...editingFactor, causal_factor_description: e.target.value})}
                       className="w-full border rounded-lg px-3 py-2"
                       rows={3}
                       placeholder="Description..."
@@ -424,7 +424,7 @@ export default function CausalAnalysis() {
                       <div className="flex-1">
                         <div className="flex items-center gap-3 mb-2">
                           <h3 className="text-lg font-semibold text-gray-900">
-                            {factor.title}
+                            {factor.causal_factor_title}
                           </h3>
                           <span className={`px-3 py-1 rounded-full text-xs font-medium bg-${typeInfo?.color}-100 text-${typeInfo?.color}-700`}>
                             {typeInfo?.label}
@@ -434,7 +434,7 @@ export default function CausalAnalysis() {
                           </span>
                         </div>
                         <p className="text-gray-600 text-sm">
-                          {factor.description}
+                          {factor.causal_factor_description}
                         </p>
                       </div>
                       <div className="flex gap-2">
