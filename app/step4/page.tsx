@@ -247,15 +247,6 @@ export default function CausalAnalysis() {
       </div>
     );
   }
-
-
-  // ============================================================
-  // PART B CONTINUES FROM HERE - Copy Part B immediately below
-  // ============================================================
-// ============================================================
-// PART B - Copy this immediately after Part A (remove comments)
-// ============================================================
-
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Step Navigation */}
