@@ -465,78 +465,76 @@ export default function CausalAnalysis() {
                         )}
                       </div>
 
-                        {hopAssessments[factor.id]?.map((assessment: any) => (
-                          <div key={assessment.id} className="mb-2 p-3 bg-green-50 rounded border border-green-200">
-                            <div className="flex items-center justify-between">
-                              <div className="text-xs">
-                                <div className="font-medium">
-                                  {assessment.action_type === 'error' ? '🔴 Error Analysis' : '⚠️ Violation Analysis'}
-                                  {assessment.violation_type && ` - ${assessment.violation_type.charAt(0).toUpperCase() + assessment.violation_type.slice(1)}`}
-                                </div>
-                                <div className="text-gray-600 mt-1">
-                                  {assessment.status === 'complete' ? '✅ Complete' : '📝 Draft'} - 
-                                  {' '}{new Date(assessment.updated_at).toLocaleDateString()}
-                                </div>
+                      {hopAssessments[factor.id]?.map((assessment: any) => (
+                        <div key={assessment.id} className="mb-2 p-3 bg-green-50 rounded border border-green-200">
+                          <div className="flex items-center justify-between">
+                            <div className="text-xs">
+                              <div className="font-medium">
+                                {assessment.action_type === 'error' ? '🔴 Error Analysis' : '⚠️ Violation Analysis'}
+                                {assessment.violation_type && ` - ${assessment.violation_type.charAt(0).toUpperCase() + assessment.violation_type.slice(1)}`}
                               </div>
-                              <button
-                                onClick={() => router.push(`/hop-new?investigationId=${investigationId}&causalFactorId=${factor.id}&assessmentId=${assessment.id}`)}
-                                className="text-xs px-3 py-1 bg-green-600 text-white rounded hover:bg-green-700"
-                              >
-                                View/Edit
-                              </button>
+                              <div className="text-gray-600 mt-1">
+                                {assessment.status === 'complete' ? '✅ Complete' : '📝 Draft'} - 
+                                {' '}{new Date(assessment.updated_at).toLocaleDateString()}
+                              </div>
                             </div>
+                            <button
+                              onClick={() => router.push(`/hop-new?investigationId=${investigationId}&causalFactorId=${factor.id}&assessmentId=${assessment.id}`)}
+                              className="text-xs px-3 py-1 bg-green-600 text-white rounded hover:bg-green-700"
+                            >
+                              View/Edit
+                            </button>
                           </div>
-                        ))}
+                        </div>
+                      ))}
 
-                        <button
-                          onClick={() => router.push(`/hop-new?investigationId=${investigationId}&causalFactorId=${factor.id}`)}
-                          className="w-full flex items-center justify-center gap-2 px-3 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 text-sm mt-2"
-                        >
-                          <Plus className="w-4 h-4" />
-                          {hopAssessments[factor.id]?.length > 0 ? 'Add Another HOP Assessment' : 'Launch HOP Assessment'}
-                        </button>
-                      </div>
+                      <button
+                        onClick={() => router.push(`/hop-new?investigationId=${investigationId}&causalFactorId=${factor.id}`)}
+                        className="w-full flex items-center justify-center gap-2 px-3 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 text-sm mt-2"
+                      >
+                        <Plus className="w-4 h-4" />
+                        {hopAssessments[factor.id]?.length > 0 ? 'Add Another HOP Assessment' : 'Launch HOP Assessment'}
+                      </button>
                     </div>
 
                     {/* HFAT Assessment Section - Available for all factor types */}
                     <div className="mt-4 pt-4 border-t">
-                        <div className="flex items-center justify-between mb-2">
-                          <h4 className="font-medium text-sm">HFAT Assessment</h4>
-                          {hfatAssessments[factor.id]?.length > 0 && (
-                            <span className="text-xs text-purple-600">
-                              {hfatAssessments[factor.id].length} assessment(s)
-                            </span>
-                          )}
-                        </div>
-
-                        {hfatAssessments[factor.id]?.map((assessment: any) => (
-                          <div key={assessment.id} className="mb-2 p-3 bg-purple-50 rounded border border-purple-200">
-                            <div className="flex items-center justify-between">
-                              <div className="text-xs">
-                                <div className="font-medium">HFAT Analysis</div>
-                                <div className="text-gray-600 mt-1">
-                                  {assessment.status === 'complete' ? '✅ Complete' : '📝 Draft'} - 
-                                  {' '}{new Date(assessment.updated_at).toLocaleDateString()}
-                                </div>
-                              </div>
-                              <button
-                                onClick={() => router.push(`/hfat-new?investigationId=${investigationId}&causalFactorId=${factor.id}&assessmentId=${assessment.id}`)}
-                                className="text-xs px-3 py-1 bg-purple-600 text-white rounded hover:bg-purple-700"
-                              >
-                                View/Edit
-                              </button>
-                            </div>
-                          </div>
-                        ))}
-
-                        <button
-                          onClick={() => router.push(`/hfat-new?investigationId=${investigationId}&causalFactorId=${factor.id}`)}
-                          className="w-full flex items-center justify-center gap-2 px-3 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 text-sm mt-2"
-                        >
-                          <Plus className="w-4 h-4" />
-                          {hfatAssessments[factor.id]?.length > 0 ? 'Add Another HFAT Assessment' : 'Launch HFAT Assessment'}
-                        </button>
+                      <div className="flex items-center justify-between mb-2">
+                        <h4 className="font-medium text-sm">HFAT Assessment</h4>
+                        {hfatAssessments[factor.id]?.length > 0 && (
+                          <span className="text-xs text-purple-600">
+                            {hfatAssessments[factor.id].length} assessment(s)
+                          </span>
+                        )}
                       </div>
+
+                      {hfatAssessments[factor.id]?.map((assessment: any) => (
+                        <div key={assessment.id} className="mb-2 p-3 bg-purple-50 rounded border border-purple-200">
+                          <div className="flex items-center justify-between">
+                            <div className="text-xs">
+                              <div className="font-medium">HFAT Analysis</div>
+                              <div className="text-gray-600 mt-1">
+                                {assessment.status === 'complete' ? '✅ Complete' : '📝 Draft'} - 
+                                {' '}{new Date(assessment.updated_at).toLocaleDateString()}
+                              </div>
+                            </div>
+                            <button
+                              onClick={() => router.push(`/hfat-new?investigationId=${investigationId}&causalFactorId=${factor.id}&assessmentId=${assessment.id}`)}
+                              className="text-xs px-3 py-1 bg-purple-600 text-white rounded hover:bg-purple-700"
+                            >
+                              View/Edit
+                            </button>
+                          </div>
+                        </div>
+                      ))}
+
+                      <button
+                        onClick={() => router.push(`/hfat-new?investigationId=${investigationId}&causalFactorId=${factor.id}`)}
+                        className="w-full flex items-center justify-center gap-2 px-3 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 text-sm mt-2"
+                      >
+                        <Plus className="w-4 h-4" />
+                        {hfatAssessments[factor.id]?.length > 0 ? 'Add Another HFAT Assessment' : 'Launch HFAT Assessment'}
+                      </button>
                     </div>
                   </div>
                 )}
