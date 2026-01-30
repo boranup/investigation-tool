@@ -248,6 +248,14 @@ export default function CausalAnalysis() {
     );
   }
 
+
+  // ============================================================
+  // PART B CONTINUES FROM HERE - Copy Part B immediately below
+  // ============================================================
+// ============================================================
+// PART B - Copy this immediately after Part A (remove comments)
+// ============================================================
+
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Step Navigation */}
@@ -598,7 +606,6 @@ export default function CausalAnalysis() {
             <p className="text-gray-600">No causal factors match your filters</p>
           </div>
         )}
-
 
         {/* Investigation Principles - Always Visible */}
         <div className="bg-blue-50 border-2 border-blue-300 rounded-lg p-6 mt-6">
