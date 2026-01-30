@@ -5,6 +5,7 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { GitBranch, Plus, Edit2, Trash2, AlertTriangle, Lock, Unlock, ArrowRight, CheckCircle, Lightbulb } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import StepNavigation from '@/components/StepNavigation';
+import FiveWhysBuilder from '@/components/FiveWhysBuilder';
 
 export default function CausalAnalysis() {
   const router = useRouter();
@@ -590,6 +591,12 @@ export default function CausalAnalysis() {
             <p className="text-gray-600">No causal factors match your filters</p>
           </div>
         )}
+
+                      {/* 5 Whys Visual Builder */}
+                      <FiveWhysBuilder 
+                        causalFactorId={factor.id}
+                        initialFactor={factor.causal_factor_title}
+                      />
 
         {/* Investigation Principles - Always Visible */}
         <div className="bg-blue-50 border-2 border-blue-300 rounded-lg p-6 mt-6">
