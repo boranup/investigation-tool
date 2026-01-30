@@ -4,6 +4,7 @@ import React, { useState, useEffect } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { GitBranch, Plus, Edit2, Trash2, AlertTriangle, Lock, Unlock, ArrowRight, CheckCircle } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
+import StepNavigation from '@/components/StepNavigation';
 
 export default function CausalAnalysis() {
   const router = useRouter();
@@ -239,7 +240,15 @@ export default function CausalAnalysis() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 py-8">
+    <div className="min-h-screen bg-gray-50">
+      {/* Step Navigation */}
+      <StepNavigation 
+        investigationId={investigationId || ''} 
+        currentStep={4}
+        investigationNumber={investigation?.investigation_number}
+      />
+      
+      <div className="py-8">
       <div className="max-w-6xl mx-auto px-4">
         {/* Header */}
         <div className="bg-white rounded-lg shadow-sm p-6 mb-6">
@@ -286,36 +295,7 @@ export default function CausalAnalysis() {
             </div>
           </div>
 
-          {/* Gate Warning */}
-          {!allFactorsValidated && causalFactors.length > 0 && (
-            <div className="mt-4 p-4 bg-amber-50 border border-amber-200 rounded-lg flex items-start gap-3">
-              <Lock className="text-amber-600 flex-shrink-0" size={20} />
-              <div className="flex-1">
-                <p className="font-medium text-amber-900">Step 5 (Recommendations) Locked</p>
-                <p className="text-sm text-amber-700 mt-1">
-                  All causal factors must be validated through HFAT or HOP assessment before developing recommendations.
-                </p>
-              </div>
-            </div>
-          )}
-
-          {allFactorsValidated && (
-            <div className="mt-4 p-4 bg-green-50 border border-green-200 rounded-lg flex items-start gap-3">
-              <Unlock className="text-green-600 flex-shrink-0" size={20} />
-              <div className="flex-1">
-                <p className="font-medium text-green-900">Ready for Recommendations</p>
-                <p className="text-sm text-green-700 mt-1">
-                  All causal factors have been validated. You can now proceed to develop recommendations.
-                </p>
-              </div>
-              <button
-                onClick={() => router.push(`/step5?investigationId=${investigationId}`)}
-                className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700"
-              >
-                Go to Step 5
-              </button>
-            </div>
-          )}
+          {/* Removed Step 5 lock - not all factors require validation */}
         </div>
 
         {/* Filters */}
@@ -474,17 +454,16 @@ export default function CausalAnalysis() {
                       )}
                     </div>
 
-                    {/* HOP Assessment Section */}
-                    {(factor.factor_category === 'human_performance' || factor.factor_category === 'organizational') && (
-                      <div className="mt-4 pt-4 border-t">
-                        <div className="flex items-center justify-between mb-2">
-                          <h4 className="font-medium text-sm">HOP Assessment</h4>
-                          {hopAssessments[factor.id]?.length > 0 && (
-                            <span className="text-xs text-green-600">
-                              {hopAssessments[factor.id].length} assessment(s)
-                            </span>
-                          )}
-                        </div>
+                    {/* HOP Assessment Section - Available for all factor types */}
+                    <div className="mt-4 pt-4 border-t">
+                      <div className="flex items-center justify-between mb-2">
+                        <h4 className="font-medium text-sm">HOP Assessment</h4>
+                        {hopAssessments[factor.id]?.length > 0 && (
+                          <span className="text-xs text-green-600">
+                            {hopAssessments[factor.id].length} assessment(s)
+                          </span>
+                        )}
+                      </div>
 
                         {hopAssessments[factor.id]?.map((assessment: any) => (
                           <div key={assessment.id} className="mb-2 p-3 bg-green-50 rounded border border-green-200">
@@ -517,11 +496,10 @@ export default function CausalAnalysis() {
                           {hopAssessments[factor.id]?.length > 0 ? 'Add Another HOP Assessment' : 'Launch HOP Assessment'}
                         </button>
                       </div>
-                    )}
+                    </div>
 
-                    {/* HFAT Assessment Section */}
-                    {(factor.factor_category === 'equipment' || factor.factor_category === 'procedure') && (
-                      <div className="mt-4 pt-4 border-t">
+                    {/* HFAT Assessment Section - Available for all factor types */}
+                    <div className="mt-4 pt-4 border-t">
                         <div className="flex items-center justify-between mb-2">
                           <h4 className="font-medium text-sm">HFAT Assessment</h4>
                           {hfatAssessments[factor.id]?.length > 0 && (
@@ -559,7 +537,7 @@ export default function CausalAnalysis() {
                           {hfatAssessments[factor.id]?.length > 0 ? 'Add Another HFAT Assessment' : 'Launch HFAT Assessment'}
                         </button>
                       </div>
-                    )}
+                    </div>
                   </div>
                 )}
               </div>
@@ -650,6 +628,7 @@ export default function CausalAnalysis() {
             </div>
           </div>
         )}
+      </div>
       </div>
     </div>
   );
