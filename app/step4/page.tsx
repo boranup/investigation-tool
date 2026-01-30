@@ -119,19 +119,29 @@ export default function CausalAnalysis() {
 
   async function addCausalFactor() {
     try {
-      const { error } = await supabase
-        .from('causal_factors')
-        .insert([{
-          investigation_id: investigationId,
-          title: newFactor.title,
-          description: newFactor.description,
-          factor_type: newFactor.factorType,
-          factor_category: newFactor.factorCategory,
-          parent_causal_factor_id: newFactor.parentFactorId,
-          analysis_status: 'identified'
-        }]);
+      const factorData = {
+        investigation_id: investigationId,
+        title: newFactor.title,
+        description: newFactor.description,
+        factor_type: newFactor.factorType,
+        factor_category: newFactor.factorCategory,
+        parent_causal_factor_id: newFactor.parentFactorId,
+        analysis_status: 'identified'
+      };
 
-      if (error) throw error;
+      console.log('Attempting to insert causal factor:', factorData);
+
+      const { data, error } = await supabase
+        .from('causal_factors')
+        .insert([factorData])
+        .select();
+
+      if (error) {
+        console.error('Supabase error:', error);
+        throw error;
+      }
+
+      console.log('Successfully added causal factor:', data);
 
       setNewFactor({
         title: '',
@@ -143,9 +153,9 @@ export default function CausalAnalysis() {
       setShowAddFactor(false);
       loadCausalFactors();
       loadAssessments();
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error adding causal factor:', error);
-      alert('Error adding causal factor');
+      alert(`Error adding causal factor: ${error.message}\n\nCheck browser console for details.`);
     }
   }
 
