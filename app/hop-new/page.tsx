@@ -142,8 +142,9 @@ export default function HOPAssessment() {
         leadership_priority_messages: formData.leadershipPriorityMessages,
         leadership_production_safety: formData.leadershipProductionSafety,
         leadership_previous_response: formData.leadershipPreviousResponse,
-        completed: true,
-        completed_at: new Date().toISOString()
+        status: 'complete',
+        completed_at: new Date().toISOString(),
+        updated_at: new Date().toISOString()
       };
 
       if (assessmentId) {
