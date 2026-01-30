@@ -6,6 +6,7 @@ import { Clock, Plus, Edit2, Trash2, AlertCircle, CheckCircle, Filter, Search, C
 import { supabase } from '@/lib/supabase';
 import StepNavigation from '@/components/StepNavigation';
 import BarrierAnalysis from '@/components/BarrierAnalysis';
+import WorkAsImagined from '@/components/WorkAsImagined';
 
 export default function TimelineBuilder() {
   const searchParams = useSearchParams();
@@ -512,6 +513,13 @@ export default function TimelineBuilder() {
 
                       {/* Barrier Analysis Component */}
                       <BarrierAnalysis timelineEventId={event.id} />
+
+                      {/* Work-As-Imagined Component */}
+                      <WorkAsImagined 
+                        timelineEventId={event.id} 
+                        eventData={event}
+                        onUpdate={loadTimelineEvents}
+                      />
                     </div>
                   </div>
                   
@@ -576,6 +584,13 @@ export default function TimelineBuilder() {
 
                         {/* Barrier Analysis Component for Child Events */}
                         <BarrierAnalysis timelineEventId={childEvent.id} />
+
+                        {/* Work-As-Imagined Component for Child Events */}
+                        <WorkAsImagined 
+                          timelineEventId={childEvent.id} 
+                          eventData={childEvent}
+                          onUpdate={loadTimelineEvents}
+                        />
                       </div>
                     </div>
                   ))}
