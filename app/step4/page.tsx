@@ -178,6 +178,8 @@ export default function CausalAnalysis() {
           factor_type: editingFactor.factor_type,
           factor_category: editingFactor.factor_category,
           parent_causal_factor_id: editingFactor.parent_causal_factor_id,
+          requires_hfat: editingFactor.requires_hfat,
+          requires_hop: editingFactor.requires_hop,
           updated_at: new Date().toISOString()
         })
         .eq('id', editingFactor.id);
@@ -388,6 +390,29 @@ export default function CausalAnalysis() {
                         </select>
                       </div>
                     </div>
+
+                    <div className="space-y-3 mt-4 p-4 bg-gray-50 rounded-lg">
+                      <p className="text-sm font-medium text-gray-700">Required Assessments:</p>
+                      <label className="flex items-center gap-2 cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={editingFactor.requires_hfat || false}
+                          onChange={(e) => setEditingFactor({...editingFactor, requires_hfat: e.target.checked})}
+                          className="w-4 h-4"
+                        />
+                        <span className="text-sm">HFAT Assessment Required</span>
+                      </label>
+                      <label className="flex items-center gap-2 cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={editingFactor.requires_hop || false}
+                          onChange={(e) => setEditingFactor({...editingFactor, requires_hop: e.target.checked})}
+                          className="w-4 h-4"
+                        />
+                        <span className="text-sm">HOP Assessment Required</span>
+                      </label>
+                    </div>
+
                     <div className="flex gap-2 justify-end">
                       <button
                         onClick={() => setEditingFactor(null)}
