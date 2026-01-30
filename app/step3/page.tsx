@@ -5,6 +5,7 @@ import { useSearchParams } from 'next/navigation';
 import { Clock, Plus, Edit2, Trash2, AlertCircle, CheckCircle, Filter, Search, Calendar, Users, MapPin, FileText, Link as LinkIcon, X, Save } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import StepNavigation from '@/components/StepNavigation';
+import BarrierAnalysis from '@/components/BarrierAnalysis';
 
 export default function TimelineBuilder() {
   const searchParams = useSearchParams();
@@ -508,6 +509,9 @@ export default function TimelineBuilder() {
                           </button>
                         </div>
                       </div>
+
+                      {/* Barrier Analysis Component */}
+                      <BarrierAnalysis timelineEventId={event.id} />
                     </div>
                   </div>
                   
@@ -569,6 +573,9 @@ export default function TimelineBuilder() {
                             </button>
                           </div>
                         </div>
+
+                        {/* Barrier Analysis Component for Child Events */}
+                        <BarrierAnalysis timelineEventId={childEvent.id} />
                       </div>
                     </div>
                   ))}
@@ -616,7 +623,6 @@ export default function TimelineBuilder() {
         </div>
       </div>
 
-      {/* Add Event Modal - CONTINUED IN NEXT FILE */}
       {/* Add Event Modal */}
       {showAddEvent && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
