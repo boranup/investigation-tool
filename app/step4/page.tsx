@@ -27,7 +27,9 @@ export default function CausalAnalysis() {
     description: '',
     factorType: 'immediate',
     factorCategory: 'equipment',
-    parentFactorId: null
+    parentFactorId: null,
+    requiresHFAT: false,
+    requiresHOP: false
   });
 
   useEffect(() => {
@@ -122,11 +124,13 @@ export default function CausalAnalysis() {
     try {
       const factorData = {
         investigation_id: investigationId,
-        causal_factor_title: newFactor.title,  // Database uses causal_factor_title
-        causal_factor_description: newFactor.description,  // Database uses causal_factor_description
+        causal_factor_title: newFactor.title,
+        causal_factor_description: newFactor.description,
         factor_type: newFactor.factorType,
         factor_category: newFactor.factorCategory,
         parent_causal_factor_id: newFactor.parentFactorId,
+        requires_hfat: newFactor.requiresHFAT,
+        requires_hop: newFactor.requiresHOP,
         analysis_status: 'identified'
       };
 
@@ -149,7 +153,9 @@ export default function CausalAnalysis() {
         description: '',
         factorType: 'immediate',
         factorCategory: 'equipment',
-        parentFactorId: null
+        parentFactorId: null,
+        requiresHFAT: false,
+        requiresHOP: false
       });
       setShowAddFactor(false);
       loadCausalFactors();
@@ -454,88 +460,88 @@ export default function CausalAnalysis() {
                       )}
                     </div>
 
-                    {/* HOP Assessment Section - Available for all factor types */}
-                    <div className="mt-4 pt-4 border-t">
-                      <div className="flex items-center justify-between mb-2">
-                        <h4 className="font-medium text-sm">HOP Assessment</h4>
-                        {hopAssessments[factor.id]?.length > 0 && (
-                          <span className="text-xs text-green-600">
-                            {hopAssessments[factor.id].length} assessment(s)
-                          </span>
+                    {/* HOP Assessment Section - Only show if required */}
+                    {factor.requires_hop && (
+                      <div className="mt-4 pt-4 border-t">
+                        <div className="flex items-center justify-between mb-2">
+                          <h4 className="font-medium text-sm">HOP Assessment</h4>
+                          {hopAssessments[factor.id]?.length > 0 && (
+                            <span className="text-xs text-green-600">✓ Complete</span>
+                          )}
+                        </div>
+
+                        {hopAssessments[factor.id]?.[0] ? (
+                          <div className="mb-2 p-3 bg-green-50 rounded border border-green-200">
+                            <div className="flex items-center justify-between">
+                              <div className="text-xs">
+                                <div className="font-medium">
+                                  {hopAssessments[factor.id][0].action_type === 'error' ? '🔴 Error Analysis' : '⚠️ Violation Analysis'}
+                                  {hopAssessments[factor.id][0].violation_type && ` - ${hopAssessments[factor.id][0].violation_type.charAt(0).toUpperCase() + hopAssessments[factor.id][0].violation_type.slice(1)}`}
+                                </div>
+                                <div className="text-gray-600 mt-1">
+                                  {hopAssessments[factor.id][0].status === 'complete' ? '✅ Complete' : '📝 Draft'} - 
+                                  {' '}{new Date(hopAssessments[factor.id][0].updated_at).toLocaleDateString()}
+                                </div>
+                              </div>
+                              <button
+                                onClick={() => router.push(`/hop-new?investigationId=${investigationId}&causalFactorId=${factor.id}&assessmentId=${hopAssessments[factor.id][0].id}`)}
+                                className="text-xs px-3 py-1 bg-green-600 text-white rounded hover:bg-green-700"
+                              >
+                                View/Edit
+                              </button>
+                            </div>
+                          </div>
+                        ) : (
+                          <button
+                            onClick={() => router.push(`/hop-new?investigationId=${investigationId}&causalFactorId=${factor.id}`)}
+                            className="w-full flex items-center justify-center gap-2 px-3 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 text-sm"
+                          >
+                            <Plus className="w-4 h-4" />
+                            Launch HOP Assessment
+                          </button>
                         )}
                       </div>
+                    )}
 
-                      {hopAssessments[factor.id]?.map((assessment: any) => (
-                        <div key={assessment.id} className="mb-2 p-3 bg-green-50 rounded border border-green-200">
-                          <div className="flex items-center justify-between">
-                            <div className="text-xs">
-                              <div className="font-medium">
-                                {assessment.action_type === 'error' ? '🔴 Error Analysis' : '⚠️ Violation Analysis'}
-                                {assessment.violation_type && ` - ${assessment.violation_type.charAt(0).toUpperCase() + assessment.violation_type.slice(1)}`}
-                              </div>
-                              <div className="text-gray-600 mt-1">
-                                {assessment.status === 'complete' ? '✅ Complete' : '📝 Draft'} - 
-                                {' '}{new Date(assessment.updated_at).toLocaleDateString()}
-                              </div>
-                            </div>
-                            <button
-                              onClick={() => router.push(`/hop-new?investigationId=${investigationId}&causalFactorId=${factor.id}&assessmentId=${assessment.id}`)}
-                              className="text-xs px-3 py-1 bg-green-600 text-white rounded hover:bg-green-700"
-                            >
-                              View/Edit
-                            </button>
-                          </div>
+                    {/* HFAT Assessment Section - Only show if required */}
+                    {factor.requires_hfat && (
+                      <div className="mt-4 pt-4 border-t">
+                        <div className="flex items-center justify-between mb-2">
+                          <h4 className="font-medium text-sm">HFAT Assessment</h4>
+                          {hfatAssessments[factor.id]?.length > 0 && (
+                            <span className="text-xs text-purple-600">✓ Complete</span>
+                          )}
                         </div>
-                      ))}
 
-                      <button
-                        onClick={() => router.push(`/hop-new?investigationId=${investigationId}&causalFactorId=${factor.id}`)}
-                        className="w-full flex items-center justify-center gap-2 px-3 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 text-sm mt-2"
-                      >
-                        <Plus className="w-4 h-4" />
-                        {hopAssessments[factor.id]?.length > 0 ? 'Add Another HOP Assessment' : 'Launch HOP Assessment'}
-                      </button>
-                    </div>
-
-                    {/* HFAT Assessment Section - Available for all factor types */}
-                    <div className="mt-4 pt-4 border-t">
-                      <div className="flex items-center justify-between mb-2">
-                        <h4 className="font-medium text-sm">HFAT Assessment</h4>
-                        {hfatAssessments[factor.id]?.length > 0 && (
-                          <span className="text-xs text-purple-600">
-                            {hfatAssessments[factor.id].length} assessment(s)
-                          </span>
+                        {hfatAssessments[factor.id]?.[0] ? (
+                          <div className="mb-2 p-3 bg-purple-50 rounded border border-purple-200">
+                            <div className="flex items-center justify-between">
+                              <div className="text-xs">
+                                <div className="font-medium">HFAT Analysis</div>
+                                <div className="text-gray-600 mt-1">
+                                  {hfatAssessments[factor.id][0].status === 'complete' ? '✅ Complete' : '📝 Draft'} - 
+                                  {' '}{new Date(hfatAssessments[factor.id][0].updated_at).toLocaleDateString()}
+                                </div>
+                              </div>
+                              <button
+                                onClick={() => router.push(`/hfat-new?investigationId=${investigationId}&causalFactorId=${factor.id}&assessmentId=${hfatAssessments[factor.id][0].id}`)}
+                                className="text-xs px-3 py-1 bg-purple-600 text-white rounded hover:bg-purple-700"
+                              >
+                                View/Edit
+                              </button>
+                            </div>
+                          </div>
+                        ) : (
+                          <button
+                            onClick={() => router.push(`/hfat-new?investigationId=${investigationId}&causalFactorId=${factor.id}`)}
+                            className="w-full flex items-center justify-center gap-2 px-3 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 text-sm"
+                          >
+                            <Plus className="w-4 h-4" />
+                            Launch HFAT Assessment
+                          </button>
                         )}
                       </div>
-
-                      {hfatAssessments[factor.id]?.map((assessment: any) => (
-                        <div key={assessment.id} className="mb-2 p-3 bg-purple-50 rounded border border-purple-200">
-                          <div className="flex items-center justify-between">
-                            <div className="text-xs">
-                              <div className="font-medium">HFAT Analysis</div>
-                              <div className="text-gray-600 mt-1">
-                                {assessment.status === 'complete' ? '✅ Complete' : '📝 Draft'} - 
-                                {' '}{new Date(assessment.updated_at).toLocaleDateString()}
-                              </div>
-                            </div>
-                            <button
-                              onClick={() => router.push(`/hfat-new?investigationId=${investigationId}&causalFactorId=${factor.id}&assessmentId=${assessment.id}`)}
-                              className="text-xs px-3 py-1 bg-purple-600 text-white rounded hover:bg-purple-700"
-                            >
-                              View/Edit
-                            </button>
-                          </div>
-                        </div>
-                      ))}
-
-                      <button
-                        onClick={() => router.push(`/hfat-new?investigationId=${investigationId}&causalFactorId=${factor.id}`)}
-                        className="w-full flex items-center justify-center gap-2 px-3 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 text-sm mt-2"
-                      >
-                        <Plus className="w-4 h-4" />
-                        {hfatAssessments[factor.id]?.length > 0 ? 'Add Another HFAT Assessment' : 'Launch HFAT Assessment'}
-                      </button>
-                    </div>
+                    )}
                   </div>
                 )}
               </div>
@@ -605,6 +611,28 @@ export default function CausalAnalysis() {
                       ))}
                     </select>
                   </div>
+                </div>
+
+                <div className="space-y-3 mt-4 p-4 bg-gray-50 rounded-lg">
+                  <p className="text-sm font-medium text-gray-700">Required Assessments:</p>
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={newFactor.requiresHFAT}
+                      onChange={(e) => setNewFactor({...newFactor, requiresHFAT: e.target.checked})}
+                      className="w-4 h-4"
+                    />
+                    <span className="text-sm">HFAT Assessment Required</span>
+                  </label>
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={newFactor.requiresHOP}
+                      onChange={(e) => setNewFactor({...newFactor, requiresHOP: e.target.checked})}
+                      className="w-4 h-4"
+                    />
+                    <span className="text-sm">HOP Assessment Required</span>
+                  </label>
                 </div>
               </div>
 
