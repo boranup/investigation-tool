@@ -498,19 +498,29 @@ export default function CausalAnalysis() {
                         {hopAssessments[factor.id]?.[0] ? (
                           <div className="mb-2 p-3 bg-green-50 rounded border border-green-200">
                             <div className="flex items-center justify-between">
-                              <div className="text-xs">
-                                <div className="font-medium">
-                                  {hopAssessments[factor.id][0].action_type === 'error' ? '🔴 Error Analysis' : '⚠️ Violation Analysis'}
+                              <div className="text-xs flex-1">
+                                <div className="font-medium mb-1">
+                                  {hopAssessments[factor.id][0].action_type === 'error' ? (
+                                    <span className="text-red-600">⚫ Error Analysis</span>
+                                  ) : (
+                                    <span className="text-amber-600">⚫ Violation Analysis</span>
+                                  )}
                                   {hopAssessments[factor.id][0].violation_type && ` - ${hopAssessments[factor.id][0].violation_type.charAt(0).toUpperCase() + hopAssessments[factor.id][0].violation_type.slice(1)}`}
                                 </div>
-                                <div className="text-gray-600 mt-1">
+                                <div className="text-gray-700 italic mt-1">
+                                  {hopAssessments[factor.id][0].action_type === 'error' 
+                                    ? 'Person did not intend this outcome; made a mistake, forgot, misperceived'
+                                    : 'Person knowingly deviated from procedure/rule (but did not intend harm)'
+                                  }
+                                </div>
+                                <div className="text-gray-600 mt-2">
                                   {hopAssessments[factor.id][0].status === 'complete' ? '✅ Complete' : '📝 Draft'} - 
                                   {' '}{new Date(hopAssessments[factor.id][0].updated_at).toLocaleDateString()}
                                 </div>
                               </div>
                               <button
                                 onClick={() => router.push(`/hop-new?investigationId=${investigationId}&causalFactorId=${factor.id}&assessmentId=${hopAssessments[factor.id][0].id}`)}
-                                className="text-xs px-3 py-1 bg-green-600 text-white rounded hover:bg-green-700"
+                                className="text-xs px-3 py-1 bg-green-600 text-white rounded hover:bg-green-700 ml-3"
                               >
                                 View/Edit
                               </button>
