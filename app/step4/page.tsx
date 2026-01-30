@@ -576,7 +576,6 @@ export default function CausalAnalysis() {
                             Launch HFAT Assessment
                           </button>
                         )}
-                      </div>
 
                     {/* 5 Whys Visual Builder */}
                     <FiveWhysBuilder 
@@ -584,6 +583,7 @@ export default function CausalAnalysis() {
                       initialFactor={factor.causal_factor_title}
                     />
 
+                      </div>
                     )}
                   </div>
                 )}
