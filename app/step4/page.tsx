@@ -577,14 +577,15 @@ export default function CausalAnalysis() {
                           </button>
                         )}
 
+                      </div>
+                    )}
+
                     {/* 5 Whys Visual Builder */}
                     <FiveWhysBuilder 
                       causalFactorId={factor.id}
                       initialFactor={factor.causal_factor_title}
                     />
 
-                      </div>
-                    )}
                   </div>
                 )}
               </div>
