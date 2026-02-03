@@ -33,7 +33,7 @@ export default function Visualisations() {
     nodeType: 'immediate',
     factorCategory: 'equipment'
   });
-  const [expandedNodes, setExpandedNodes] = useState<Set<string>>(new Set());
+  const [expandedNodes, setExpandedNodes] = useState<Record<string, boolean>>({});
 
   // ── Constants ────────────────────────────────────────────────
   const factorTypes = [
@@ -196,7 +196,7 @@ export default function Visualisations() {
 
       setCausalTree([...causalTree, data]);
       if (selectedParentId) {
-        setExpandedNodes(new Set([...expandedNodes, selectedParentId]));
+        setExpandedNodes({ ...expandedNodes, [selectedParentId]: true });
       }
       setNewNode({ title: '', description: '', nodeType: 'immediate', factorCategory: 'equipment' });
       setSelectedParentId(null);
@@ -211,9 +211,9 @@ export default function Visualisations() {
     if (!confirm('Delete this node and all its children?')) return;
     try {
       // Collect all descendant IDs recursively
-      const idsToDelete = new Set<string>();
+      const idsToDelete: string[] = [];
       const collectChildren = (parentId: string) => {
-        idsToDelete.add(parentId);
+        idsToDelete.push(parentId);
         causalTree.filter(n => n.parent_node_id === parentId).forEach(child => collectChildren(child.id));
       };
       collectChildren(id);
@@ -221,10 +221,10 @@ export default function Visualisations() {
       const { error } = await supabase
         .from('visualization_causal_tree')
         .delete()
-        .in('id', Array.from(idsToDelete));
+        .in('id', idsToDelete);
 
       if (error) throw error;
-      setCausalTree(causalTree.filter(n => !idsToDelete.has(n.id)));
+      setCausalTree(causalTree.filter(n => !idsToDelete.includes(n.id)));
     } catch (err) {
       console.error('Error deleting node:', err);
     }
@@ -232,8 +232,12 @@ export default function Visualisations() {
 
   function toggleExpand(id: string) {
     setExpandedNodes(prev => {
-      const next = new Set(prev);
-      next.has(id) ? next.delete(id) : next.add(id);
+      const next = { ...prev };
+      if (next[id]) {
+        delete next[id];
+      } else {
+        next[id] = true;
+      }
       return next;
     });
   }
@@ -250,7 +254,7 @@ export default function Visualisations() {
   function renderTreeNode(node: any, depth: number = 0) {
     const children = causalTree.filter(n => n.parent_node_id === node.id);
     const hasChildren = children.length > 0;
-    const isExpanded = expandedNodes.has(node.id);
+    const isExpanded = !!expandedNodes[node.id];
 
     return (
       <div key={node.id} style={{ marginLeft: depth === 0 ? 0 : 24 }}>
