@@ -42,6 +42,7 @@ export default function Visualisations() {
   // ── Barrier Analysis state ──────────────────────────────────
   const [barriers, setBarriers] = useState<any[]>([]);
   const [showAddBarrier, setShowAddBarrier] = useState(false);
+  const [showCauseTypeModal, setShowCauseTypeModal] = useState(false);
   const [editingBarrierId, setEditingBarrierId] = useState<string | null>(null);
   const [newBarrier, setNewBarrier] = useState({
     name: '',
@@ -627,38 +628,17 @@ export default function Visualisations() {
 
   // ── Tooltips ─────────────────────────────────────────────────
   function CauseTypeTooltip() {
-    const [open, setOpen] = useState(false);
     return (
-      <div className="relative inline-block">
-        <button
-          type="button"
-          onMouseEnter={() => setOpen(true)}
-          onMouseLeave={() => setOpen(false)}
-          onFocus={() => setOpen(true)}
-          onBlur={() => setOpen(false)}
-          className="ml-1.5 text-slate-400 hover:text-blue-600 transition-colors"
-          aria-label="Cause type definitions"
-        >
-          <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" viewBox="0 0 20 20" fill="currentColor">
-            <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-3a1 1 0 11-2 0 1 1 0 012 0zM9 5a1 1 0 100 2h2a1 1 0 100-2H9zm0 4a1 1 0 00-1 1v2a1 1 0 100 2h2a1 1 0 100-2v-2a1 1 0 00-1-1H9z" clipRule="evenodd" />
-          </svg>
-        </button>
-        {open && (
-          <div className="absolute z-50 left-1/2 -translate-x-1/2 mt-2 w-80 bg-white border border-slate-200 rounded-lg shadow-lg p-4">
-            <div className="absolute -top-2 left-1/2 -translate-x-1/2 w-4 h-4 bg-white border-l border-t border-slate-200 rotate-45" />
-            <p className="text-xs font-semibold text-slate-700 mb-3">Cause Type Definitions</p>
-            <div className="space-y-3">
-              {causeTypeDefinitions.map((def, i) => (
-                <div key={i}>
-                  <p className="text-xs font-semibold text-slate-800">{def.label}</p>
-                  <p className="text-xs text-slate-600 mt-0.5">{def.definition}</p>
-                  <p className="text-xs text-blue-600 italic mt-0.5">👉 {def.guidance}</p>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
-      </div>
+      <button
+        type="button"
+        onClick={() => setShowCauseTypeModal(true)}
+        className="ml-1.5 text-slate-400 hover:text-blue-600 transition-colors"
+        aria-label="Cause type definitions"
+      >
+        <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" viewBox="0 0 20 20" fill="currentColor">
+          <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-3a1 1 0 11-2 0 1 1 0 012 0zM9 5a1 1 0 100 2h2a1 1 0 100-2H9zm0 4a1 1 0 00-1 1v2a1 1 0 100 2h2a1 1 0 100-2v-2a1 1 0 00-1-1H9z" clipRule="evenodd" />
+        </svg>
+      </button>
     );
   }
 
@@ -1020,22 +1000,11 @@ export default function Visualisations() {
               <div className="p-6">
                 {/* Legend */}
                 <div className="flex flex-wrap gap-2 mb-4 items-center">
-                  {nodeTypes.map((nt, i) => {
-                    const def = causeTypeDefinitions[i];
-                    return (
-                      <div key={nt.value} className="relative group">
-                        <span className={`px-3 py-1 rounded-full text-xs font-medium border cursor-help ${nt.color}`}>
-                          {nt.label}
-                        </span>
-                        <div className="absolute z-50 left-1/2 -translate-x-1/2 mt-2 w-64 bg-white border border-slate-200 rounded-lg shadow-lg p-3 hidden group-hover:block">
-                          <div className="absolute -top-2 left-1/2 -translate-x-1/2 w-4 h-4 bg-white border-l border-t border-slate-200 rotate-45" />
-                          <p className="text-xs font-semibold text-slate-800">{def.label}</p>
-                          <p className="text-xs text-slate-600 mt-0.5">{def.definition}</p>
-                          <p className="text-xs text-blue-600 italic mt-0.5">👉 {def.guidance}</p>
-                        </div>
-                      </div>
-                    );
-                  })}
+                  {nodeTypes.map(nt => (
+                    <span key={nt.value} className={`px-3 py-1 rounded-full text-xs font-medium border ${nt.color}`}>
+                      {nt.label}
+                    </span>
+                  ))}
                   <CauseTypeTooltip />
                 </div>
 
@@ -1082,7 +1051,7 @@ export default function Visualisations() {
                     </div>
                     <div className="grid grid-cols-2 gap-3 mb-3">
                       <div>
-                        <label className="block text-xs font-medium text-slate-600 mb-1 flex items-center">Cause Type<CauseTypeTooltip /></label>
+                        <label className="block text-xs font-medium text-slate-600 mb-1">Cause Type</label>
                         <select
                           value={newNode.nodeType}
                           onChange={(e) => setNewNode({ ...newNode, nodeType: e.target.value })}
@@ -1111,7 +1080,7 @@ export default function Visualisations() {
                         onClick={addTreeNode}
                         className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm hover:bg-blue-700"
                       >
-                        Add {selectedParentId ? 'Child' : 'Root'} Cause
+                        Add Node
                       </button>
                       <button
                         onClick={() => { setShowAddNode(false); setSelectedParentId(null); setNewNode({ title: '', description: '', nodeType: 'immediate', factorCategory: 'equipment' }); }}
@@ -1127,7 +1096,7 @@ export default function Visualisations() {
                     className="mt-4 w-full flex items-center justify-center gap-2 px-4 py-3 border-2 border-dashed border-blue-300 text-blue-600 rounded-lg hover:bg-blue-50 transition-colors text-sm font-medium"
                   >
                     <Plus className="w-4 h-4" />
-                    Add Root Cause
+                    Add Causal Factor
                   </button>
                 )}
               </div>
@@ -1474,6 +1443,28 @@ export default function Visualisations() {
           </div>
         </div>
       </div>
+      {/* Cause Type Definitions Modal */}
+      {showCauseTypeModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg shadow-xl border border-slate-200 max-w-md w-full p-6">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-sm font-semibold text-slate-800">Cause Type Definitions</h3>
+              <button onClick={() => setShowCauseTypeModal(false)} className="text-slate-400 hover:text-slate-600">
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+            <div className="space-y-4">
+              {causeTypeDefinitions.map((def, i) => (
+                <div key={i} className="border-b border-slate-100 last:border-0 pb-3 last:pb-0">
+                  <p className="text-sm font-semibold text-slate-800">{def.label}</p>
+                  <p className="text-sm text-slate-600 mt-1">{def.definition}</p>
+                  <p className="text-sm text-blue-600 italic mt-1">👉 {def.guidance}</p>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
     </>
   );
 }
