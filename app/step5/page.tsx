@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { GitBranch, Plus, Edit2, Trash2, AlertTriangle, Lock, Unlock, ArrowRight, CheckCircle, Lightbulb } from 'lucide-react';
+import { GitBranch, Plus, Edit2, Trash2, AlertTriangle, CheckCircle, Lightbulb } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import StepNavigation from '@/components/StepNavigation';
 
@@ -74,7 +74,6 @@ export default function CausalAnalysis() {
 
   async function loadAssessments() {
     try {
-      // Get all causal factors for this investigation
       const { data: factors } = await supabase
         .from('causal_factors')
         .select('id')
@@ -84,19 +83,16 @@ export default function CausalAnalysis() {
 
       const factorIds = factors.map(f => f.id);
 
-      // Load all HOP assessments
       const { data: hopData } = await supabase
         .from('hop_assessments')
         .select('*')
         .in('causal_factor_id', factorIds);
 
-      // Load all HFAT assessments  
       const { data: hfatData } = await supabase
         .from('hfat_assessments')
         .select('*')
         .in('causal_factor_id', factorIds);
 
-      // Group by causal_factor_id
       const hopMap: any = {};
       hopData?.forEach((assessment: any) => {
         if (!hopMap[assessment.causal_factor_id]) {
@@ -134,8 +130,6 @@ export default function CausalAnalysis() {
         analysis_status: 'identified'
       };
 
-      console.log('Attempting to insert causal factor:', factorData);
-
       const { data, error } = await supabase
         .from('causal_factors')
         .insert([factorData])
@@ -145,8 +139,6 @@ export default function CausalAnalysis() {
         console.error('Supabase error:', error);
         throw error;
       }
-
-      console.log('Successfully added causal factor:', data);
 
       setNewFactor({
         title: '',
@@ -162,7 +154,7 @@ export default function CausalAnalysis() {
       loadAssessments();
     } catch (error: any) {
       console.error('Error adding causal factor:', error);
-      alert(`Error adding causal factor: ${error.message}\n\nCheck browser console for details.`);
+      alert(`Error adding causal factor: ${error.message}`);
     }
   }
 
@@ -222,7 +214,7 @@ export default function CausalAnalysis() {
     { value: 'equipment', label: 'Equipment/Hardware' },
     { value: 'human_performance', label: 'Human Performance' },
     { value: 'procedure', label: 'Procedure/Process' },
-    { value: 'organizational', label: 'Organizational' },
+    { value: 'organizational', label: 'Organisational' },
     { value: 'external', label: 'External Factor' }
   ];
 
@@ -231,10 +223,6 @@ export default function CausalAnalysis() {
     if (filterStatus !== 'all' && f.analysis_status !== filterStatus) return false;
     return true;
   });
-
-  // Check if all causal factors are validated (for Step 5 gate)
-  const allFactorsValidated = causalFactors.length > 0 && 
-    causalFactors.every(f => f.analysis_status === 'validated');
 
   if (loading) {
     return (
@@ -263,7 +251,7 @@ export default function CausalAnalysis() {
           <div className="flex items-center justify-between mb-4">
             <div>
               <h1 className="text-2xl font-bold text-gray-900">
-                Step 4: Causal Factor Analysis
+                Step 5: Causal Factor Analysis
               </h1>
               <p className="text-gray-600 mt-1">
                 Investigation: {investigation?.investigation_number} - {investigation?.incident_description}
@@ -302,8 +290,6 @@ export default function CausalAnalysis() {
               </div>
             </div>
           </div>
-
-          {/* Removed Step 5 lock - not all factors require validation */}
         </div>
 
         {/* Filters */}
@@ -437,7 +423,11 @@ export default function CausalAnalysis() {
                           <h3 className="text-lg font-semibold text-gray-900">
                             {factor.causal_factor_title}
                           </h3>
-                          <span className={`px-3 py-1 rounded-full text-xs font-medium bg-${typeInfo?.color}-100 text-${typeInfo?.color}-700`}>
+                          <span className={`px-3 py-1 rounded-full text-xs font-medium ${
+                            factor.factor_type === 'immediate' ? 'bg-red-100 text-red-700' :
+                            factor.factor_type === 'contributing' ? 'bg-amber-100 text-amber-700' :
+                            'bg-purple-100 text-purple-700'
+                          }`}>
                             {typeInfo?.label}
                           </span>
                           <span className="px-3 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-700">
@@ -485,7 +475,7 @@ export default function CausalAnalysis() {
                       )}
                     </div>
 
-                    {/* HOP Assessment Section - Only show if required */}
+                    {/* HOP Assessment Section */}
                     {factor.requires_hop && (
                       <div className="mt-4 pt-4 border-t">
                         <div className="flex items-center justify-between mb-2">
@@ -538,7 +528,7 @@ export default function CausalAnalysis() {
                       </div>
                     )}
 
-                    {/* HFAT Assessment Section - Only show if required */}
+                    {/* HFAT Assessment Section */}
                     {factor.requires_hfat && (
                       <div className="mt-4 pt-4 border-t">
                         <div className="flex items-center justify-between mb-2">
@@ -575,7 +565,6 @@ export default function CausalAnalysis() {
                             Launch HFAT Assessment
                           </button>
                         )}
-
                       </div>
                     )}
                   </div>
@@ -592,7 +581,7 @@ export default function CausalAnalysis() {
           </div>
         )}
 
-        {/* Investigation Principles - Always Visible */}
+        {/* Investigation Principles */}
         <div className="bg-blue-50 border-2 border-blue-300 rounded-lg p-6 mt-6">
           <div className="flex items-start gap-3">
             <Lightbulb className="w-6 h-6 text-blue-600 flex-shrink-0 mt-1" />
