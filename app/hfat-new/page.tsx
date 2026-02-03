@@ -286,7 +286,7 @@ export default function HFATAssessment() {
         .eq('id', causalFactorId);
 
       alert('HFAT Assessment completed!');
-      router.push(`/step4?investigationId=${investigationId}`);
+      router.push(`/step5?investigationId=${investigationId}`);
     } catch (error: any) {
       console.error('Error:', error);
       alert(`Error: ${error.message || 'Unknown error'}`);
@@ -311,7 +311,7 @@ export default function HFATAssessment() {
       <div className="max-w-5xl mx-auto">
         <div className="mb-6">
           <button
-            onClick={() => router.push(`/step4?investigationId=${investigationId}`)}
+            onClick={() => router.push(`/step5?investigationId=${investigationId}`)}
             className="flex items-center gap-2 text-gray-600 hover:text-gray-900 mb-4"
           >
             <ArrowLeft className="w-4 h-4" />
@@ -470,7 +470,7 @@ export default function HFATAssessment() {
             {saving ? 'Saving...' : 'Complete Assessment'}
           </button>
           <button
-            onClick={() => router.push(`/step4?investigationId=${investigationId}`)}
+            onClick={() => router.push(`/step5?investigationId=${investigationId}`)}
             disabled={saving}
             className="px-6 py-3 text-gray-700 border border-gray-300 rounded hover:bg-gray-50"
           >
