@@ -281,7 +281,7 @@ export default function Visualisations() {
 
       setCausalTree([...causalTree, data]);
       if (selectedParentId) {
-        setExpandedNodes(new Set([...expandedNodes, selectedParentId]));
+        setExpandedNodes(prev => { const next = new Set(prev); next.add(selectedParentId); return next; });
       }
       setNewNode({ title: '', description: '', nodeType: 'immediate', factorCategory: 'equipment' });
       setSelectedParentId(null);
@@ -453,48 +453,110 @@ export default function Visualisations() {
             <div className="absolute -left-4 top-4 w-4 h-px bg-slate-300" />
           )}
           <div className={`border rounded-lg p-3 mb-2 ${getNodeTypeStyle(node.node_type)}`}>
-            <div className="flex items-start justify-between">
-              <div className="flex items-center gap-2 flex-1">
-                {hasChildren && (
-                  <button onClick={() => toggleExpand(node.id)} className="flex-shrink-0">
-                    {isExpanded ? <ChevronDown className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
-                  </button>
-                )}
-                <div className="flex-1">
-                  <div className="flex items-center gap-2 flex-wrap">
-                    <span className="font-semibold text-sm">{node.title}</span>
-                    <span className={`px-2 py-0.5 rounded-full text-xs border ${getNodeTypeStyle(node.node_type)}`}>
-                      {nodeTypes.find(t => t.value === node.node_type)?.label}
-                    </span>
-                    <span className="px-2 py-0.5 rounded-full text-xs bg-white bg-opacity-60 border border-slate-300 text-slate-600">
-                      {factorCategories.find(c => c.value === node.factor_category)?.label}
-                    </span>
+            {editingTreeNodeId === node.id ? (
+              /* ── Inline edit form ── */
+              <div className="space-y-2">
+                <div>
+                  <label className="block text-xs font-medium text-slate-600 mb-1">Title *</label>
+                  <input
+                    type="text"
+                    value={editNode.title}
+                    onChange={(e) => setEditNode({ ...editNode, title: e.target.value })}
+                    className="w-full border border-slate-300 rounded px-2 py-1 text-sm bg-white"
+                    autoFocus
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-slate-600 mb-1">Description</label>
+                  <textarea
+                    value={editNode.description}
+                    onChange={(e) => setEditNode({ ...editNode, description: e.target.value })}
+                    className="w-full border border-slate-300 rounded px-2 py-1 text-sm bg-white"
+                    rows={2}
+                  />
+                </div>
+                <div className="grid grid-cols-2 gap-2">
+                  <div>
+                    <label className="block text-xs font-medium text-slate-600 mb-1">Cause Type</label>
+                    <select
+                      value={editNode.nodeType}
+                      onChange={(e) => setEditNode({ ...editNode, nodeType: e.target.value })}
+                      className="w-full border border-slate-300 rounded px-2 py-1 text-sm bg-white"
+                    >
+                      {nodeTypes.map(nt => <option key={nt.value} value={nt.value}>{nt.label}</option>)}
+                    </select>
                   </div>
-                  {node.description && (
-                    <p className="text-xs mt-1 opacity-80">{node.description}</p>
-                  )}
+                  <div>
+                    <label className="block text-xs font-medium text-slate-600 mb-1">Category</label>
+                    <select
+                      value={editNode.factorCategory}
+                      onChange={(e) => setEditNode({ ...editNode, factorCategory: e.target.value })}
+                      className="w-full border border-slate-300 rounded px-2 py-1 text-sm bg-white"
+                    >
+                      {factorCategories.map(fc => <option key={fc.value} value={fc.value}>{fc.label}</option>)}
+                    </select>
+                  </div>
+                </div>
+                <div className="flex gap-2">
+                  <button onClick={updateTreeNode} disabled={!editNode.title.trim()} className="px-3 py-1 bg-blue-600 text-white text-xs rounded hover:bg-blue-700 disabled:opacity-50">Save</button>
+                  <button onClick={() => setEditingTreeNodeId(null)} className="px-3 py-1 border border-slate-300 text-xs rounded hover:bg-white hover:bg-opacity-50">Cancel</button>
                 </div>
               </div>
-              <div className="flex items-center gap-1 ml-2 flex-shrink-0">
-                <button
-                  onClick={() => {
-                    setSelectedParentId(node.id);
-                    setShowAddNode(true);
-                  }}
-                  className="p-1 hover:bg-white hover:bg-opacity-50 rounded text-slate-700"
-                  title="Add child cause"
-                >
-                  <Plus className="w-4 h-4" />
-                </button>
-                <button
-                  onClick={() => deleteTreeNode(node.id)}
-                  className="p-1 hover:bg-white hover:bg-opacity-50 rounded text-red-600"
-                  title="Delete"
-                >
-                  <Trash2 className="w-4 h-4" />
-                </button>
+            ) : (
+              /* ── View mode ── */
+              <div className="flex items-start justify-between">
+                <div className="flex items-center gap-2 flex-1">
+                  {hasChildren && (
+                    <button onClick={() => toggleExpand(node.id)} className="flex-shrink-0">
+                      {isExpanded ? <ChevronDown className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
+                    </button>
+                  )}
+                  <div className="flex-1">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <span className="font-semibold text-sm">{node.title}</span>
+                      <span className={`px-2 py-0.5 rounded-full text-xs border ${getNodeTypeStyle(node.node_type)}`}>
+                        {nodeTypes.find(t => t.value === node.node_type)?.label}
+                      </span>
+                      <span className="px-2 py-0.5 rounded-full text-xs bg-white bg-opacity-60 border border-slate-300 text-slate-600">
+                        {factorCategories.find(c => c.value === node.factor_category)?.label}
+                      </span>
+                    </div>
+                    {node.description && (
+                      <p className="text-xs mt-1 opacity-80">{node.description}</p>
+                    )}
+                  </div>
+                </div>
+                <div className="flex items-center gap-1 ml-2 flex-shrink-0">
+                  <button
+                    onClick={() => {
+                      setEditingTreeNodeId(node.id);
+                      setEditNode({ title: node.title, description: node.description || '', nodeType: node.node_type, factorCategory: node.factor_category });
+                    }}
+                    className="p-1 hover:bg-white hover:bg-opacity-50 rounded text-blue-600"
+                    title="Edit"
+                  >
+                    <Edit2 className="w-4 h-4" />
+                  </button>
+                  <button
+                    onClick={() => {
+                      setSelectedParentId(node.id);
+                      setShowAddNode(true);
+                    }}
+                    className="p-1 hover:bg-white hover:bg-opacity-50 rounded text-slate-700"
+                    title="Add child cause"
+                  >
+                    <Plus className="w-4 h-4" />
+                  </button>
+                  <button
+                    onClick={() => deleteTreeNode(node.id)}
+                    className="p-1 hover:bg-white hover:bg-opacity-50 rounded text-red-600"
+                    title="Delete"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                  </button>
+                </div>
               </div>
-            </div>
+            )}
           </div>
         </div>
 
@@ -839,7 +901,7 @@ export default function Visualisations() {
 
                 {/* Root-level nodes — rendered as vertical tree */}
                 <div className="flex flex-wrap justify-center gap-8 py-4">
-                  {causalTree.filter(n => !n.parent_node_id).map(node => renderTreeBranch(node))}
+                  {causalTree.filter(n => !n.parent_node_id).map(node => renderTreeNode(node))}
                 </div>
 
                 {causalTree.length === 0 && (
@@ -930,8 +992,6 @@ export default function Visualisations() {
                 )}
               </div>
             )}
-          </div>
-
 
             {/* ── Barrier Analysis Tab ──────────────────────────── */}
             {activeTab === 'barriers' && (
@@ -1252,6 +1312,7 @@ export default function Visualisations() {
                 })}
               </div>
             )}
+          </div>
 
           {/* Navigation */}
           <div className="flex justify-between mt-6">
