@@ -1,133 +1,220 @@
 'use client'
 
 import React, { useState, useEffect } from 'react';
-import { useRouter, useSearchParams } from 'next/navigation';
-import { FileText, Download, Copy, CheckCircle, ArrowLeft } from 'lucide-react';
+import { useSearchParams } from 'next/navigation';
+import { FileText, Copy, Check, AlertTriangle } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import StepNavigation from '@/components/StepNavigation';
 
-export default function InvestigationReport() {
-  const router = useRouter();
+// ─── HFAT key → human-readable label map ────────────────────────────────────
+const hfatLabels: Record<string, string> = {
+  fatigue:      'Fatigue / Alertness',
+  competency:   'Competency / Training',
+  situational:  'Situational Awareness',
+  stress:       'Stress / Workload',
+  health:       'Physical / Mental Health',
+  procedure:    'Procedure Quality',
+  complexity:   'Task Complexity',
+  time:         'Time Pressure',
+  tools:        'Tools / Equipment Design',
+  communication:'Communication',
+  culture:      'Safety Culture',
+  resources:    'Resource Allocation',
+  supervision:  'Supervision / Leadership',
+  planning:     'Work Planning',
+  change:       'Change Management',
+};
+
+// ─── HOP sections with their DB field mappings ──────────────────────────────
+const hopSections = [
+  {
+    title: 'Context',
+    fields: [
+      { key: 'task_description',   label: 'Task Description' },
+      { key: 'work_conditions',    label: 'Work Conditions' },
+      { key: 'time_of_day',        label: 'Time of Day' },
+    ]
+  },
+  {
+    title: 'Performance Influencing Factors — Task & Environment',
+    fields: [
+      { key: 'workload_demands',      label: 'Workload Demands' },
+      { key: 'time_available',        label: 'Time Available' },
+      { key: 'procedural_guidance',   label: 'Procedural Guidance' },
+      { key: 'equipment_design',      label: 'Equipment Design' },
+    ]
+  },
+  {
+    title: 'Performance Influencing Factors — Individual & Team',
+    fields: [
+      { key: 'training_experience',       label: 'Training & Experience' },
+      { key: 'communication_teamwork',    label: 'Communication & Teamwork' },
+      { key: 'supervisory_support',       label: 'Supervisory Support' },
+    ]
+  },
+  {
+    title: 'Organisational Factors',
+    fields: [
+      { key: 'organizational_culture', label: 'Organisational Culture' },
+    ]
+  },
+  {
+    title: 'Local Rationality',
+    fields: [
+      { key: 'what_made_sense',       label: 'What Made Sense at the Time' },
+      { key: 'local_rationality',     label: 'Local Rationality Analysis' },
+      { key: 'tradeoffs_decisions',   label: 'Trade-offs & Decisions' },
+    ]
+  },
+  {
+    title: 'Learning & Improvements',
+    fields: [
+      { key: 'system_improvements', label: 'System Improvements' },
+      { key: 'learning_points',     label: 'Learning Points' },
+    ]
+  },
+];
+
+export default function ReportPage() {
   const searchParams = useSearchParams();
   const investigationId = searchParams.get('investigationId');
 
   const [loading, setLoading] = useState(true);
   const [copied, setCopied] = useState(false);
-  const [investigation, setInvestigation] = useState<any>(null);
-  const [evidence, setEvidence] = useState<any[]>([]);
-  const [interviews, setInterviews] = useState<any[]>([]);
-  const [timeline, setTimeline] = useState<any[]>([]);
-  const [causalFactors, setFactors] = useState<any[]>([]);
+
+  const [investigation, setInvestigation]     = useState<any>(null);
+  const [evidence, setEvidence]               = useState<any[]>([]);
+  const [interviews, setInterviews]           = useState<any[]>([]);
+  const [timeline, setTimeline]               = useState<any[]>([]);
+  const [causalFactors, setCausalFactors]     = useState<any[]>([]);
   const [hfatAssessments, setHfatAssessments] = useState<any[]>([]);
-  const [hopAssessments, setHopAssessments] = useState<any[]>([]);
+  const [hopAssessments, setHopAssessments]   = useState<any[]>([]);
   const [recommendations, setRecommendations] = useState<any[]>([]);
+  const [barriers, setBarriers]               = useState<any[]>([]);
 
   useEffect(() => {
-    if (investigationId) {
-      loadData();
-    }
+    if (investigationId) loadData();
   }, [investigationId]);
 
   const loadData = async () => {
     try {
-      // Load investigation
-      const { data: invData } = await supabase
-        .from('investigations')
-        .select('*')
-        .eq('id', investigationId)
-        .single();
-      setInvestigation(invData);
+      const { data: inv } = await supabase
+        .from('investigations').select('*').eq('id', investigationId!).single();
+      setInvestigation(inv);
 
-      // Load evidence
-      const { data: evidenceData } = await supabase
-        .from('evidence')
-        .select('*')
-        .eq('investigation_id', investigationId)
-        .order('created_at', { ascending: false });
-      setEvidence(evidenceData || []);
+      const { data: ev } = await supabase
+        .from('evidence').select('*').eq('investigation_id', investigationId!).order('created_at');
+      setEvidence(ev || []);
 
-      // Load interviews
-      const { data: interviewData } = await supabase
-        .from('interviews')
-        .select('*')
-        .eq('investigation_id', investigationId)
-        .order('interview_date', { ascending: false });
-      setInterviews(interviewData || []);
+      const { data: iv } = await supabase
+        .from('interviews').select('*').eq('investigation_id', investigationId!).order('interview_date');
+      setInterviews(iv || []);
 
-      // Load timeline
-      const { data: timelineData } = await supabase
-        .from('timeline_events')
-        .select('*')
-        .eq('investigation_id', investigationId)
-        .order('event_date', { ascending: true });
-      setTimeline(timelineData || []);
+      const { data: tl } = await supabase
+        .from('timeline_events').select('*').eq('investigation_id', investigationId!).order('event_date', { ascending: true });
+      setTimeline(tl || []);
 
-      // Load causal factors
-      const { data: factorsData } = await supabase
-        .from('causal_factors')
-        .select('*')
-        .eq('investigation_id', investigationId);
-      setFactors(factorsData || []);
+      const { data: cf } = await supabase
+        .from('causal_factors').select('*').eq('investigation_id', investigationId!).order('created_at');
+      setCausalFactors(cf || []);
 
-      // Load HFAT assessments
-      const { data: hfatData } = await supabase
-        .from('hfat_assessments')
-        .select('*')
-        .eq('investigation_id', investigationId);
-      setHfatAssessments(hfatData || []);
+      const { data: hf } = await supabase
+        .from('hfat_assessments').select('*').eq('investigation_id', investigationId!);
+      setHfatAssessments(hf || []);
 
-      // Load HOP assessments
-      const { data: hopData } = await supabase
-        .from('hop_assessments')
-        .select('*')
-        .eq('investigation_id', investigationId);
-      setHopAssessments(hopData || []);
+      const { data: hp } = await supabase
+        .from('hop_assessments').select('*').eq('investigation_id', investigationId!);
+      setHopAssessments(hp || []);
 
-      // Load recommendations
-      const { data: recsData } = await supabase
-        .from('recommendations')
-        .select('*')
-        .eq('investigation_id', investigationId)
-        .order('priority', { ascending: true });
-      setRecommendations(recsData || []);
+      const { data: rc } = await supabase
+        .from('recommendations').select('*').eq('investigation_id', investigationId!).order('priority');
+      setRecommendations(rc || []);
+
+      const { data: ba } = await supabase
+        .from('visualization_barriers').select('*').eq('investigation_id', investigationId!).order('created_at');
+      setBarriers(ba || []);
 
     } catch (error) {
-      console.error('Error loading data:', error);
+      console.error('Error loading report data:', error);
     } finally {
       setLoading(false);
     }
   };
 
+  // ── helpers ──────────────────────────────────────────────────────────────
+  const formatDate = (d: string) => {
+    if (!d) return 'N/A';
+    return new Date(d).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' });
+  };
+
+  const formatDateTime = (date: string, time?: string) => {
+    if (!date) return 'N/A';
+    const d = new Date(date).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
+    return time ? `${d} at ${time}` : d;
+  };
+
   const copyToClipboard = () => {
-    const reportElement = document.getElementById('report-content');
-    if (reportElement) {
-      const text = reportElement.innerText;
-      navigator.clipboard.writeText(text).then(() => {
+    const el = document.getElementById('report-content');
+    if (el) {
+      navigator.clipboard.writeText(el.innerText).then(() => {
         setCopied(true);
         setTimeout(() => setCopied(false), 2000);
       });
     }
   };
 
-  const formatDate = (dateString: string) => {
-    if (!dateString) return 'N/A';
-    return new Date(dateString).toLocaleDateString('en-US', { 
-      year: 'numeric', 
-      month: 'long', 
-      day: 'numeric' 
+  // ── timeline helpers ─────────────────────────────────────────────────────
+  const parentEvents = timeline.filter(e => !e.parent_event_id);
+  const childrenOf   = (id: string) => timeline.filter(e => e.parent_event_id === id);
+
+  // ── HFAT helpers ─────────────────────────────────────────────────────────
+  // Group humanFactors object into the three IOGP sections
+  const groupHfat = (humanFactors: Record<string, any>) => {
+    const groups: Record<string, { label: string; items: { label: string; rating: string; notes: string }[] }> = {
+      individual:     { label: 'Individual Factors (IOGP 621: 4.2.1)', items: [] },
+      task:           { label: 'Task / Work Factors (IOGP 621: 4.2.2)', items: [] },
+      organisational: { label: 'Organisational Factors (IOGP 621: 4.2.3)', items: [] },
+    };
+    Object.entries(humanFactors).forEach(([key, value]: [string, any]) => {
+      if (!value?.rating && !value?.notes) return;          // skip empty
+      const [section, ...rest] = key.split('_');
+      const itemId = rest.join('_');
+      const target =
+        section === 'individual'     ? groups.individual :
+        section === 'task'           ? groups.task :
+        section === 'organizational' || section === 'organisational' ? groups.organisational :
+        null;
+      if (target) {
+        target.items.push({
+          label:  hfatLabels[itemId] || itemId.replace(/_/g, ' '),
+          rating: value.rating || '',
+          notes:  value.notes  || '',
+        });
+      }
     });
+    return groups;
   };
 
-  const formatDateTime = (dateString: string, timeString?: string) => {
-    if (!dateString) return 'N/A';
-    const date = new Date(dateString).toLocaleDateString('en-US', { 
-      year: 'numeric', 
-      month: 'short', 
-      day: 'numeric' 
-    });
-    return timeString ? `${date} at ${timeString}` : date;
+  // ── barrier status colour ────────────────────────────────────────────────
+  const barrierStatusStyle = (status: string) => {
+    switch (status?.toLowerCase()) {
+      case 'present':  return 'bg-green-100 text-green-800';
+      case 'absent':   return 'bg-red-100 text-red-800';
+      case 'degraded': return 'bg-orange-100 text-orange-800';
+      default:         return 'bg-slate-100 text-slate-700';
+    }
   };
 
+  const performedStyle = (performed: string) => {
+    switch (performed?.toLowerCase()) {
+      case 'yes':     return 'bg-green-100 text-green-800';
+      case 'partial': return 'bg-orange-100 text-orange-800';
+      case 'no':      return 'bg-red-100 text-red-800';
+      default:        return 'bg-slate-100 text-slate-700';
+    }
+  };
+
+  // ── loading ──────────────────────────────────────────────────────────────
   if (loading) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 flex items-center justify-center">
@@ -139,390 +226,464 @@ export default function InvestigationReport() {
     );
   }
 
+  // ─── RENDER ────────────────────────────────────────────────────────────────
   return (
     <>
       {investigation && (
-        <StepNavigation 
-          investigationId={investigationId!} 
-          currentStep={6}
+        <StepNavigation
+          investigationId={investigationId!}
+          currentStep={7}
           investigationNumber={investigation.investigation_number}
         />
       )}
-      
+
       <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 p-6">
         <div className="max-w-5xl mx-auto">
-          {/* Header Actions */}
+
+          {/* ── header actions ─────────────────────────────────────────── */}
           <div className="mb-6 flex items-center justify-between">
             <h1 className="text-3xl font-bold text-slate-900 flex items-center gap-3">
               <FileText className="w-8 h-8 text-blue-600" />
               Investigation Report
             </h1>
-            <div className="flex gap-3">
-              <button
-                onClick={copyToClipboard}
-                className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-              >
-                {copied ? <CheckCircle className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
-                {copied ? 'Copied!' : 'Copy to Clipboard'}
-              </button>
-            </div>
+            <button
+              onClick={copyToClipboard}
+              className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+            >
+              {copied ? <><Check className="w-4 h-4" /> Copied!</> : <><Copy className="w-4 h-4" /> Copy Report</>}
+            </button>
           </div>
 
-          {/* Report Content */}
-          <div className="bg-white rounded-lg shadow-sm border border-slate-200 p-8" id="report-content">
-            
-            {/* Title */}
-            <div className="text-center mb-8 pb-6 border-b-2 border-slate-200">
-              <h1 className="text-3xl font-bold text-slate-900 mb-2">
-                INCIDENT INVESTIGATION REPORT
-              </h1>
-              <p className="text-xl text-slate-600 mb-1">{investigation?.investigation_number}</p>
-              <p className="text-sm text-slate-500">
-                Report Generated: {formatDate(new Date().toISOString())}
-              </p>
-            </div>
+          {/* ── report body ────────────────────────────────────────────── */}
+          <div id="report-content" className="bg-white rounded-xl shadow-sm border border-slate-200 p-10">
 
-            {/* Executive Summary */}
+            {/* ── 1. EXECUTIVE SUMMARY ─────────────────────────────────── */}
             <section className="mb-8">
               <h2 className="text-2xl font-bold text-slate-900 mb-4 pb-2 border-b border-slate-300">
                 1. EXECUTIVE SUMMARY
               </h2>
-              <div className="space-y-3 text-slate-700">
-                <p><strong>Investigation Number:</strong> {investigation?.investigation_number}</p>
-                <p><strong>Incident Date:</strong> {formatDateTime(investigation?.incident_date, investigation?.incident_time)}</p>
-                <p><strong>Location:</strong> {investigation?.location_facility}{investigation?.location_unit ? ` - ${investigation.location_unit}` : ''}{investigation?.location_area ? `, ${investigation.location_area}` : ''}</p>
-                <p><strong>Incident Type:</strong> {investigation?.incident_type}</p>
-                {investigation?.consequence_category && (
-                  <p><strong>Consequence Category:</strong> {investigation.consequence_category}</p>
-                )}
-                {(investigation?.potential_severity || investigation?.actual_severity) && (
-                  <div>
-                    {investigation?.potential_severity && (
-                      <p><strong>Potential Severity (IOGP):</strong> Level {investigation.potential_severity}</p>
-                    )}
-                    {investigation?.actual_severity && (
-                      <p><strong>Actual Severity (IOGP):</strong> Level {investigation.actual_severity}</p>
-                    )}
+
+              {/* High Potential callout */}
+              {investigation?.high_potential && (
+                <div className="flex items-start gap-3 bg-red-50 border border-red-300 rounded-lg p-3 mb-4">
+                  <AlertTriangle className="w-5 h-5 text-red-600 mt-0.5 flex-shrink-0" />
+                  <p className="text-red-800 font-semibold text-sm">HIGH POTENTIAL INCIDENT — This event has been classified as High Potential and may require elevated regulatory reporting.</p>
+                </div>
+              )}
+
+              {/* Summary stats box */}
+              <div className="grid grid-cols-4 gap-3 mb-5">
+                {[
+                  { label: 'Evidence Items',   value: evidence.length,       colour: 'blue' },
+                  { label: 'Interviews',       value: interviews.length,     colour: 'purple' },
+                  { label: 'Causal Factors',   value: causalFactors.length,  colour: 'orange' },
+                  { label: 'Recommendations',  value: recommendations.length,colour: 'green' },
+                ].map(item => (
+                  <div key={item.label} className="bg-slate-50 border border-slate-200 rounded-lg p-3 text-center">
+                    <p className="text-2xl font-bold text-slate-800">{item.value}</p>
+                    <p className="text-xs text-slate-500 mt-0.5">{item.label}</p>
                   </div>
-                )}
-                {investigation?.incident_type === 'High Potential Near Miss' && (
-                  <p className="text-amber-900 font-semibold">⚠️ HIGH POTENTIAL NEAR MISS</p>
-                )}
-                <p><strong>Investigation Leader:</strong> {investigation?.investigation_leader || 'Not specified'}</p>
-                <p><strong>Status:</strong> {investigation?.status}</p>
+                ))}
+              </div>
+
+              <div className="grid grid-cols-2 gap-x-8 gap-y-2 text-sm">
+                <div><span className="font-semibold text-slate-600">Investigation Number:</span> <span className="text-slate-900">{investigation?.investigation_number || 'N/A'}</span></div>
+                <div><span className="font-semibold text-slate-600">Incident Date:</span>         <span className="text-slate-900">{formatDate(investigation?.incident_date)}</span></div>
+                <div><span className="font-semibold text-slate-600">Location / Facility:</span>   <span className="text-slate-900">{investigation?.location_facility || 'N/A'}</span></div>
+                <div><span className="font-semibold text-slate-600">Investigation Leader:</span>  <span className="text-slate-900">{investigation?.investigation_leader || 'N/A'}</span></div>
+                <div><span className="font-semibold text-slate-600">IOGP Severity:</span>         <span className="text-slate-900">{investigation?.iogp_severity || 'N/A'}</span></div>
+                <div><span className="font-semibold text-slate-600">Classification:</span>        <span className="text-slate-900">{investigation?.incident_type || 'N/A'}</span></div>
+                <div><span className="font-semibold text-slate-600">Investigation Started:</span> <span className="text-slate-900">{formatDate(investigation?.created_at)}</span></div>
+                <div><span className="font-semibold text-slate-600">Status:</span>                <span className="text-slate-900">{investigation?.status || 'In Progress'}</span></div>
               </div>
             </section>
 
-            {/* Incident Description */}
+            {/* ── 2. INCIDENT DESCRIPTION ──────────────────────────────── */}
             <section className="mb-8">
               <h2 className="text-2xl font-bold text-slate-900 mb-4 pb-2 border-b border-slate-300">
                 2. INCIDENT DESCRIPTION
               </h2>
-              <p className="text-slate-700 whitespace-pre-wrap">
-                {investigation?.incident_description || 'No description provided.'}
-              </p>
-              {investigation?.immediate_actions_taken && (
-                <div className="mt-4">
-                  <h3 className="font-semibold text-lg text-slate-900 mb-2">Immediate Actions Taken</h3>
-                  <p className="text-slate-700 whitespace-pre-wrap">{investigation.immediate_actions_taken}</p>
+              <p className="text-slate-700 whitespace-pre-wrap">{investigation?.incident_description || 'No description provided.'}</p>
+              {investigation?.immediate_actions && (
+                <div className="mt-4 pl-4 border-l-2 border-blue-400">
+                  <p className="font-semibold text-slate-800 text-sm mb-1">Immediate Actions Taken</p>
+                  <p className="text-slate-700 whitespace-pre-wrap">{investigation.immediate_actions}</p>
                 </div>
               )}
             </section>
 
-            {/* Evidence & Data Collection */}
-            {(evidence.length > 0 || interviews.length > 0) && (
-              <section className="mb-8">
-                <h2 className="text-2xl font-bold text-slate-900 mb-4 pb-2 border-b border-slate-300">
-                  3. EVIDENCE & DATA COLLECTION
-                </h2>
-                
-                {evidence.length > 0 && (
-                  <div className="mb-6">
-                    <h3 className="font-semibold text-lg text-slate-900 mb-3">3.1 Physical Evidence</h3>
-                    <div className="space-y-3">
-                      {evidence.map((item, idx) => (
-                        <div key={item.id} className="pl-4 border-l-2 border-blue-500">
-                          <div className="flex items-start gap-2">
-                            <span className="font-medium text-slate-900">{idx + 1}.</span>
-                            <div className="flex-1">
-                              <div className="flex items-center gap-2 mb-1">
-                                <span className="inline-block px-2 py-0.5 text-xs font-medium rounded bg-blue-100 text-blue-800">
-                                  {item.evidence_type?.toUpperCase()}
-                                </span>
-                                {item.file_url ? (
-                                  <a 
-                                    href={item.file_url} 
-                                    target="_blank" 
-                                    rel="noopener noreferrer"
-                                    className="font-semibold text-blue-600 hover:text-blue-800 underline"
-                                  >
-                                    {item.title} ↗
-                                  </a>
-                                ) : (
-                                  <span className="font-semibold text-slate-900">{item.title}</span>
-                                )}
-                              </div>
-                              <p className="text-slate-700 text-sm mb-1">{item.description}</p>
-                              <div className="text-xs text-slate-600">
-                                {item.collected_date && <span>Collected: {item.collected_date}</span>}
-                                {item.collected_by && <span className="ml-3">By: {item.collected_by}</span>}
-                                {item.location && <span className="ml-3">Location: {item.location}</span>}
-                              </div>
-                              {item.tags && item.tags.length > 0 && (
-                                <div className="mt-1">
-                                  {item.tags.map((tag: string, tagIdx: number) => (
-                                    <span key={tagIdx} className="inline-block px-2 py-0.5 text-xs rounded bg-slate-100 text-slate-600 mr-1">
-                                      {tag}
-                                    </span>
-                                  ))}
-                                </div>
-                              )}
-                            </div>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
-
-                {interviews.length > 0 && (
-                  <div>
-                    <h3 className="font-semibold text-lg text-slate-900 mb-3">3.2 Witness Interviews</h3>
-                    <div className="space-y-3">
-                      {interviews.map((interview, idx) => (
-                        <div key={interview.id} className="pl-4 border-l-2 border-purple-500">
-                          <p className="font-medium text-slate-900">{idx + 1}. {interview.interviewee_name} - {interview.interview_role}</p>
-                          <p className="text-sm text-slate-600">
-                            Interviewed: {formatDateTime(interview.interview_date, interview.interview_time)} by {interview.interviewer_name}
-                          </p>
-                          {interview.key_points && (
-                            <p className="text-slate-700 mt-2">{interview.key_points}</p>
-                          )}
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
-              </section>
-            )}
-
-            {/* Timeline */}
-            {timeline.length > 0 && (
-              <section className="mb-8">
-                <h2 className="text-2xl font-bold text-slate-900 mb-4 pb-2 border-b border-slate-300">
-                  4. TIMELINE OF EVENTS
-                </h2>
-                <div className="space-y-3">
-                  {timeline.filter(e => !e.parent_event_id).map((event) => (
-                    <div key={event.id}>
-                      {/* Parent Event */}
-                      <div className="flex gap-4 pl-4 border-l-4 border-cyan-600">
-                        <div className="font-mono text-sm font-semibold text-slate-700 min-w-[140px] pt-1">
-                          {formatDateTime(event.event_date, event.event_time)}
-                        </div>
-                        <div className="flex-1 pb-2">
-                          <div className="mb-1">
-                            <span className="inline-block px-2 py-0.5 text-xs font-medium rounded bg-cyan-100 text-cyan-800 mr-2">
-                              {event.category?.toUpperCase() || 'EVENT'}
-                            </span>
-                            {event.is_incident_event && (
-                              <span className="inline-block px-2 py-0.5 text-xs font-medium rounded bg-red-100 text-red-800 mr-2">
-                                INCIDENT EVENT
-                              </span>
-                            )}
-                          </div>
-                          <div className="font-semibold text-slate-900 mb-1">{event.title}</div>
-                          {event.description && (
-                            <div className="text-slate-700 text-sm mb-1">{event.description}</div>
-                          )}
-                          {event.source && (
-                            <div className="text-xs text-slate-500 italic">Source: {event.source}</div>
-                          )}
-                          {event.involved_personnel && event.involved_personnel.length > 0 && (
-                            <div className="text-xs text-slate-600 mt-1">
-                              Personnel: {event.involved_personnel.join(', ')}
-                            </div>
-                          )}
-                        </div>
-                      </div>
-                      
-                      {/* Child Events - Indented */}
-                      {timeline.filter(child => child.parent_event_id === event.id).map((childEvent) => (
-                        <div key={childEvent.id} className="flex gap-4 pl-12 ml-8 border-l-2 border-cyan-300 mt-2">
-                          <div className="font-mono text-xs text-slate-600 min-w-[140px] pt-1">
-                            {childEvent.event_time}
-                          </div>
-                          <div className="flex-1 pb-2">
-                            <div className="mb-1">
-                              <span className="inline-block px-2 py-0.5 text-xs rounded bg-cyan-50 text-cyan-700 mr-2">
-                                {childEvent.category?.toUpperCase() || 'SUB-EVENT'}
-                              </span>
-                            </div>
-                            <div className="font-medium text-slate-800 text-sm mb-1">{childEvent.title}</div>
-                            {childEvent.description && (
-                              <div className="text-slate-600 text-sm">{childEvent.description}</div>
-                            )}
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  ))}
-                </div>
-              </section>
-            )}
-
-            {/* Causal Analysis */}
-            {causalFactors.length > 0 && (
-              <section className="mb-8">
-                <h2 className="text-2xl font-bold text-slate-900 mb-4 pb-2 border-b border-slate-300">
-                  5. CAUSAL ANALYSIS
-                </h2>
-                
-                {causalFactors.map((factor, idx) => {
-                  const hfat = hfatAssessments.find(h => h.causal_factor_id === factor.id);
-                  const hop = hopAssessments.find(h => h.causal_factor_id === factor.id);
-                  
-                  return (
-                    <div key={factor.id} className="mb-6 pb-6 border-b border-slate-200 last:border-0">
-                      <h3 className="font-semibold text-lg text-slate-900 mb-2">
-                        5.{idx + 1} {factor.causal_factor_title}
-                      </h3>
-                      <div className="mb-3">
-                        <span className="inline-block px-2 py-1 text-xs rounded bg-orange-100 text-orange-700 mr-2">
-                          {factor.factor_type}
-                        </span>
-                        <span className="inline-block px-2 py-1 text-xs rounded bg-slate-100 text-slate-700">
-                          {factor.factor_category}
-                        </span>
-                      </div>
-                      {factor.causal_factor_description && (
-                        <p className="text-slate-700 mb-4 whitespace-pre-wrap">{factor.causal_factor_description}</p>
-                      )}
-
-                      {/* HFAT Assessment */}
-                      {hfat && hfat.notes && (
-                        <div className="mt-4 pl-4 border-l-2 border-purple-500">
-                          <h4 className="font-semibold text-slate-900 mb-2">Human Factors Analysis (HFAT)</h4>
-                          {hfat.notes.humanFactors && Object.entries(hfat.notes.humanFactors).map(([key, value]: [string, any]) => {
-                            if (value?.notes) {
-                              return (
-                                <div key={key} className="mb-2">
-                                  <p className="text-sm font-medium text-slate-700">{key.replace(/_/g, ' ')}</p>
-                                  <p className="text-sm text-slate-600">
-                                    <span className={`inline-block px-2 py-0.5 text-xs rounded mr-2 ${
-                                      value.rating === 'contributing' ? 'bg-orange-100 text-orange-700' :
-                                      value.rating === 'causal' ? 'bg-red-100 text-red-700' : 'bg-slate-100 text-slate-700'
-                                    }`}>
-                                      {value.rating || 'Not rated'}
-                                    </span>
-                                    {value.notes}
-                                  </p>
-                                </div>
-                              );
-                            }
-                            return null;
-                          })}
-                          
-                          {hfat.notes.justCulture && hfat.notes.justCulture.classification && (
-                            <div className="mt-3 pt-3 border-t border-slate-200">
-                              <p className="font-semibold text-slate-900">Just Culture Assessment</p>
-                              <p className="text-sm text-slate-700 mt-1">
-                                <strong>Classification:</strong> {hfat.notes.justCulture.classification}
-                              </p>
-                              {hfat.notes.justCulture.justification && (
-                                <p className="text-sm text-slate-700 mt-1">
-                                  <strong>Justification:</strong> {hfat.notes.justCulture.justification}
-                                </p>
-                              )}
-                              {hfat.notes.justCulture.responseActions && (
-                                <p className="text-sm text-slate-700 mt-1">
-                                  <strong>Response Actions:</strong> {hfat.notes.justCulture.responseActions}
-                                </p>
-                              )}
-                            </div>
-                          )}
-                        </div>
-                      )}
-
-                      {/* HOP Assessment */}
-                      {hop && (
-                        <div className="mt-4 pl-4 border-l-2 border-green-500">
-                          <h4 className="font-semibold text-slate-900 mb-2">Human & Organizational Performance (HOP)</h4>
-                          {hop.workload_demands && (
-                            <div className="mb-2">
-                              <p className="text-sm font-medium text-slate-700">Error Precursors</p>
-                              <p className="text-sm text-slate-600">{hop.workload_demands}</p>
-                            </div>
-                          )}
-                          {hop.procedural_guidance && (
-                            <div className="mb-2">
-                              <p className="text-sm font-medium text-slate-700">System Defenses</p>
-                              <p className="text-sm text-slate-600">{hop.procedural_guidance}</p>
-                            </div>
-                          )}
-                          {hop.what_made_sense && (
-                            <div className="mb-2">
-                              <p className="text-sm font-medium text-slate-700">System Vulnerabilities</p>
-                              <p className="text-sm text-slate-600">{hop.what_made_sense}</p>
-                            </div>
-                          )}
-                          {hop.system_improvements && (
-                            <div className="mb-2">
-                              <p className="text-sm font-medium text-slate-700">System Improvements</p>
-                              <p className="text-sm text-slate-600">{hop.system_improvements}</p>
-                            </div>
-                          )}
-                        </div>
-                      )}
-                    </div>
-                  );
-                })}
-              </section>
-            )}
-
-            {/* Recommendations */}
-            {recommendations.length > 0 && (
-              <section className="mb-8">
-                <h2 className="text-2xl font-bold text-slate-900 mb-4 pb-2 border-b border-slate-300">
-                  6. RECOMMENDATIONS
-                </h2>
-                <div className="space-y-4">
-                  {recommendations.map((rec, idx) => (
-                    <div key={rec.id} className="pl-4 border-l-2 border-blue-500">
-                      <div className="flex items-start gap-3 mb-2">
-                        <span className="font-bold text-slate-900">{idx + 1}.</span>
-                        <div className="flex-1">
-                          <p className="font-medium text-slate-900">{rec.recommendation_title}</p>
-                          <p className="text-slate-700 mt-1">{rec.recommendation_description}</p>
-                          <div className="flex gap-4 mt-2 text-sm text-slate-600">
-                            <span><strong>Priority:</strong> {rec.priority}</span>
-                            <span><strong>Type:</strong> {rec.recommendation_type}</span>
-                            {rec.responsible_party && <span><strong>Owner:</strong> {rec.responsible_party}</span>}
-                            {rec.target_completion_date && (
-                              <span><strong>Due:</strong> {formatDate(rec.target_completion_date)}</span>
-                            )}
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </section>
-            )}
-
-            {/* Conclusion */}
+            {/* ── 3. EVIDENCE & DATA COLLECTION ────────────────────────── */}
             <section className="mb-8">
               <h2 className="text-2xl font-bold text-slate-900 mb-4 pb-2 border-b border-slate-300">
-                7. CONCLUSION
+                3. EVIDENCE &amp; DATA COLLECTION
+              </h2>
+
+              {/* Evidence */}
+              <h3 className="font-semibold text-slate-800 mb-2">Physical Evidence</h3>
+              {evidence.length > 0 ? (
+                <div className="space-y-2 mb-5">
+                  {evidence.map((item, idx) => (
+                    <div key={item.id} className="flex gap-3 pl-4 border-l-2 border-blue-400">
+                      <span className="font-mono text-sm text-slate-500 min-w-[24px]">{idx + 1}.</span>
+                      <div className="flex-1">
+                        <p className="text-slate-900 font-medium">{item.evidence_title}</p>
+                        {item.evidence_description && <p className="text-sm text-slate-600 mt-0.5">{item.evidence_description}</p>}
+                        <div className="flex gap-3 mt-1 text-xs text-slate-500">
+                          {item.evidence_type  && <span>Type: {item.evidence_type}</span>}
+                          {item.collected_by   && <span>Collected by: {item.collected_by}</span>}
+                          {item.collection_date && <span>Date: {formatDate(item.collection_date)}</span>}
+                        </div>
+                        {item.file_path && (
+                          <a href={item.file_path} target="_blank" rel="noopener noreferrer"
+                             className="text-xs text-blue-600 hover:underline mt-1 inline-block">View Document</a>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-slate-500 italic mb-5">No evidence recorded.</p>
+              )}
+
+              {/* Interviews */}
+              <h3 className="font-semibold text-slate-800 mb-2">Witness Interviews</h3>
+              {interviews.length > 0 ? (
+                <div className="space-y-2">
+                  {interviews.map((iv, idx) => (
+                    <div key={iv.id} className="pl-4 border-l-2 border-purple-400">
+                      <p className="font-medium text-slate-900">{iv.interviewee_name} — {iv.interview_role || 'Role not specified'}</p>
+                      <p className="text-sm text-slate-600">
+                        Interviewed: {formatDateTime(iv.interview_date, iv.interview_time)}
+                        {iv.interviewer_name && <span> by {iv.interviewer_name}</span>}
+                      </p>
+                      {iv.key_points && <p className="text-slate-700 mt-1 whitespace-pre-wrap">{iv.key_points}</p>}
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-slate-500 italic">No interviews recorded.</p>
+              )}
+            </section>
+
+            {/* ── 4. TIMELINE OF EVENTS ────────────────────────────────── */}
+            <section className="mb-8">
+              <h2 className="text-2xl font-bold text-slate-900 mb-4 pb-2 border-b border-slate-300">
+                4. TIMELINE OF EVENTS
+              </h2>
+              {parentEvents.length > 0 ? (
+                <div className="space-y-1">
+                  {parentEvents.map(event => {
+                    const children = childrenOf(event.id);
+                    return (
+                      <div key={event.id}>
+                        {/* parent event */}
+                        <div className="flex gap-4 pl-4 border-l-2 border-cyan-500 py-2">
+                          <div className="font-mono text-sm text-slate-600 min-w-[130px] flex-shrink-0">
+                            {formatDateTime(event.event_date, event.event_time)}
+                          </div>
+                          <div className="flex-1">
+                            <div className="flex items-center gap-2 flex-wrap">
+                              {event.event_category && (
+                                <span className="inline-block px-2 py-0.5 text-xs rounded bg-slate-100 text-slate-700">{event.event_category}</span>
+                              )}
+                              {event.is_incident_event && (
+                                <span className="inline-block px-2 py-0.5 text-xs rounded bg-red-100 text-red-700 font-semibold">INCIDENT EVENT</span>
+                              )}
+                              {event.verified && (
+                                <span className="inline-block px-2 py-0.5 text-xs rounded bg-green-100 text-green-700">Verified</span>
+                              )}
+                            </div>
+                            <p className="text-slate-900 font-medium mt-1">{event.event_title}</p>
+                            {event.event_description && <p className="text-sm text-slate-600 mt-0.5">{event.event_description}</p>}
+                          </div>
+                        </div>
+                        {/* child events — indented */}
+                        {children.map(child => (
+                          <div key={child.id} className="flex gap-4 pl-12 border-l-2 border-cyan-300 py-1.5 bg-slate-50">
+                            <div className="font-mono text-xs text-slate-500 min-w-[130px] flex-shrink-0">
+                              {formatDateTime(child.event_date, child.event_time)}
+                            </div>
+                            <div className="flex-1">
+                              <div className="flex items-center gap-2">
+                                {child.event_category && (
+                                  <span className="inline-block px-1.5 py-0.5 text-xs rounded bg-slate-100 text-slate-600">{child.event_category}</span>
+                                )}
+                                {child.verified && (
+                                  <span className="inline-block px-1.5 py-0.5 text-xs rounded bg-green-100 text-green-700">Verified</span>
+                                )}
+                              </div>
+                              <p className="text-sm text-slate-800">{child.event_title}</p>
+                              {child.event_description && <p className="text-xs text-slate-600 mt-0.5">{child.event_description}</p>}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    );
+                  })}
+                </div>
+              ) : (
+                <p className="text-slate-500 italic">No timeline events recorded.</p>
+              )}
+            </section>
+
+            {/* ── 5. BARRIER ANALYSIS ──────────────────────────────────── */}
+            <section className="mb-8">
+              <h2 className="text-2xl font-bold text-slate-900 mb-4 pb-2 border-b border-slate-300">
+                5. BARRIER ANALYSIS
+              </h2>
+              {barriers.length > 0 ? (
+                <div className="overflow-x-auto">
+                  <table className="w-full text-sm border-collapse">
+                    <thead>
+                      <tr className="bg-slate-100">
+                        <th className="text-left p-3 font-semibold text-slate-700 border-b border-slate-200">#</th>
+                        <th className="text-left p-3 font-semibold text-slate-700 border-b border-slate-200">Barrier</th>
+                        <th className="text-left p-3 font-semibold text-slate-700 border-b border-slate-200">Type</th>
+                        <th className="text-left p-3 font-semibold text-slate-700 border-b border-slate-200">Status</th>
+                        <th className="text-left p-3 font-semibold text-slate-700 border-b border-slate-200">Performed</th>
+                        <th className="text-left p-3 font-semibold text-slate-700 border-b border-slate-200">Failure Reason / Notes</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {barriers.map((b, idx) => (
+                        <tr key={b.id} className="border-b border-slate-100 hover:bg-slate-50">
+                          <td className="p-3 text-slate-600">{idx + 1}</td>
+                          <td className="p-3 font-medium text-slate-900">{b.barrier_name}</td>
+                          <td className="p-3 text-slate-700">{b.barrier_type || '—'}</td>
+                          <td className="p-3">
+                            <span className={`inline-block px-2 py-0.5 text-xs rounded font-medium ${barrierStatusStyle(b.status)}`}>
+                              {b.status || '—'}
+                            </span>
+                          </td>
+                          <td className="p-3">
+                            <span className={`inline-block px-2 py-0.5 text-xs rounded font-medium ${performedStyle(b.performed)}`}>
+                              {b.performed || '—'}
+                            </span>
+                          </td>
+                          <td className="p-3 text-slate-600 whitespace-pre-wrap">
+                            {b.failure_reason || b.notes || '—'}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              ) : (
+                <p className="text-slate-500 italic">No barriers recorded.</p>
+              )}
+            </section>
+
+            {/* ── 6. CAUSAL ANALYSIS ───────────────────────────────────── */}
+            <section className="mb-8">
+              <h2 className="text-2xl font-bold text-slate-900 mb-4 pb-2 border-b border-slate-300">
+                6. CAUSAL ANALYSIS
+              </h2>
+              {causalFactors.length > 0 ? causalFactors.map((factor, idx) => {
+                const hfat = hfatAssessments.find((h: any) => h.causal_factor_id === factor.id);
+                const hop  = hopAssessments.find((h: any)  => h.causal_factor_id === factor.id);
+                const hfatGroups = hfat?.notes?.humanFactors ? groupHfat(hfat.notes.humanFactors) : null;
+                const justCulture = hfat?.notes?.justCulture;
+
+                return (
+                  <div key={factor.id} className="mb-6 pb-6 border-b border-slate-200 last:border-0">
+                    <h3 className="font-semibold text-lg text-slate-900 mb-2">
+                      6.{idx + 1}&nbsp; {factor.causal_factor_title}
+                    </h3>
+
+                    {/* type + category badges */}
+                    <div className="flex gap-2 flex-wrap mb-2">
+                      {factor.factor_type && (
+                        <span className={`inline-block px-2 py-0.5 text-xs rounded font-medium ${
+                          factor.factor_type === 'immediate' ? 'bg-red-100 text-red-700' :
+                          factor.factor_type === 'contributing' ? 'bg-orange-100 text-orange-700' :
+                          'bg-purple-100 text-purple-700'
+                        }`}>
+                          {factor.factor_type.charAt(0).toUpperCase() + factor.factor_type.slice(1)} Cause
+                        </span>
+                      )}
+                      {factor.factor_category && (
+                        <span className="inline-block px-2 py-0.5 text-xs rounded bg-slate-100 text-slate-700">
+                          {factor.factor_category}
+                        </span>
+                      )}
+                      {factor.subcategory && (
+                        <span className="inline-block px-2 py-0.5 text-xs rounded bg-slate-100 text-slate-600 italic">
+                          {factor.subcategory}
+                        </span>
+                      )}
+                    </div>
+
+                    {factor.causal_factor_description && (
+                      <p className="text-slate-700 mb-4 whitespace-pre-wrap">{factor.causal_factor_description}</p>
+                    )}
+
+                    {/* ── HFAT grouped by IOGP section ──────────────────── */}
+                    {hfatGroups ? (() => {
+                      const hasAny = Object.values(hfatGroups).some(g => g.items.length > 0);
+                      return hasAny ? (
+                        <div className="mt-4 pl-4 border-l-2 border-purple-500">
+                          <h4 className="font-semibold text-slate-900 mb-3">Human Factors Analysis (HFAT) — IOGP 621</h4>
+                          {Object.entries(hfatGroups).map(([sectionKey, section]) => {
+                            if (section.items.length === 0) return null;
+                            return (
+                              <div key={sectionKey} className="mb-3">
+                                <p className="text-xs font-semibold text-purple-700 uppercase tracking-wide mb-1.5">{section.label}</p>
+                                <div className="space-y-1.5 pl-3">
+                                  {section.items.map((item, i) => (
+                                    <div key={i} className="flex items-start gap-2">
+                                      <span className={`inline-block mt-0.5 px-2 py-0.5 text-xs rounded flex-shrink-0 ${
+                                        item.rating === 'causal' ? 'bg-red-100 text-red-700' : 'bg-orange-100 text-orange-700'
+                                      }`}>
+                                        {item.rating.charAt(0).toUpperCase() + item.rating.slice(1)}
+                                      </span>
+                                      <div>
+                                        <span className="text-sm font-medium text-slate-800">{item.label}</span>
+                                        {item.notes && <p className="text-sm text-slate-600">{item.notes}</p>}
+                                      </div>
+                                    </div>
+                                  ))}
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      ) : (
+                        <div className="mt-4 pl-4 border-l-2 border-purple-500">
+                          <h4 className="font-semibold text-slate-900 mb-1">Human Factors Analysis (HFAT)</h4>
+                          <p className="text-slate-500 italic text-sm">None identified</p>
+                        </div>
+                      );
+                    })() : (
+                      <div className="mt-4 pl-4 border-l-2 border-purple-500">
+                        <h4 className="font-semibold text-slate-900 mb-1">Human Factors Analysis (HFAT)</h4>
+                        <p className="text-slate-500 italic text-sm">None identified</p>
+                      </div>
+                    )}
+
+                    {/* ── Just Culture ──────────────────────────────────── */}
+                    <div className="mt-4 pl-4 border-l-2 border-blue-500">
+                      <h4 className="font-semibold text-slate-900 mb-1">Just Culture Assessment</h4>
+                      {justCulture?.classification ? (
+                        <>
+                          <div className="flex items-center gap-2 mt-1">
+                            <span className={`inline-block px-2 py-0.5 text-xs rounded font-medium ${
+                              justCulture.classification === 'Human Error'       ? 'bg-green-100 text-green-800' :
+                              justCulture.classification === 'At-Risk Behavior'  ? 'bg-orange-100 text-orange-800' :
+                              'bg-red-100 text-red-800'
+                            }`}>
+                              {justCulture.classification}
+                            </span>
+                          </div>
+                          {justCulture.justification && (
+                            <p className="text-sm text-slate-700 mt-1.5 whitespace-pre-wrap">{justCulture.justification}</p>
+                          )}
+                        </>
+                      ) : (
+                        <p className="text-slate-500 italic text-sm">None identified</p>
+                      )}
+                    </div>
+
+                    {/* ── HOP ───────────────────────────────────────────── */}
+                    <div className="mt-4 pl-4 border-l-2 border-green-500">
+                      <h4 className="font-semibold text-slate-900 mb-1">Human and Organisational Performance (HOP)</h4>
+                      {hop ? (() => {
+                        const hasAnyField = hopSections.some(s => s.fields.some(f => hop[f.key]));
+                        if (!hasAnyField) return <p className="text-slate-500 italic text-sm">None identified</p>;
+                        return hopSections.map((section, sIdx) => {
+                          const sectionFields = section.fields.filter(f => hop[f.key]);
+                          if (sectionFields.length === 0) return null;
+                          return (
+                            <div key={sIdx} className="mb-3">
+                              <p className="text-xs font-semibold text-green-700 uppercase tracking-wide mb-1.5">{section.title}</p>
+                              <div className="space-y-1.5 pl-3">
+                                {sectionFields.map(f => (
+                                  <div key={f.key}>
+                                    <p className="text-sm font-medium text-slate-700">{f.label}</p>
+                                    <p className="text-sm text-slate-600">{hop[f.key]}</p>
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
+                          );
+                        });
+                      })() : (
+                        <p className="text-slate-500 italic text-sm">None identified</p>
+                      )}
+                    </div>
+                  </div>
+                );
+              }) : (
+                <p className="text-slate-500 italic">No causal factors recorded.</p>
+              )}
+            </section>
+
+            {/* ── 7. RECOMMENDATIONS ───────────────────────────────────── */}
+            <section className="mb-8">
+              <h2 className="text-2xl font-bold text-slate-900 mb-4 pb-2 border-b border-slate-300">
+                7. RECOMMENDATIONS
+              </h2>
+              {recommendations.length > 0 ? (
+                <div className="space-y-4">
+                  {recommendations.map((rec, idx) => {
+                    const linkedFactor = causalFactors.find((cf: any) => cf.id === rec.causal_factor_id);
+                    return (
+                      <div key={rec.id} className="pl-4 border-l-2 border-blue-500">
+                        <div className="flex items-start gap-3">
+                          <span className="font-bold text-slate-900 flex-shrink-0">{idx + 1}.</span>
+                          <div className="flex-1">
+                            <p className="font-medium text-slate-900">{rec.recommendation_title}</p>
+                            {rec.recommendation_description && (
+                              <p className="text-slate-700 mt-1 whitespace-pre-wrap">{rec.recommendation_description}</p>
+                            )}
+
+                            {/* linked causal factor */}
+                            {linkedFactor && (
+                              <div className="mt-2 pl-3 border-l border-slate-300">
+                                <p className="text-xs text-slate-500">Addresses causal factor:</p>
+                                <p className="text-sm text-slate-700 font-medium">{linkedFactor.causal_factor_title}</p>
+                              </div>
+                            )}
+
+                            {/* metadata row */}
+                            <div className="flex gap-4 mt-2 text-xs text-slate-600 flex-wrap">
+                              {rec.priority && (
+                                <span><strong>Priority:</strong> {rec.priority}</span>
+                              )}
+                              {rec.recommendation_type && (
+                                <span><strong>Hierarchy of Controls:</strong> {rec.recommendation_type}</span>
+                              )}
+                              {rec.responsible_party && (
+                                <span><strong>Owner:</strong> {rec.responsible_party}</span>
+                              )}
+                              {rec.target_completion_date && (
+                                <span><strong>Target Date:</strong> {formatDate(rec.target_completion_date)}</span>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              ) : (
+                <p className="text-slate-500 italic">No recommendations recorded.</p>
+              )}
+            </section>
+
+            {/* ── 8. CONCLUSION ────────────────────────────────────────── */}
+            <section className="mb-8">
+              <h2 className="text-2xl font-bold text-slate-900 mb-4 pb-2 border-b border-slate-300">
+                8. CONCLUSION
               </h2>
               <p className="text-slate-700">
-                This investigation identified {causalFactors.length} causal factor{causalFactors.length !== 1 ? 's' : ''} and 
-                resulted in {recommendations.length} recommendation{recommendations.length !== 1 ? 's' : ''} to prevent recurrence. 
-                Implementation of these recommendations will improve safety and operational reliability.
+                This investigation identified {causalFactors.length} causal factor{causalFactors.length !== 1 ? 's' : ''} and
+                resulted in {recommendations.length} recommendation{recommendations.length !== 1 ? 's' : ''} to prevent recurrence.
+                {barriers.length > 0 && ` Barrier analysis identified ${barriers.length} barrier${barriers.length !== 1 ? 's' : ''}, of which ${barriers.filter((b: any) => b.status?.toLowerCase() === 'absent' || b.performed?.toLowerCase() === 'no').length} failed or were absent.`}
+                {' '}Implementation of these recommendations will improve safety and operational reliability.
               </p>
             </section>
 
-            {/* Sign-off */}
+            {/* ── SIGN-OFF ─────────────────────────────────────────────── */}
             <section className="mt-12 pt-6 border-t-2 border-slate-300">
               <div className="grid grid-cols-2 gap-8">
                 <div>
@@ -538,11 +699,12 @@ export default function InvestigationReport() {
               </div>
             </section>
 
-            {/* Footer Note */}
+            {/* ── FOOTER ───────────────────────────────────────────────── */}
             <div className="mt-8 pt-6 border-t border-slate-200 text-center text-sm text-slate-500">
               <p>Investigation Tool Report | Generated {formatDate(new Date().toISOString())}</p>
             </div>
-          </div>
+
+          </div> {/* end report-content */}
         </div>
       </div>
     </>
