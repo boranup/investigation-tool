@@ -36,6 +36,29 @@ export default function Visualisations() {
     factorCategory: 'equipment'
   });
   const [expandedNodes, setExpandedNodes] = useState<Set<string>>(new Set());
+  const [editingTreeNodeId, setEditingTreeNodeId] = useState<string | null>(null);
+  const [editNode, setEditNode] = useState({ title: '', description: '', nodeType: 'immediate', factorCategory: 'equipment' });
+
+  // ── Barrier Analysis state ──────────────────────────────────
+  const [barriers, setBarriers] = useState<any[]>([]);
+  const [showAddBarrier, setShowAddBarrier] = useState(false);
+  const [editingBarrierId, setEditingBarrierId] = useState<string | null>(null);
+  const [newBarrier, setNewBarrier] = useState({
+    name: '',
+    barrierType: 'physical',
+    side: 'prevention',
+    status: 'present_performed',
+    failureReason: '',
+    notes: ''
+  });
+  const [editBarrier, setEditBarrier] = useState({
+    name: '',
+    barrierType: 'physical',
+    side: 'prevention',
+    status: 'present_performed',
+    failureReason: '',
+    notes: ''
+  });
 
   // ── Constants ────────────────────────────────────────────────
   const factorTypes = [
