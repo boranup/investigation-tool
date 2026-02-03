@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { useSearchParams } from 'next/navigation';
-import { Clock, Plus, Edit2, Trash2, AlertCircle, CheckCircle, Filter, Search, Calendar, Users, MapPin, FileText, Link as LinkIcon, X, Save } from 'lucide-react';
+import { Clock, Plus, Edit2, Trash2, AlertCircle, CheckCircle, Filter, Search, Calendar, Users, FileText, X } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import StepNavigation from '@/components/StepNavigation';
 import BarrierAnalysis from '@/components/BarrierAnalysis';
