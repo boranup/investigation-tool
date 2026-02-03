@@ -441,126 +441,153 @@ export default function Visualisations() {
   }
 
   // ── Tree renderer ────────────────────────────────────────────
-  function renderTreeNode(node: any, depth: number = 0) {
+  // Renders a single node card — edit form if active, otherwise view with action buttons
+  function renderNodeBox(node: any) {
+    const isEditing = editingTreeNodeId === node.id;
+
+    if (isEditing) {
+      return (
+        <div className="bg-white border-2 border-blue-400 rounded-lg p-3 shadow-sm" style={{ minWidth: 180, maxWidth: 220 }}>
+          <input
+            type="text"
+            value={editNode.title}
+            onChange={(e) => setEditNode({ ...editNode, title: e.target.value })}
+            className="w-full border border-slate-300 rounded px-2 py-1 text-xs mb-2"
+            autoFocus
+          />
+          <textarea
+            value={editNode.description}
+            onChange={(e) => setEditNode({ ...editNode, description: e.target.value })}
+            className="w-full border border-slate-300 rounded px-2 py-1 text-xs mb-2"
+            rows={2}
+            placeholder="Description..."
+          />
+          <div className="grid grid-cols-2 gap-1 mb-2">
+            <select
+              value={editNode.nodeType}
+              onChange={(e) => setEditNode({ ...editNode, nodeType: e.target.value })}
+              className="border border-slate-300 rounded px-1 py-1 text-xs"
+            >
+              {nodeTypes.map(nt => <option key={nt.value} value={nt.value}>{nt.label}</option>)}
+            </select>
+            <select
+              value={editNode.factorCategory}
+              onChange={(e) => setEditNode({ ...editNode, factorCategory: e.target.value })}
+              className="border border-slate-300 rounded px-1 py-1 text-xs"
+            >
+              {factorCategories.map(fc => <option key={fc.value} value={fc.value}>{fc.label}</option>)}
+            </select>
+          </div>
+          <div className="flex gap-1">
+            <button onClick={updateTreeNode} className="px-2 py-1 bg-blue-600 text-white rounded text-xs hover:bg-blue-700">Save</button>
+            <button onClick={() => setEditingTreeNodeId(null)} className="px-2 py-1 border border-slate-300 rounded text-xs hover:bg-slate-50">Cancel</button>
+          </div>
+        </div>
+      );
+    }
+
+    return (
+      <div className={`border-2 rounded-lg p-3 shadow-sm ${getNodeTypeStyle(node.node_type)}`} style={{ minWidth: 180, maxWidth: 220 }}>
+        <div className="flex items-start justify-between gap-1">
+          <div className="flex-1 min-w-0">
+            <p className="font-semibold text-sm truncate">{node.title}</p>
+            {node.description && <p className="text-xs mt-0.5 opacity-75 line-clamp-2">{node.description}</p>}
+            <div className="flex flex-wrap gap-1 mt-1.5">
+              <span className={`px-1.5 py-0.5 rounded text-xs border ${getNodeTypeStyle(node.node_type)}`}>
+                {nodeTypes.find(t => t.value === node.node_type)?.label}
+              </span>
+              <span className="px-1.5 py-0.5 rounded text-xs bg-white bg-opacity-70 border border-slate-300 text-slate-600">
+                {factorCategories.find(c => c.value === node.factor_category)?.label}
+              </span>
+            </div>
+          </div>
+        </div>
+        {/* Action row */}
+        <div className="flex items-center gap-1 mt-2 pt-2 border-t border-current border-opacity-20">
+          <button
+            onClick={() => {
+              setEditingTreeNodeId(node.id);
+              setEditNode({ title: node.title, description: node.description || '', nodeType: node.node_type, factorCategory: node.factor_category });
+            }}
+            className="p-1 hover:bg-white hover:bg-opacity-50 rounded"
+            title="Edit"
+          >
+            <Edit2 className="w-3.5 h-3.5" />
+          </button>
+          <button
+            onClick={() => {
+              setSelectedParentId(node.id);
+              setShowAddNode(true);
+            }}
+            className="p-1 hover:bg-white hover:bg-opacity-50 rounded"
+            title="Add child cause"
+          >
+            <Plus className="w-3.5 h-3.5" />
+          </button>
+          <button
+            onClick={() => deleteTreeNode(node.id)}
+            className="p-1 hover:bg-white hover:bg-opacity-50 rounded text-red-600"
+            title="Delete"
+          >
+            <Trash2 className="w-3.5 h-3.5" />
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  // Recursive vertical tree: node box on top, expand toggle, then children in a row connected by lines
+  function renderTreeBranch(node: any): React.ReactNode {
     const children = causalTree.filter(n => n.parent_node_id === node.id);
     const hasChildren = children.length > 0;
     const isExpanded = expandedNodes.has(node.id);
+    const visibleChildren = hasChildren && isExpanded ? children : [];
 
     return (
-      <div key={node.id} style={{ marginLeft: depth === 0 ? 0 : 24 }}>
+      <div key={node.id} className="flex flex-col items-center">
+        {/* The node box itself */}
         <div className="relative">
-          {depth > 0 && (
-            <div className="absolute -left-4 top-4 w-4 h-px bg-slate-300" />
+          {renderNodeBox(node)}
+          {/* Expand/collapse toggle if has children */}
+          {hasChildren && (
+            <button
+              onClick={() => toggleExpand(node.id)}
+              className="absolute -bottom-3 left-1/2 transform -translate-x-1/2 bg-white border border-slate-300 rounded-full w-6 h-6 flex items-center justify-center shadow-sm hover:bg-slate-50 z-10"
+            >
+              {isExpanded ? <ChevronDown className="w-3 h-3 text-slate-600" /> : <ChevronRight className="w-3 h-3 text-slate-600" />}
+            </button>
           )}
-          <div className={`border rounded-lg p-3 mb-2 ${getNodeTypeStyle(node.node_type)}`}>
-            {editingTreeNodeId === node.id ? (
-              /* ── Inline edit form ── */
-              <div className="space-y-2">
-                <div>
-                  <label className="block text-xs font-medium text-slate-600 mb-1">Title *</label>
-                  <input
-                    type="text"
-                    value={editNode.title}
-                    onChange={(e) => setEditNode({ ...editNode, title: e.target.value })}
-                    className="w-full border border-slate-300 rounded px-2 py-1 text-sm bg-white"
-                    autoFocus
-                  />
-                </div>
-                <div>
-                  <label className="block text-xs font-medium text-slate-600 mb-1">Description</label>
-                  <textarea
-                    value={editNode.description}
-                    onChange={(e) => setEditNode({ ...editNode, description: e.target.value })}
-                    className="w-full border border-slate-300 rounded px-2 py-1 text-sm bg-white"
-                    rows={2}
-                  />
-                </div>
-                <div className="grid grid-cols-2 gap-2">
-                  <div>
-                    <label className="block text-xs font-medium text-slate-600 mb-1">Cause Type</label>
-                    <select
-                      value={editNode.nodeType}
-                      onChange={(e) => setEditNode({ ...editNode, nodeType: e.target.value })}
-                      className="w-full border border-slate-300 rounded px-2 py-1 text-sm bg-white"
-                    >
-                      {nodeTypes.map(nt => <option key={nt.value} value={nt.value}>{nt.label}</option>)}
-                    </select>
-                  </div>
-                  <div>
-                    <label className="block text-xs font-medium text-slate-600 mb-1">Category</label>
-                    <select
-                      value={editNode.factorCategory}
-                      onChange={(e) => setEditNode({ ...editNode, factorCategory: e.target.value })}
-                      className="w-full border border-slate-300 rounded px-2 py-1 text-sm bg-white"
-                    >
-                      {factorCategories.map(fc => <option key={fc.value} value={fc.value}>{fc.label}</option>)}
-                    </select>
-                  </div>
-                </div>
-                <div className="flex gap-2">
-                  <button onClick={updateTreeNode} disabled={!editNode.title.trim()} className="px-3 py-1 bg-blue-600 text-white text-xs rounded hover:bg-blue-700 disabled:opacity-50">Save</button>
-                  <button onClick={() => setEditingTreeNodeId(null)} className="px-3 py-1 border border-slate-300 text-xs rounded hover:bg-white hover:bg-opacity-50">Cancel</button>
-                </div>
-              </div>
-            ) : (
-              /* ── View mode ── */
-              <div className="flex items-start justify-between">
-                <div className="flex items-center gap-2 flex-1">
-                  {hasChildren && (
-                    <button onClick={() => toggleExpand(node.id)} className="flex-shrink-0">
-                      {isExpanded ? <ChevronDown className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
-                    </button>
-                  )}
-                  <div className="flex-1">
-                    <div className="flex items-center gap-2 flex-wrap">
-                      <span className="font-semibold text-sm">{node.title}</span>
-                      <span className={`px-2 py-0.5 rounded-full text-xs border ${getNodeTypeStyle(node.node_type)}`}>
-                        {nodeTypes.find(t => t.value === node.node_type)?.label}
-                      </span>
-                      <span className="px-2 py-0.5 rounded-full text-xs bg-white bg-opacity-60 border border-slate-300 text-slate-600">
-                        {factorCategories.find(c => c.value === node.factor_category)?.label}
-                      </span>
-                    </div>
-                    {node.description && (
-                      <p className="text-xs mt-1 opacity-80">{node.description}</p>
-                    )}
-                  </div>
-                </div>
-                <div className="flex items-center gap-1 ml-2 flex-shrink-0">
-                  <button
-                    onClick={() => {
-                      setEditingTreeNodeId(node.id);
-                      setEditNode({ title: node.title, description: node.description || '', nodeType: node.node_type, factorCategory: node.factor_category });
-                    }}
-                    className="p-1 hover:bg-white hover:bg-opacity-50 rounded text-blue-600"
-                    title="Edit"
-                  >
-                    <Edit2 className="w-4 h-4" />
-                  </button>
-                  <button
-                    onClick={() => {
-                      setSelectedParentId(node.id);
-                      setShowAddNode(true);
-                    }}
-                    className="p-1 hover:bg-white hover:bg-opacity-50 rounded text-slate-700"
-                    title="Add child cause"
-                  >
-                    <Plus className="w-4 h-4" />
-                  </button>
-                  <button
-                    onClick={() => deleteTreeNode(node.id)}
-                    className="p-1 hover:bg-white hover:bg-opacity-50 rounded text-red-600"
-                    title="Delete"
-                  >
-                    <Trash2 className="w-4 h-4" />
-                  </button>
-                </div>
-              </div>
-            )}
-          </div>
         </div>
 
-        {isExpanded && children.map(child => renderTreeNode(child, depth + 1))}
+        {/* Connector and children row */}
+        {visibleChildren.length > 0 && (
+          <div className="flex flex-col items-center">
+            {/* Vertical line from parent down to the horizontal bar */}
+            <div className="w-0.5 h-6 bg-slate-400" />
+
+            {/* Horizontal bar + vertical drops to each child */}
+            <div className="relative flex items-start">
+              {/* Horizontal connector bar */}
+              {visibleChildren.length > 1 && (
+                <div className="absolute top-0 left-1/2 -translate-x-1/2 h-0.5 bg-slate-400"
+                  style={{ width: `calc(100% - 220px)` }}
+                />
+              )}
+
+              {/* Each child with its own vertical drop */}
+              <div className="flex gap-4 items-start">
+                {visibleChildren.map((child) => (
+                  <div key={child.id} className="flex flex-col items-center">
+                    {/* Vertical drop from bar to child */}
+                    <div className="w-0.5 h-4 bg-slate-400" />
+                    {/* Recurse */}
+                    {renderTreeBranch(child)}
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     );
   }
@@ -901,7 +928,7 @@ export default function Visualisations() {
 
                 {/* Root-level nodes — rendered as vertical tree */}
                 <div className="flex flex-wrap justify-center gap-8 py-4">
-                  {causalTree.filter(n => !n.parent_node_id).map(node => renderTreeNode(node))}
+                  {causalTree.filter(n => !n.parent_node_id).map(node => renderTreeBranch(node))}
                 </div>
 
                 {causalTree.length === 0 && (
