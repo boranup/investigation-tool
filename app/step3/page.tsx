@@ -5,8 +5,6 @@ import { useSearchParams } from 'next/navigation';
 import { Clock, Plus, Edit2, Trash2, AlertCircle, CheckCircle, Filter, Search, Calendar, Users, FileText, X } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import StepNavigation from '@/components/StepNavigation';
-import BarrierAnalysis from '@/components/BarrierAnalysis';
-import WorkAsImagined from '@/components/WorkAsImagined';
 
 export default function TimelineBuilder() {
   const searchParams = useSearchParams();
@@ -510,17 +508,8 @@ export default function TimelineBuilder() {
                           </button>
                         </div>
                       </div>
+                  </div>
 
-                      {/* Barrier Analysis Component */}
-                      <BarrierAnalysis timelineEventId={event.id} />
-
-                      {/* Work-As-Imagined Component */}
-                      <WorkAsImagined 
-                        timelineEventId={event.id} 
-                        eventData={event}
-                        onUpdate={loadTimelineEvents}
-                      />
-                    </div>
                   </div>
                   
                   {/* Child events - indented */}
@@ -581,16 +570,6 @@ export default function TimelineBuilder() {
                             </button>
                           </div>
                         </div>
-
-                        {/* Barrier Analysis Component for Child Events */}
-                        <BarrierAnalysis timelineEventId={childEvent.id} />
-
-                        {/* Work-As-Imagined Component for Child Events */}
-                        <WorkAsImagined 
-                          timelineEventId={childEvent.id} 
-                          eventData={childEvent}
-                          onUpdate={loadTimelineEvents}
-                        />
                       </div>
                     </div>
                   ))}
