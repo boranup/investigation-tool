@@ -1,725 +1,678 @@
 'use client'
 
 import React, { useState, useEffect } from 'react';
-import { useRouter, useSearchParams } from 'next/navigation';
-import { GitBranch, Plus, Edit2, Trash2, AlertTriangle, Lock, Unlock, ArrowRight, CheckCircle, Lightbulb } from 'lucide-react';
+import { useSearchParams } from 'next/navigation';
+import { Network, Plus, Trash2, ChevronDown, ChevronRight, AlertCircle } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import StepNavigation from '@/components/StepNavigation';
 
-export default function CausalAnalysis() {
-  const router = useRouter();
+export default function Visualisations() {
   const searchParams = useSearchParams();
   const investigationId = searchParams.get('investigationId');
 
   const [loading, setLoading] = useState(true);
   const [investigation, setInvestigation] = useState<any>(null);
-  const [causalFactors, setFactors] = useState<any[]>([]);
-  const [hopAssessments, setHopAssessments] = useState<any>({});
-  const [hfatAssessments, setHfatAssessments] = useState<any>({});
-  
-  const [showAddFactor, setShowAddFactor] = useState(false);
-  const [editingFactor, setEditingFactor] = useState<any>(null);
-  const [filterType, setFilterType] = useState('all');
-  const [filterStatus, setFilterStatus] = useState('all');
+  const [activeTab, setActiveTab] = useState<'5whys' | 'causalTree'>('5whys');
 
-  const [newFactor, setNewFactor] = useState({
-    title: '',
-    description: '',
-    factorType: 'immediate',
-    factorCategory: 'equipment',
-    parentFactorId: null,
-    requiresHFAT: false,
-    requiresHOP: false
+  // ── 5 Whys state ─────────────────────────────────────────────
+  const [whyChain, setWhyChain] = useState<any[]>([]);
+  const [showAddWhy, setShowAddWhy] = useState(false);
+  const [newWhy, setNewWhy] = useState({
+    answer: '',
+    isRootCause: false,
+    factorType: 'individual'
   });
 
+  // ── Causal Tree state ────────────────────────────────────────
+  const [causalTree, setCausalTree] = useState<any[]>([]);
+  const [showAddNode, setShowAddNode] = useState(false);
+  const [selectedParentId, setSelectedParentId] = useState<string | null>(null);
+  const [newNode, setNewNode] = useState({
+    title: '',
+    description: '',
+    nodeType: 'immediate',
+    factorCategory: 'equipment'
+  });
+  const [expandedNodes, setExpandedNodes] = useState<Set<string>>(new Set());
+
+  // ── Constants ────────────────────────────────────────────────
+  const factorTypes = [
+    { value: 'individual', label: 'Individual / Team', color: 'bg-red-100 text-red-700 border-red-200' },
+    { value: 'organisational', label: 'Organisational', color: 'bg-amber-100 text-amber-700 border-amber-200' },
+    { value: 'equipment', label: 'Equipment / Systems', color: 'bg-blue-100 text-blue-700 border-blue-200' },
+    { value: 'procedure', label: 'Procedure / Process', color: 'bg-purple-100 text-purple-700 border-purple-200' },
+    { value: 'external', label: 'External', color: 'bg-green-100 text-green-700 border-green-200' }
+  ];
+
+  const nodeTypes = [
+    { value: 'immediate', label: 'Immediate Cause', color: 'bg-red-100 text-red-700 border-red-300' },
+    { value: 'contributing', label: 'Contributing Factor', color: 'bg-amber-100 text-amber-700 border-amber-300' },
+    { value: 'root', label: 'Root Cause', color: 'bg-green-100 text-green-700 border-green-300' }
+  ];
+
+  const factorCategories = [
+    { value: 'equipment', label: 'Equipment / Hardware' },
+    { value: 'procedure', label: 'Procedure / Process' },
+    { value: 'human_factors', label: 'Human Factors' },
+    { value: 'organisational', label: 'Organisational' },
+    { value: 'external', label: 'External' }
+  ];
+
+  // ── Load data ────────────────────────────────────────────────
   useEffect(() => {
     if (investigationId) {
       loadInvestigation();
-      loadCausalFactors();
-      loadAssessments();
+      loadVisualisations();
     }
   }, [investigationId]);
 
   async function loadInvestigation() {
     try {
-      const { data, error } = await supabase
+      const { data } = await supabase
         .from('investigations')
         .select('*')
         .eq('id', investigationId)
         .single();
-
-      if (error) throw error;
       setInvestigation(data);
-    } catch (error) {
-      console.error('Error loading investigation:', error);
+    } catch (err) {
+      console.error('Error loading investigation:', err);
     }
   }
 
-  async function loadCausalFactors() {
+  async function loadVisualisations() {
     try {
-      const { data, error } = await supabase
-        .from('causal_factors')
+      // 5 Whys
+      const { data: whyData } = await supabase
+        .from('visualization_5whys')
+        .select('*')
+        .eq('investigation_id', investigationId)
+        .order('level', { ascending: true });
+      setWhyChain(whyData || []);
+
+      // Causal Tree
+      const { data: treeData } = await supabase
+        .from('visualization_causal_tree')
         .select('*')
         .eq('investigation_id', investigationId)
         .order('created_at', { ascending: true });
-
-      if (error) throw error;
-      setFactors(data || []);
-    } catch (error) {
-      console.error('Error loading causal factors:', error);
+      setCausalTree(treeData || []);
+    } catch (err) {
+      console.error('Error loading visualisations:', err);
     } finally {
       setLoading(false);
     }
   }
 
-  async function loadAssessments() {
-    try {
-      // Get all causal factors for this investigation
-      const { data: factors } = await supabase
-        .from('causal_factors')
-        .select('id')
-        .eq('investigation_id', investigationId);
-
-      if (!factors) return;
-
-      const factorIds = factors.map(f => f.id);
-
-      // Load all HOP assessments
-      const { data: hopData } = await supabase
-        .from('hop_assessments')
-        .select('*')
-        .in('causal_factor_id', factorIds);
-
-      // Load all HFAT assessments  
-      const { data: hfatData } = await supabase
-        .from('hfat_assessments')
-        .select('*')
-        .in('causal_factor_id', factorIds);
-
-      // Group by causal_factor_id
-      const hopMap: any = {};
-      hopData?.forEach((assessment: any) => {
-        if (!hopMap[assessment.causal_factor_id]) {
-          hopMap[assessment.causal_factor_id] = [];
-        }
-        hopMap[assessment.causal_factor_id].push(assessment);
-      });
-
-      const hfatMap: any = {};
-      hfatData?.forEach((assessment: any) => {
-        if (!hfatMap[assessment.causal_factor_id]) {
-          hfatMap[assessment.causal_factor_id] = [];
-        }
-        hfatMap[assessment.causal_factor_id].push(assessment);
-      });
-
-      setHopAssessments(hopMap);
-      setHfatAssessments(hfatMap);
-    } catch (error) {
-      console.error('Error loading assessments:', error);
+  // ── 5 Whys functions ─────────────────────────────────────────
+  async function addWhyLevel() {
+    if (!newWhy.answer.trim()) {
+      alert('Please provide an answer before adding a level.');
+      return;
     }
-  }
 
-  async function addCausalFactor() {
     try {
-      const factorData = {
+      const previousAnswer = whyChain.length > 0
+        ? whyChain[whyChain.length - 1].answer
+        : investigation?.incident_description || 'the incident';
+
+      const whyData = {
         investigation_id: investigationId,
-        causal_factor_title: newFactor.title,
-        causal_factor_description: newFactor.description,
-        factor_type: newFactor.factorType,
-        factor_category: newFactor.factorCategory,
-        parent_causal_factor_id: newFactor.parentFactorId,
-        requires_hfat: newFactor.requiresHFAT,
-        requires_hop: newFactor.requiresHOP,
-        analysis_status: 'identified'
+        level: whyChain.length + 1,
+        question: `Why ${whyChain.length + 1}: Why did "${previousAnswer}" occur?`,
+        answer: newWhy.answer.trim(),
+        is_root_cause: newWhy.isRootCause,
+        factor_type: newWhy.factorType
       };
 
-      console.log('Attempting to insert causal factor:', factorData);
+      const { data, error } = await supabase
+        .from('visualization_5whys')
+        .insert([whyData])
+        .select()
+        .single();
+
+      if (error) throw error;
+
+      setWhyChain([...whyChain, data]);
+      setNewWhy({ answer: '', isRootCause: false, factorType: 'individual' });
+      setShowAddWhy(false);
+    } catch (err: any) {
+      console.error('Error adding why level:', err);
+      alert(`Error: ${err.message}`);
+    }
+  }
+
+  async function deleteWhyLevel(id: string, level: number) {
+    if (!confirm('Delete this level and all subsequent levels?')) return;
+    try {
+      const { error } = await supabase
+        .from('visualization_5whys')
+        .delete()
+        .eq('investigation_id', investigationId)
+        .gte('level', level);
+      if (error) throw error;
+      loadVisualisations();
+    } catch (err) {
+      console.error('Error deleting why level:', err);
+    }
+  }
+
+  async function clearWhyChain() {
+    if (!confirm('Clear the entire 5 Whys chain? This cannot be undone.')) return;
+    try {
+      const { error } = await supabase
+        .from('visualization_5whys')
+        .delete()
+        .eq('investigation_id', investigationId);
+      if (error) throw error;
+      setWhyChain([]);
+    } catch (err) {
+      console.error('Error clearing chain:', err);
+    }
+  }
+
+  // ── Causal Tree functions ────────────────────────────────────
+  async function addTreeNode() {
+    if (!newNode.title.trim()) {
+      alert('Please provide a title.');
+      return;
+    }
+    try {
+      const nodeData = {
+        investigation_id: investigationId,
+        parent_node_id: selectedParentId,
+        title: newNode.title.trim(),
+        description: newNode.description.trim() || null,
+        node_type: newNode.nodeType,
+        factor_category: newNode.factorCategory
+      };
 
       const { data, error } = await supabase
-        .from('causal_factors')
-        .insert([factorData])
-        .select();
+        .from('visualization_causal_tree')
+        .insert([nodeData])
+        .select()
+        .single();
 
-      if (error) {
-        console.error('Supabase error:', error);
-        throw error;
+      if (error) throw error;
+
+      setCausalTree([...causalTree, data]);
+      if (selectedParentId) {
+        setExpandedNodes(new Set([...expandedNodes, selectedParentId]));
       }
-
-      console.log('Successfully added causal factor:', data);
-
-      setNewFactor({
-        title: '',
-        description: '',
-        factorType: 'immediate',
-        factorCategory: 'equipment',
-        parentFactorId: null,
-        requiresHFAT: false,
-        requiresHOP: false
-      });
-      setShowAddFactor(false);
-      loadCausalFactors();
-      loadAssessments();
-    } catch (error: any) {
-      console.error('Error adding causal factor:', error);
-      alert(`Error adding causal factor: ${error.message}\n\nCheck browser console for details.`);
+      setNewNode({ title: '', description: '', nodeType: 'immediate', factorCategory: 'equipment' });
+      setSelectedParentId(null);
+      setShowAddNode(false);
+    } catch (err: any) {
+      console.error('Error adding tree node:', err);
+      alert(`Error: ${err.message}`);
     }
   }
 
-  async function updateCausalFactor() {
-    if (!editingFactor) return;
-
+  async function deleteTreeNode(id: string) {
+    if (!confirm('Delete this node and all its children?')) return;
     try {
+      // Collect all descendant IDs recursively
+      const idsToDelete = new Set<string>();
+      const collectChildren = (parentId: string) => {
+        idsToDelete.add(parentId);
+        causalTree.filter(n => n.parent_node_id === parentId).forEach(child => collectChildren(child.id));
+      };
+      collectChildren(id);
+
       const { error } = await supabase
-        .from('causal_factors')
-        .update({
-          causal_factor_title: editingFactor.causal_factor_title,
-          causal_factor_description: editingFactor.causal_factor_description,
-          factor_type: editingFactor.factor_type,
-          factor_category: editingFactor.factor_category,
-          parent_causal_factor_id: editingFactor.parent_causal_factor_id,
-          requires_hfat: editingFactor.requires_hfat,
-          requires_hop: editingFactor.requires_hop,
-          updated_at: new Date().toISOString()
-        })
-        .eq('id', editingFactor.id);
-
-      if (error) throw error;
-
-      setEditingFactor(null);
-      loadCausalFactors();
-    } catch (error) {
-      console.error('Error updating causal factor:', error);
-      alert('Error updating causal factor');
-    }
-  }
-
-  async function deleteCausalFactor(id: string) {
-    if (!confirm('Are you sure you want to delete this causal factor?')) return;
-
-    try {
-      const { error } = await supabase
-        .from('causal_factors')
+        .from('visualization_causal_tree')
         .delete()
-        .eq('id', id);
+        .in('id', Array.from(idsToDelete));
 
       if (error) throw error;
-      loadCausalFactors();
-      loadAssessments();
-    } catch (error) {
-      console.error('Error deleting causal factor:', error);
-      alert('Error deleting causal factor');
+      setCausalTree(causalTree.filter(n => !idsToDelete.has(n.id)));
+    } catch (err) {
+      console.error('Error deleting node:', err);
     }
   }
 
-  const factorTypes = [
-    { value: 'immediate', label: 'Immediate Cause', color: 'red' },
-    { value: 'contributing', label: 'Contributing Factor', color: 'amber' },
-    { value: 'root', label: 'Root Cause', color: 'purple' }
-  ];
+  function toggleExpand(id: string) {
+    setExpandedNodes(prev => {
+      const next = new Set(prev);
+      next.has(id) ? next.delete(id) : next.add(id);
+      return next;
+    });
+  }
 
-  const factorCategories = [
-    { value: 'equipment', label: 'Equipment/Hardware' },
-    { value: 'human_performance', label: 'Human Performance' },
-    { value: 'procedure', label: 'Procedure/Process' },
-    { value: 'organizational', label: 'Organizational' },
-    { value: 'external', label: 'External Factor' }
-  ];
+  function getNodeTypeStyle(type: string) {
+    return nodeTypes.find(t => t.value === type)?.color || 'bg-grey-100 text-grey-700 border-grey-300';
+  }
 
-  const filteredFactors = causalFactors.filter(f => {
-    if (filterType !== 'all' && f.factor_type !== filterType) return false;
-    if (filterStatus !== 'all' && f.analysis_status !== filterStatus) return false;
-    return true;
-  });
+  function getFactorTypeStyle(type: string) {
+    return factorTypes.find(t => t.value === type)?.color || 'bg-grey-100 text-grey-700 border-grey-200';
+  }
 
-  // Check if all causal factors are validated (for Step 5 gate)
-  const allFactorsValidated = causalFactors.length > 0 && 
-    causalFactors.every(f => f.analysis_status === 'validated');
+  // ── Tree renderer ────────────────────────────────────────────
+  function renderTreeNode(node: any, depth: number = 0) {
+    const children = causalTree.filter(n => n.parent_node_id === node.id);
+    const hasChildren = children.length > 0;
+    const isExpanded = expandedNodes.has(node.id);
 
-  if (loading) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+      <div key={node.id} style={{ marginLeft: depth === 0 ? 0 : 24 }}>
+        <div className="relative">
+          {depth > 0 && (
+            <div className="absolute -left-4 top-4 w-4 h-px bg-slate-300" />
+          )}
+          <div className={`border rounded-lg p-3 mb-2 ${getNodeTypeStyle(node.node_type)}`}>
+            <div className="flex items-start justify-between">
+              <div className="flex items-center gap-2 flex-1">
+                {hasChildren && (
+                  <button onClick={() => toggleExpand(node.id)} className="flex-shrink-0">
+                    {isExpanded ? <ChevronDown className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
+                  </button>
+                )}
+                <div className="flex-1">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <span className="font-semibold text-sm">{node.title}</span>
+                    <span className={`px-2 py-0.5 rounded-full text-xs border ${getNodeTypeStyle(node.node_type)}`}>
+                      {nodeTypes.find(t => t.value === node.node_type)?.label}
+                    </span>
+                    <span className="px-2 py-0.5 rounded-full text-xs bg-white bg-opacity-60 border border-slate-300 text-slate-600">
+                      {factorCategories.find(c => c.value === node.factor_category)?.label}
+                    </span>
+                  </div>
+                  {node.description && (
+                    <p className="text-xs mt-1 opacity-80">{node.description}</p>
+                  )}
+                </div>
+              </div>
+              <div className="flex items-center gap-1 ml-2 flex-shrink-0">
+                <button
+                  onClick={() => {
+                    setSelectedParentId(node.id);
+                    setShowAddNode(true);
+                  }}
+                  className="p-1 hover:bg-white hover:bg-opacity-50 rounded text-slate-700"
+                  title="Add child cause"
+                >
+                  <Plus className="w-4 h-4" />
+                </button>
+                <button
+                  onClick={() => deleteTreeNode(node.id)}
+                  className="p-1 hover:bg-white hover:bg-opacity-50 rounded text-red-600"
+                  title="Delete"
+                >
+                  <Trash2 className="w-4 h-4" />
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {isExpanded && children.map(child => renderTreeNode(child, depth + 1))}
+      </div>
+    );
+  }
+
+  // ── Guards ───────────────────────────────────────────────────
+  if (!investigationId) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 p-6 flex items-center justify-center">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
-          <p className="mt-4 text-gray-600">Loading Causal Analysis...</p>
+          <h2 className="text-xl font-semibold text-slate-900 mb-2">No Investigation Selected</h2>
+          <p className="text-slate-600">Please start from Step 1 to create an investigation.</p>
         </div>
       </div>
     );
   }
 
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
+          <p className="mt-4 text-slate-600">Loading Visualisations...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // ── Render ───────────────────────────────────────────────────
   return (
-    <div className="min-h-screen bg-gray-50">
-      {/* Step Navigation */}
-      <StepNavigation 
-        investigationId={investigationId || ''} 
-        currentStep={5}
-        investigationNumber={investigation?.investigation_number}
-      />
-      
-      <div className="py-8">
-      <div className="max-w-6xl mx-auto px-4">
-        {/* Header */}
-        <div className="bg-white rounded-lg shadow-sm p-6 mb-6">
-          <div className="flex items-center justify-between mb-4">
-            <div>
-              <h1 className="text-2xl font-bold text-gray-900">
-                Step 4: Causal Factor Analysis
-              </h1>
-              <p className="text-gray-600 mt-1">
-                Investigation: {investigation?.investigation_number} - {investigation?.incident_description}
-              </p>
-            </div>
-            <button
-              onClick={() => setShowAddFactor(true)}
-              className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
-            >
-              <Plus size={20} />
-              Add Causal Factor
-            </button>
-          </div>
+    <>
+      {investigation && (
+        <StepNavigation
+          investigationId={investigationId}
+          currentStep={4}
+          investigationNumber={investigation.investigation_number}
+        />
+      )}
 
-          {/* Progress Indicator */}
-          <div className="flex items-center gap-4 p-4 bg-blue-50 rounded-lg">
-            <GitBranch className="text-blue-600" size={24} />
-            <div className="flex-1">
-              <div className="flex items-center justify-between mb-2">
-                <span className="text-sm font-medium text-blue-900">
-                  Analysis Progress
-                </span>
-                <span className="text-sm text-blue-700">
-                  {causalFactors.filter(f => f.analysis_status === 'validated').length} / {causalFactors.length} Validated
-                </span>
-              </div>
-              <div className="w-full bg-blue-200 rounded-full h-2">
-                <div
-                  className="bg-blue-600 h-2 rounded-full transition-all"
-                  style={{
-                    width: `${causalFactors.length > 0 
-                      ? (causalFactors.filter(f => f.analysis_status === 'validated').length / causalFactors.length) * 100 
-                      : 0}%`
-                  }}
-                ></div>
+      <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 p-6">
+        <div className="max-w-6xl mx-auto">
+
+          {/* Header */}
+          <div className="bg-white rounded-lg shadow-sm border border-slate-200 p-6 mb-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <h1 className="text-2xl font-bold text-slate-900">Step 4: Visualisations</h1>
+                <p className="text-slate-600 mt-1">Identify causal factors using visual analysis tools</p>
+                {investigation && (
+                  <div className="mt-2 text-sm">
+                    <span className="text-slate-500">Investigation:</span>{' '}
+                    <span className="font-medium text-slate-700">{investigation.investigation_number}</span>
+                    {' – '}
+                    <span className="text-slate-600">{investigation.incident_description}</span>
+                  </div>
+                )}
               </div>
             </div>
           </div>
 
-          {/* Removed Step 5 lock - not all factors require validation */}
-        </div>
-
-        {/* Filters */}
-        <div className="bg-white rounded-lg shadow-sm p-4 mb-6">
-          <div className="flex gap-4">
-            <div className="flex-1">
-              <label className="block text-sm font-medium mb-2">Filter by Type</label>
-              <select
-                value={filterType}
-                onChange={(e) => setFilterType(e.target.value)}
-                className="w-full border rounded-lg px-3 py-2"
+          {/* Tabs */}
+          <div className="bg-white rounded-lg shadow-sm border border-slate-200 mb-6 overflow-hidden">
+            <div className="flex border-b border-slate-200">
+              <button
+                onClick={() => setActiveTab('5whys')}
+                className={`flex-1 px-6 py-4 text-sm font-medium transition-colors ${
+                  activeTab === '5whys'
+                    ? 'bg-blue-50 text-blue-700 border-b-2 border-blue-600'
+                    : 'text-slate-600 hover:bg-slate-50'
+                }`}
               >
-                <option value="all">All Types</option>
-                {factorTypes.map(type => (
-                  <option key={type.value} value={type.value}>{type.label}</option>
-                ))}
-              </select>
-            </div>
-            <div className="flex-1">
-              <label className="block text-sm font-medium mb-2">Filter by Status</label>
-              <select
-                value={filterStatus}
-                onChange={(e) => setFilterStatus(e.target.value)}
-                className="w-full border rounded-lg px-3 py-2"
+                <div className="flex items-center justify-center gap-2">
+                  <span className="text-lg">🔍</span>
+                  <span>5 Whys Visual Builder</span>
+                  {whyChain.length > 0 && (
+                    <span className="ml-2 px-2 py-0.5 bg-blue-100 text-blue-700 rounded-full text-xs">
+                      {whyChain.length} level{whyChain.length !== 1 ? 's' : ''}
+                    </span>
+                  )}
+                </div>
+              </button>
+              <button
+                onClick={() => setActiveTab('causalTree')}
+                className={`flex-1 px-6 py-4 text-sm font-medium transition-colors ${
+                  activeTab === 'causalTree'
+                    ? 'bg-blue-50 text-blue-700 border-b-2 border-blue-600'
+                    : 'text-slate-600 hover:bg-slate-50'
+                }`}
               >
-                <option value="all">All Statuses</option>
-                <option value="identified">Identified</option>
-                <option value="analysis_required">Analysis Required</option>
-                <option value="under_analysis">Under Analysis</option>
-                <option value="validated">Validated</option>
-              </select>
+                <div className="flex items-center justify-center gap-2">
+                  <Network className="w-4 h-4" />
+                  <span>Causal Tree</span>
+                  {causalTree.length > 0 && (
+                    <span className="ml-2 px-2 py-0.5 bg-blue-100 text-blue-700 rounded-full text-xs">
+                      {causalTree.length} node{causalTree.length !== 1 ? 's' : ''}
+                    </span>
+                  )}
+                </div>
+              </button>
             </div>
-          </div>
-        </div>
 
-        {/* Causal Factors List */}
-        <div className="space-y-4">
-          {filteredFactors.map(factor => {
-            const typeInfo = factorTypes.find(t => t.value === factor.factor_type);
-            const categoryInfo = factorCategories.find(c => c.value === factor.factor_category);
+            {/* ── 5 Whys Tab ─────────────────────────────────────── */}
+            {activeTab === '5whys' && (
+              <div className="p-6">
+                {/* Incident seed */}
+                <div className="bg-slate-100 border border-slate-300 rounded-lg p-4 mb-4">
+                  <div className="flex items-center gap-2 mb-1">
+                    <span className="text-xs font-semibold text-slate-500 uppercase tracking-wide">Starting Point — Incident</span>
+                  </div>
+                  <p className="text-slate-800 font-medium">
+                    {investigation?.incident_description || 'No incident description recorded.'}
+                  </p>
+                </div>
 
-            return (
-              <div key={factor.id} className="bg-white rounded-lg shadow-sm border-2 border-gray-200 p-6">
-                {editingFactor?.id === factor.id ? (
-                  /* Edit Mode */
-                  <div className="space-y-4">
-                    <input
-                      type="text"
-                      value={editingFactor.causal_factor_title}
-                      onChange={(e) => setEditingFactor({...editingFactor, causal_factor_title: e.target.value})}
-                      className="w-full border rounded-lg px-3 py-2 font-medium"
-                      placeholder="Causal factor title..."
-                    />
-                    <textarea
-                      value={editingFactor.causal_factor_description}
-                      onChange={(e) => setEditingFactor({...editingFactor, causal_factor_description: e.target.value})}
-                      className="w-full border rounded-lg px-3 py-2"
-                      rows={3}
-                      placeholder="Description..."
-                    />
-                    <div className="grid grid-cols-2 gap-4">
-                      <div>
-                        <label className="block text-sm font-medium mb-2">Type</label>
-                        <select
-                          value={editingFactor.factor_type}
-                          onChange={(e) => setEditingFactor({...editingFactor, factor_type: e.target.value})}
-                          className="w-full border rounded-lg px-3 py-2"
+                {/* Why chain */}
+                <div className="space-y-2">
+                  {whyChain.map((why, index) => (
+                    <div key={why.id} className="flex gap-3">
+                      {/* Connector line */}
+                      <div className="flex flex-col items-center">
+                        <div className="w-8 h-8 rounded-full bg-blue-600 text-white flex items-center justify-center text-sm font-bold flex-shrink-0">
+                          {index + 1}
+                        </div>
+                        {index < whyChain.length - 1 && <div className="w-0.5 flex-1 bg-blue-300 min-h-[16px]" />}
+                      </div>
+
+                      {/* Card */}
+                      <div className="flex-1 bg-white border border-slate-200 rounded-lg p-4 mb-2">
+                        <div className="flex items-start justify-between">
+                          <div className="flex-1">
+                            <p className="text-xs text-slate-500 italic mb-1">{why.question}</p>
+                            <p className="text-slate-800 font-medium">{why.answer}</p>
+                            <div className="flex items-center gap-2 mt-2">
+                              <span className={`px-2 py-0.5 rounded-full text-xs border ${getFactorTypeStyle(why.factor_type)}`}>
+                                {factorTypes.find(t => t.value === why.factor_type)?.label}
+                              </span>
+                              {why.is_root_cause && (
+                                <span className="px-2 py-0.5 rounded-full text-xs bg-green-100 text-green-700 border border-green-200 font-semibold">
+                                  ✓ Root Cause
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                          <button
+                            onClick={() => deleteWhyLevel(why.id, why.level)}
+                            className="p-1.5 text-red-500 hover:bg-red-50 rounded"
+                            title="Delete this and subsequent levels"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+
+                {/* Warning if shallow */}
+                {whyChain.length > 0 && whyChain.length < 3 && !whyChain.some(w => w.is_root_cause) && (
+                  <div className="flex items-start gap-2 mt-3 p-3 bg-amber-50 border border-amber-200 rounded-lg">
+                    <AlertCircle className="w-4 h-4 text-amber-600 flex-shrink-0 mt-0.5" />
+                    <p className="text-xs text-amber-800">
+                      Investigations typically require at least 3 levels of "Why" before reaching a root cause. Continue exploring.
+                    </p>
+                  </div>
+                )}
+
+                {/* Add Why form / button */}
+                {!whyChain.some(w => w.is_root_cause) && (
+                  showAddWhy ? (
+                    <div className="mt-4 bg-blue-50 border border-blue-200 rounded-lg p-4">
+                      <p className="text-sm text-blue-800 font-medium mb-3">
+                        Why {whyChain.length + 1}: Why did "{whyChain.length > 0 ? whyChain[whyChain.length - 1].answer : (investigation?.incident_description || 'the incident')}" occur?
+                      </p>
+                      <textarea
+                        value={newWhy.answer}
+                        onChange={(e) => setNewWhy({ ...newWhy, answer: e.target.value })}
+                        className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm mb-3"
+                        rows={2}
+                        placeholder="Provide the answer..."
+                        autoFocus
+                      />
+                      <div className="grid grid-cols-2 gap-3 mb-3">
+                        <div>
+                          <label className="block text-xs font-medium text-slate-600 mb-1">Factor Type</label>
+                          <select
+                            value={newWhy.factorType}
+                            onChange={(e) => setNewWhy({ ...newWhy, factorType: e.target.value })}
+                            className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm"
+                          >
+                            {factorTypes.map(ft => (
+                              <option key={ft.value} value={ft.value}>{ft.label}</option>
+                            ))}
+                          </select>
+                        </div>
+                        <div className="flex items-end">
+                          <label className="flex items-center gap-2 cursor-pointer">
+                            <input
+                              type="checkbox"
+                              checked={newWhy.isRootCause}
+                              onChange={(e) => setNewWhy({ ...newWhy, isRootCause: e.target.checked })}
+                              className="w-4 h-4 text-blue-600"
+                            />
+                            <span className="text-sm text-slate-700">Mark as root cause</span>
+                          </label>
+                        </div>
+                      </div>
+                      <div className="flex gap-2">
+                        <button
+                          onClick={addWhyLevel}
+                          className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm hover:bg-blue-700"
                         >
-                          {factorTypes.map(type => (
-                            <option key={type.value} value={type.value}>{type.label}</option>
+                          Add Level {whyChain.length + 1}
+                        </button>
+                        <button
+                          onClick={() => { setShowAddWhy(false); setNewWhy({ answer: '', isRootCause: false, factorType: 'individual' }); }}
+                          className="px-4 py-2 border border-slate-300 rounded-lg text-sm hover:bg-slate-50"
+                        >
+                          Cancel
+                        </button>
+                      </div>
+                    </div>
+                  ) : (
+                    <button
+                      onClick={() => setShowAddWhy(true)}
+                      className="mt-4 w-full flex items-center justify-center gap-2 px-4 py-3 border-2 border-dashed border-blue-300 text-blue-600 rounded-lg hover:bg-blue-50 transition-colors text-sm font-medium"
+                    >
+                      <Plus className="w-4 h-4" />
+                      Add Why Level {whyChain.length + 1}
+                    </button>
+                  )
+                )}
+
+                {/* Clear chain */}
+                {whyChain.length > 0 && (
+                  <button
+                    onClick={clearWhyChain}
+                    className="mt-4 text-xs text-red-500 hover:text-red-700 transition-colors"
+                  >
+                    Clear entire chain and restart
+                  </button>
+                )}
+              </div>
+            )}
+
+            {/* ── Causal Tree Tab ────────────────────────────────── */}
+            {activeTab === 'causalTree' && (
+              <div className="p-6">
+                {/* Legend */}
+                <div className="flex flex-wrap gap-2 mb-4">
+                  {nodeTypes.map(nt => (
+                    <span key={nt.value} className={`px-3 py-1 rounded-full text-xs font-medium border ${nt.color}`}>
+                      {nt.label}
+                    </span>
+                  ))}
+                </div>
+
+                {/* Root-level nodes */}
+                {causalTree.filter(n => !n.parent_node_id).map(node => renderTreeNode(node, 0))}
+
+                {causalTree.length === 0 && (
+                  <div className="text-center py-8 text-slate-500">
+                    <Network className="w-10 h-10 mx-auto mb-2 text-slate-300" />
+                    <p className="text-sm">No causal tree nodes yet. Add the first cause below.</p>
+                  </div>
+                )}
+
+                {/* Add node form / button */}
+                {showAddNode ? (
+                  <div className="mt-4 bg-slate-50 border border-slate-200 rounded-lg p-4">
+                    {selectedParentId && (
+                      <p className="text-xs text-slate-500 mb-2">
+                        Adding child cause under: <span className="font-semibold">{causalTree.find(n => n.id === selectedParentId)?.title}</span>
+                      </p>
+                    )}
+                    <div className="mb-3">
+                      <label className="block text-xs font-medium text-slate-600 mb-1">Title *</label>
+                      <input
+                        type="text"
+                        value={newNode.title}
+                        onChange={(e) => setNewNode({ ...newNode, title: e.target.value })}
+                        className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm"
+                        placeholder="Describe the cause..."
+                        autoFocus
+                      />
+                    </div>
+                    <div className="mb-3">
+                      <label className="block text-xs font-medium text-slate-600 mb-1">Description</label>
+                      <textarea
+                        value={newNode.description}
+                        onChange={(e) => setNewNode({ ...newNode, description: e.target.value })}
+                        className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm"
+                        rows={2}
+                        placeholder="Optional detail..."
+                      />
+                    </div>
+                    <div className="grid grid-cols-2 gap-3 mb-3">
+                      <div>
+                        <label className="block text-xs font-medium text-slate-600 mb-1">Cause Type</label>
+                        <select
+                          value={newNode.nodeType}
+                          onChange={(e) => setNewNode({ ...newNode, nodeType: e.target.value })}
+                          className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm"
+                        >
+                          {nodeTypes.map(nt => (
+                            <option key={nt.value} value={nt.value}>{nt.label}</option>
                           ))}
                         </select>
                       </div>
                       <div>
-                        <label className="block text-sm font-medium mb-2">Category</label>
+                        <label className="block text-xs font-medium text-slate-600 mb-1">Category</label>
                         <select
-                          value={editingFactor.factor_category}
-                          onChange={(e) => setEditingFactor({...editingFactor, factor_category: e.target.value})}
-                          className="w-full border rounded-lg px-3 py-2"
+                          value={newNode.factorCategory}
+                          onChange={(e) => setNewNode({ ...newNode, factorCategory: e.target.value })}
+                          className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm"
                         >
-                          {factorCategories.map(cat => (
-                            <option key={cat.value} value={cat.value}>{cat.label}</option>
+                          {factorCategories.map(fc => (
+                            <option key={fc.value} value={fc.value}>{fc.label}</option>
                           ))}
                         </select>
                       </div>
                     </div>
-
-                    <div className="space-y-3 mt-4 p-4 bg-gray-50 rounded-lg">
-                      <p className="text-sm font-medium text-gray-700">Required Assessments:</p>
-                      <label className="flex items-center gap-2 cursor-pointer">
-                        <input
-                          type="checkbox"
-                          checked={editingFactor.requires_hfat || false}
-                          onChange={(e) => setEditingFactor({...editingFactor, requires_hfat: e.target.checked})}
-                          className="w-4 h-4"
-                        />
-                        <span className="text-sm">HFAT Assessment Required</span>
-                      </label>
-                      <label className="flex items-center gap-2 cursor-pointer">
-                        <input
-                          type="checkbox"
-                          checked={editingFactor.requires_hop || false}
-                          onChange={(e) => setEditingFactor({...editingFactor, requires_hop: e.target.checked})}
-                          className="w-4 h-4"
-                        />
-                        <span className="text-sm">HOP Assessment Required</span>
-                      </label>
-                    </div>
-
-                    <div className="flex gap-2 justify-end">
+                    <div className="flex gap-2">
                       <button
-                        onClick={() => setEditingFactor(null)}
-                        className="px-4 py-2 border rounded-lg hover:bg-gray-50"
+                        onClick={addTreeNode}
+                        className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm hover:bg-blue-700"
                       >
-                        Cancel
+                        Add {selectedParentId ? 'Child' : 'Root'} Cause
                       </button>
                       <button
-                        onClick={updateCausalFactor}
-                        className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+                        onClick={() => { setShowAddNode(false); setSelectedParentId(null); setNewNode({ title: '', description: '', nodeType: 'immediate', factorCategory: 'equipment' }); }}
+                        className="px-4 py-2 border border-slate-300 rounded-lg text-sm hover:bg-slate-50"
                       >
-                        Save Changes
+                        Cancel
                       </button>
                     </div>
                   </div>
                 ) : (
-                  /* View Mode */
-                  <div>
-                    <div className="flex items-start justify-between mb-3">
-                      <div className="flex-1">
-                        <div className="flex items-center gap-3 mb-2">
-                          <h3 className="text-lg font-semibold text-gray-900">
-                            {factor.causal_factor_title}
-                          </h3>
-                          <span className={`px-3 py-1 rounded-full text-xs font-medium bg-${typeInfo?.color}-100 text-${typeInfo?.color}-700`}>
-                            {typeInfo?.label}
-                          </span>
-                          <span className="px-3 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-700">
-                            {categoryInfo?.label}
-                          </span>
-                        </div>
-                        <p className="text-gray-600 text-sm">
-                          {factor.causal_factor_description}
-                        </p>
-                      </div>
-                      <div className="flex gap-2">
-                        <button
-                          onClick={() => setEditingFactor(factor)}
-                          className="p-2 hover:bg-gray-100 rounded"
-                        >
-                          <Edit2 size={16} className="text-gray-600" />
-                        </button>
-                        <button
-                          onClick={() => deleteCausalFactor(factor.id)}
-                          className="p-2 hover:bg-gray-100 rounded"
-                        >
-                          <Trash2 size={16} className="text-red-600" />
-                        </button>
-                      </div>
-                    </div>
-
-                    {/* Status Badge */}
-                    <div className="mb-4">
-                      {factor.analysis_status === 'validated' && (
-                        <div className="inline-flex items-center gap-2 px-3 py-1 bg-green-100 text-green-700 rounded-full text-sm">
-                          <CheckCircle size={16} />
-                          Validated
-                        </div>
-                      )}
-                      {factor.analysis_status === 'analysis_required' && (
-                        <div className="inline-flex items-center gap-2 px-3 py-1 bg-amber-100 text-amber-700 rounded-full text-sm">
-                          <AlertTriangle size={16} />
-                          Analysis Required
-                        </div>
-                      )}
-                      {factor.analysis_status === 'identified' && (
-                        <div className="inline-flex items-center gap-2 px-3 py-1 bg-gray-100 text-gray-700 rounded-full text-sm">
-                          Identified
-                        </div>
-                      )}
-                    </div>
-
-                    {/* HOP Assessment Section - Only show if required */}
-                    {factor.requires_hop && (
-                      <div className="mt-4 pt-4 border-t">
-                        <div className="flex items-center justify-between mb-2">
-                          <h4 className="font-medium text-sm">HOP Assessment</h4>
-                          {hopAssessments[factor.id]?.length > 0 && (
-                            <span className="text-xs text-green-600">✓ Complete</span>
-                          )}
-                        </div>
-
-                        {hopAssessments[factor.id]?.[0] ? (
-                          <div className="mb-2 p-3 bg-green-50 rounded border border-green-200">
-                            <div className="flex items-center justify-between">
-                              <div className="text-xs flex-1">
-                                <div className="font-medium mb-1">
-                                  {hopAssessments[factor.id][0].action_type === 'error' ? (
-                                    <span className="text-red-600">⚫ Error Analysis</span>
-                                  ) : (
-                                    <span className="text-amber-600">⚫ Violation Analysis</span>
-                                  )}
-                                  {hopAssessments[factor.id][0].violation_type && ` - ${hopAssessments[factor.id][0].violation_type.charAt(0).toUpperCase() + hopAssessments[factor.id][0].violation_type.slice(1)}`}
-                                </div>
-                                <div className="text-gray-700 italic mt-1">
-                                  {hopAssessments[factor.id][0].action_type === 'error' 
-                                    ? 'Person did not intend this outcome; made a mistake, forgot, misperceived'
-                                    : 'Person knowingly deviated from procedure/rule (but did not intend harm)'
-                                  }
-                                </div>
-                                <div className="text-gray-600 mt-2">
-                                  {hopAssessments[factor.id][0].status === 'complete' ? '✅ Complete' : '📝 Draft'} - 
-                                  {' '}{new Date(hopAssessments[factor.id][0].updated_at).toLocaleDateString()}
-                                </div>
-                              </div>
-                              <button
-                                onClick={() => router.push(`/hop-new?investigationId=${investigationId}&causalFactorId=${factor.id}&assessmentId=${hopAssessments[factor.id][0].id}`)}
-                                className="text-xs px-3 py-1 bg-green-600 text-white rounded hover:bg-green-700 ml-3"
-                              >
-                                View/Edit
-                              </button>
-                            </div>
-                          </div>
-                        ) : (
-                          <button
-                            onClick={() => router.push(`/hop-new?investigationId=${investigationId}&causalFactorId=${factor.id}`)}
-                            className="w-full flex items-center justify-center gap-2 px-3 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 text-sm"
-                          >
-                            <Plus className="w-4 h-4" />
-                            Launch HOP Assessment
-                          </button>
-                        )}
-                      </div>
-                    )}
-
-                    {/* HFAT Assessment Section - Only show if required */}
-                    {factor.requires_hfat && (
-                      <div className="mt-4 pt-4 border-t">
-                        <div className="flex items-center justify-between mb-2">
-                          <h4 className="font-medium text-sm">HFAT Assessment</h4>
-                          {hfatAssessments[factor.id]?.length > 0 && (
-                            <span className="text-xs text-purple-600">✓ Complete</span>
-                          )}
-                        </div>
-
-                        {hfatAssessments[factor.id]?.[0] ? (
-                          <div className="mb-2 p-3 bg-purple-50 rounded border border-purple-200">
-                            <div className="flex items-center justify-between">
-                              <div className="text-xs">
-                                <div className="font-medium">HFAT Analysis</div>
-                                <div className="text-gray-600 mt-1">
-                                  {hfatAssessments[factor.id][0].status === 'complete' ? '✅ Complete' : '📝 Draft'} - 
-                                  {' '}{new Date(hfatAssessments[factor.id][0].updated_at).toLocaleDateString()}
-                                </div>
-                              </div>
-                              <button
-                                onClick={() => router.push(`/hfat-new?investigationId=${investigationId}&causalFactorId=${factor.id}&assessmentId=${hfatAssessments[factor.id][0].id}`)}
-                                className="text-xs px-3 py-1 bg-purple-600 text-white rounded hover:bg-purple-700"
-                              >
-                                View/Edit
-                              </button>
-                            </div>
-                          </div>
-                        ) : (
-                          <button
-                            onClick={() => router.push(`/hfat-new?investigationId=${investigationId}&causalFactorId=${factor.id}`)}
-                            className="w-full flex items-center justify-center gap-2 px-3 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 text-sm"
-                          >
-                            <Plus className="w-4 h-4" />
-                            Launch HFAT Assessment
-                          </button>
-                        )}
-
-                      </div>
-                    )}
-                  </div>
+                  <button
+                    onClick={() => { setSelectedParentId(null); setShowAddNode(true); }}
+                    className="mt-4 w-full flex items-center justify-center gap-2 px-4 py-3 border-2 border-dashed border-blue-300 text-blue-600 rounded-lg hover:bg-blue-50 transition-colors text-sm font-medium"
+                  >
+                    <Plus className="w-4 h-4" />
+                    Add Root Cause
+                  </button>
                 )}
               </div>
-            );
-          })}
-        </div>
-
-        {filteredFactors.length === 0 && (
-          <div className="bg-white rounded-lg shadow-sm p-12 text-center">
-            <GitBranch className="w-16 h-16 text-gray-300 mx-auto mb-4" />
-            <p className="text-gray-600">No causal factors match your filters</p>
+            )}
           </div>
-        )}
 
-        {/* Investigation Principles - Always Visible */}
-        <div className="bg-blue-50 border-2 border-blue-300 rounded-lg p-6 mt-6">
-          <div className="flex items-start gap-3">
-            <Lightbulb className="w-6 h-6 text-blue-600 flex-shrink-0 mt-1" />
-            <div>
-              <h3 className="font-bold text-blue-900 mb-3 text-lg">Key Investigation Principles:</h3>
-              <ul className="space-y-2 text-sm text-blue-900">
-                <li className="flex items-start gap-2">
-                  <span className="font-bold mt-0.5">•</span>
-                  <span><strong>Local Rationality:</strong> People's actions made sense to them at the time given their knowledge, training, and context</span>
-                </li>
-                <li className="flex items-start gap-2">
-                  <span className="font-bold mt-0.5">•</span>
-                  <span><strong>Multiple Theories:</strong> Generate at least 2-3 possible explanations before reaching conclusions</span>
-                </li>
-                <li className="flex items-start gap-2">
-                  <span className="font-bold mt-0.5">•</span>
-                  <span><strong>System Focus:</strong> Even when human action is involved, understand what system factors made the error likely</span>
-                </li>
-                <li className="flex items-start gap-2">
-                  <span className="font-bold mt-0.5">•</span>
-                  <span><strong>Don't Stop at "Human Error":</strong> That's a starting point, not a conclusion. Ask WHY the error was made</span>
-                </li>
-              </ul>
-            </div>
+          {/* Navigation */}
+          <div className="flex justify-between mt-6">
+            <button
+              onClick={() => window.history.back()}
+              className="px-6 py-2 text-slate-700 border border-slate-300 rounded-lg hover:bg-slate-50 transition-colors"
+            >
+              Previous Step
+            </button>
+            <button
+              onClick={() => {
+                if (!investigationId) return;
+                window.location.href = `/step5?investigationId=${investigationId}`;
+              }}
+              className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+            >
+              Next: Causal Analysis
+            </button>
           </div>
         </div>
-
-        {/* Add Causal Factor Modal */}
-        {showAddFactor && (
-          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-            <div className="bg-white rounded-lg max-w-2xl w-full p-6">
-              <h2 className="text-xl font-bold mb-4">Add Causal Factor</h2>
-              
-              <div className="space-y-4">
-                <div>
-                  <label className="block text-sm font-medium mb-2">Title *</label>
-                  <input
-                    type="text"
-                    value={newFactor.title}
-                    onChange={(e) => setNewFactor({...newFactor, title: e.target.value})}
-                    className="w-full border rounded-lg px-3 py-2"
-                    placeholder="Brief description of the causal factor..."
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium mb-2">Description *</label>
-                  <textarea
-                    value={newFactor.description}
-                    onChange={(e) => setNewFactor({...newFactor, description: e.target.value})}
-                    className="w-full border rounded-lg px-3 py-2"
-                    rows={4}
-                    placeholder="Detailed explanation of this causal factor..."
-                  />
-                </div>
-
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-sm font-medium mb-2">Type *</label>
-                    <select
-                      value={newFactor.factorType}
-                      onChange={(e) => setNewFactor({...newFactor, factorType: e.target.value})}
-                      className="w-full border rounded-lg px-3 py-2"
-                    >
-                      {factorTypes.map(type => (
-                        <option key={type.value} value={type.value}>{type.label}</option>
-                      ))}
-                    </select>
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-medium mb-2">Category *</label>
-                    <select
-                      value={newFactor.factorCategory}
-                      onChange={(e) => setNewFactor({...newFactor, factorCategory: e.target.value})}
-                      className="w-full border rounded-lg px-3 py-2"
-                    >
-                      {factorCategories.map(cat => (
-                        <option key={cat.value} value={cat.value}>{cat.label}</option>
-                      ))}
-                    </select>
-                  </div>
-                </div>
-
-                <div className="space-y-3 mt-4 p-4 bg-gray-50 rounded-lg">
-                  <p className="text-sm font-medium text-gray-700">Required Assessments:</p>
-                  <label className="flex items-center gap-2 cursor-pointer">
-                    <input
-                      type="checkbox"
-                      checked={newFactor.requiresHFAT}
-                      onChange={(e) => setNewFactor({...newFactor, requiresHFAT: e.target.checked})}
-                      className="w-4 h-4"
-                    />
-                    <span className="text-sm">HFAT Assessment Required</span>
-                  </label>
-                  <label className="flex items-center gap-2 cursor-pointer">
-                    <input
-                      type="checkbox"
-                      checked={newFactor.requiresHOP}
-                      onChange={(e) => setNewFactor({...newFactor, requiresHOP: e.target.checked})}
-                      className="w-4 h-4"
-                    />
-                    <span className="text-sm">HOP Assessment Required</span>
-                  </label>
-                </div>
-              </div>
-
-              <div className="flex gap-4 mt-6">
-                <button
-                  onClick={() => setShowAddFactor(false)}
-                  className="flex-1 px-4 py-2 border rounded-lg hover:bg-gray-50"
-                >
-                  Cancel
-                </button>
-                <button
-                  onClick={addCausalFactor}
-                  disabled={!newFactor.title || !newFactor.description}
-                  className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:bg-gray-300"
-                >
-                  Add Causal Factor
-                </button>
-              </div>
-            </div>
-          </div>
-        )}
       </div>
-      </div>
-    </div>
+    </>
   );
 }
