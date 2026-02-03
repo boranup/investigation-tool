@@ -100,10 +100,10 @@ export default function Visualisations() {
       setCausalTree(treeData || []);
       // Auto-expand all nodes that have children so tree is visible on load
       if (treeData && treeData.length > 0) {
-        const parentIds: Record<string, boolean> = {};
+        const parentIds = new Set<string>();
         treeData.forEach((node: any) => {
           if (node.parent_node_id) {
-            parentIds[node.parent_node_id] = true;
+            parentIds.add(node.parent_node_id);
           }
         });
         setExpandedNodes(parentIds);
