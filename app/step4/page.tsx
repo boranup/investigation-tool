@@ -83,6 +83,29 @@ export default function Visualisations() {
     { value: 'external', label: 'External' }
   ];
 
+  const causeTypeDefinitions = [
+    {
+      label: 'Immediate Cause',
+      definition: 'What directly led to the incident at the point it occurred. The final unsafe act or condition that triggered the event.',
+      guidance: 'Immediate causes explain what happened — but not why it was allowed to happen.'
+    },
+    {
+      label: 'Contributing Factor',
+      definition: 'Conditions or influences that increased the likelihood or severity of the incident but did not directly trigger it alone.',
+      guidance: 'Contributing factors create the environment where the immediate cause could occur.'
+    },
+    {
+      label: 'Root Cause',
+      definition: 'The most fundamental underlying system or organisational failure that, if corrected, would prevent recurrence or significantly reduce likelihood.',
+      guidance: 'Root causes explain why the causal and immediate causes existed in the first place.'
+    }
+  ];
+
+  const rootCauseDefinition = {
+    definition: 'The most fundamental underlying system or organisational failure that, if corrected, would prevent recurrence or significantly reduce likelihood.',
+    guidance: 'Root causes explain why the causal and immediate causes existed in the first place.'
+  };
+
   // ── Load data ────────────────────────────────────────────────
   useEffect(() => {
     if (investigationId) {
@@ -602,6 +625,72 @@ export default function Visualisations() {
     );
   }
 
+  // ── Tooltips ─────────────────────────────────────────────────
+  function CauseTypeTooltip() {
+    const [open, setOpen] = useState(false);
+    return (
+      <div className="relative inline-block">
+        <button
+          type="button"
+          onMouseEnter={() => setOpen(true)}
+          onMouseLeave={() => setOpen(false)}
+          onFocus={() => setOpen(true)}
+          onBlur={() => setOpen(false)}
+          className="ml-1.5 text-slate-400 hover:text-blue-600 transition-colors"
+          aria-label="Cause type definitions"
+        >
+          <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" viewBox="0 0 20 20" fill="currentColor">
+            <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-3a1 1 0 11-2 0 1 1 0 012 0zM9 5a1 1 0 100 2h2a1 1 0 100-2H9zm0 4a1 1 0 00-1 1v2a1 1 0 100 2h2a1 1 0 100-2v-2a1 1 0 00-1-1H9z" clipRule="evenodd" />
+          </svg>
+        </button>
+        {open && (
+          <div className="absolute z-50 left-1/2 -translate-x-1/2 mt-2 w-80 bg-white border border-slate-200 rounded-lg shadow-lg p-4">
+            <div className="absolute -top-2 left-1/2 -translate-x-1/2 w-4 h-4 bg-white border-l border-t border-slate-200 rotate-45" />
+            <p className="text-xs font-semibold text-slate-700 mb-3">Cause Type Definitions</p>
+            <div className="space-y-3">
+              {causeTypeDefinitions.map((def, i) => (
+                <div key={i}>
+                  <p className="text-xs font-semibold text-slate-800">{def.label}</p>
+                  <p className="text-xs text-slate-600 mt-0.5">{def.definition}</p>
+                  <p className="text-xs text-blue-600 italic mt-0.5">👉 {def.guidance}</p>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+      </div>
+    );
+  }
+
+  function RootCauseTooltip() {
+    const [open, setOpen] = useState(false);
+    return (
+      <div className="relative inline-block">
+        <button
+          type="button"
+          onMouseEnter={() => setOpen(true)}
+          onMouseLeave={() => setOpen(false)}
+          onFocus={() => setOpen(true)}
+          onBlur={() => setOpen(false)}
+          className="ml-1 text-slate-400 hover:text-blue-600 transition-colors"
+          aria-label="Root cause definition"
+        >
+          <svg xmlns="http://www.w3.org/2000/svg" className="w-3.5 h-3.5" viewBox="0 0 20 20" fill="currentColor">
+            <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-3a1 1 0 11-2 0 1 1 0 012 0zM9 5a1 1 0 100 2h2a1 1 0 100-2H9zm0 4a1 1 0 00-1 1v2a1 1 0 100 2h2a1 1 0 100-2v-2a1 1 0 00-1-1H9z" clipRule="evenodd" />
+          </svg>
+        </button>
+        {open && (
+          <div className="absolute z-50 left-1/2 -translate-x-1/2 mt-2 w-72 bg-white border border-slate-200 rounded-lg shadow-lg p-4">
+            <div className="absolute -top-2 left-1/2 -translate-x-1/2 w-4 h-4 bg-white border-l border-t border-slate-200 rotate-45" />
+            <p className="text-xs font-semibold text-slate-800">Root Cause</p>
+            <p className="text-xs text-slate-600 mt-1">{rootCauseDefinition.definition}</p>
+            <p className="text-xs text-blue-600 italic mt-1">👉 {rootCauseDefinition.guidance}</p>
+          </div>
+        )}
+      </div>
+    );
+  }
+
   // ── Guards ───────────────────────────────────────────────────
   if (!investigationId) {
     return (
@@ -775,6 +864,7 @@ export default function Visualisations() {
                                     className="w-4 h-4 text-blue-600"
                                   />
                                   <span className="text-sm text-slate-700">Root cause</span>
+                                  <RootCauseTooltip />
                                 </label>
                               </div>
                             </div>
@@ -883,6 +973,7 @@ export default function Visualisations() {
                               className="w-4 h-4 text-blue-600"
                             />
                             <span className="text-sm text-slate-700">Mark as root cause</span>
+                            <RootCauseTooltip />
                           </label>
                         </div>
                       </div>
@@ -928,12 +1019,24 @@ export default function Visualisations() {
             {activeTab === 'causalTree' && (
               <div className="p-6">
                 {/* Legend */}
-                <div className="flex flex-wrap gap-2 mb-4">
-                  {nodeTypes.map(nt => (
-                    <span key={nt.value} className={`px-3 py-1 rounded-full text-xs font-medium border ${nt.color}`}>
-                      {nt.label}
-                    </span>
-                  ))}
+                <div className="flex flex-wrap gap-2 mb-4 items-center">
+                  {nodeTypes.map((nt, i) => {
+                    const def = causeTypeDefinitions[i];
+                    return (
+                      <div key={nt.value} className="relative group">
+                        <span className={`px-3 py-1 rounded-full text-xs font-medium border cursor-help ${nt.color}`}>
+                          {nt.label}
+                        </span>
+                        <div className="absolute z-50 left-1/2 -translate-x-1/2 mt-2 w-64 bg-white border border-slate-200 rounded-lg shadow-lg p-3 hidden group-hover:block">
+                          <div className="absolute -top-2 left-1/2 -translate-x-1/2 w-4 h-4 bg-white border-l border-t border-slate-200 rotate-45" />
+                          <p className="text-xs font-semibold text-slate-800">{def.label}</p>
+                          <p className="text-xs text-slate-600 mt-0.5">{def.definition}</p>
+                          <p className="text-xs text-blue-600 italic mt-0.5">👉 {def.guidance}</p>
+                        </div>
+                      </div>
+                    );
+                  })}
+                  <CauseTypeTooltip />
                 </div>
 
                 {/* Root-level nodes — rendered as vertical tree */}
@@ -979,7 +1082,7 @@ export default function Visualisations() {
                     </div>
                     <div className="grid grid-cols-2 gap-3 mb-3">
                       <div>
-                        <label className="block text-xs font-medium text-slate-600 mb-1">Cause Type</label>
+                        <label className="block text-xs font-medium text-slate-600 mb-1 flex items-center">Cause Type<CauseTypeTooltip /></label>
                         <select
                           value={newNode.nodeType}
                           onChange={(e) => setNewNode({ ...newNode, nodeType: e.target.value })}
