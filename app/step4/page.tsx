@@ -131,6 +131,16 @@ export default function Visualisations() {
         });
         setExpandedNodes(parentIds);
       }
+
+      // Barriers
+      const { data: barrierData, error: barrierError } = await supabase
+        .from('visualization_barriers')
+        .select('*')
+        .eq('investigation_id', investigationId)
+        .order('created_at', { ascending: true });
+
+      if (barrierError) throw barrierError;
+      setBarriers(barrierData || []);
     } catch (err) {
       console.error('Error loading visualisations:', err);
     } finally {
