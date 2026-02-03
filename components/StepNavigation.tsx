@@ -2,88 +2,26 @@
 
 import React from 'react';
 import { useRouter } from 'next/navigation';
-import { Home, Upload, Clock, GitBranch, Lightbulb, CheckCircle, FileText } from 'lucide-react';
+import { Home, Upload, Clock, Network, GitBranch, Lightbulb, FileText } from 'lucide-react';
 
 interface StepNavigationProps {
   investigationId: string;
   currentStep: number;
   investigationNumber?: string;
-  onBeforeNavigate?: () => Promise<boolean>; // Returns true if navigation should proceed
 }
 
-export default function StepNavigation({ investigationId, currentStep, investigationNumber, onBeforeNavigate }: StepNavigationProps) {
+export default function StepNavigation({ investigationId, currentStep, investigationNumber }: StepNavigationProps) {
   const router = useRouter();
 
-  const handleNavigation = async (path: string) => {
-    // If there's a before-navigate handler, call it first
-    if (onBeforeNavigate) {
-      const shouldProceed = await onBeforeNavigate();
-      if (!shouldProceed) {
-        return; // Don't navigate if save failed
-      }
-    }
-    router.push(path);
-  };
-
   const steps = [
-    { 
-      number: 1, 
-      label: 'Overview', 
-      icon: Home, 
-      path: `/step1?investigationId=${investigationId}`,
-      color: 'blue'
-    },
-    { 
-      number: 2, 
-      label: 'Evidence', 
-      icon: Upload, 
-      path: `/step2?investigationId=${investigationId}`,
-      color: 'purple'
-    },
-    { 
-      number: 3, 
-      label: 'Timeline', 
-      icon: Clock, 
-      path: `/step3?investigationId=${investigationId}`,
-      color: 'cyan'
-    },
-    { 
-      number: 4, 
-      label: 'Causal Analysis', 
-      icon: GitBranch, 
-      path: `/step4?investigationId=${investigationId}`,
-      color: 'orange'
-    },
-    { 
-      number: 5, 
-      label: 'Recommendations', 
-      icon: Lightbulb, 
-      path: `/step5?investigationId=${investigationId}`,
-      color: 'green'
-    },
-    { 
-      number: 6, 
-      label: 'Report', 
-      icon: FileText, 
-      path: `/report?investigationId=${investigationId}`,
-      color: 'indigo'
-    }
+    { number: 1, label: 'Overview',          icon: Home,       path: `/step1?investigationId=${investigationId}` },
+    { number: 2, label: 'Evidence',          icon: Upload,     path: `/step2?investigationId=${investigationId}` },
+    { number: 3, label: 'Timeline',          icon: Clock,      path: `/step3?investigationId=${investigationId}` },
+    { number: 4, label: 'Visualisations',    icon: Network,    path: `/step4?investigationId=${investigationId}` },
+    { number: 5, label: 'Causal Analysis',   icon: GitBranch,  path: `/step5?investigationId=${investigationId}` },
+    { number: 6, label: 'Recommendations',   icon: Lightbulb,  path: `/step6?investigationId=${investigationId}` },
+    { number: 7, label: 'Report',            icon: FileText,   path: `/step7?investigationId=${investigationId}` }
   ];
-
-  const getStepColor = (step: any, isCurrent: boolean) => {
-    if (isCurrent) {
-      return {
-        bg: `bg-${step.color}-600`,
-        text: 'text-white',
-        border: `border-${step.color}-600`
-      };
-    }
-    return {
-      bg: 'bg-white hover:bg-slate-50',
-      text: 'text-slate-700',
-      border: 'border-slate-300'
-    };
-  };
 
   return (
     <div className="bg-white border-b border-slate-200 sticky top-0 z-40 shadow-sm">
@@ -110,12 +48,11 @@ export default function StepNavigation({ investigationId, currentStep, investiga
           {steps.map((step) => {
             const Icon = step.icon;
             const isCurrent = step.number === currentStep;
-            const colors = getStepColor(step, isCurrent);
 
             return (
               <button
                 key={step.number}
-                onClick={() => handleNavigation(step.path)}
+                onClick={() => router.push(step.path)}
                 className={`flex items-center gap-2 px-4 py-2 rounded-lg border transition-all whitespace-nowrap ${
                   isCurrent 
                     ? 'bg-blue-600 text-white border-blue-600 shadow-sm' 
