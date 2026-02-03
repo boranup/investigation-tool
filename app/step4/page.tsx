@@ -12,7 +12,7 @@ export default function Visualisations() {
 
   const [loading, setLoading] = useState(true);
   const [investigation, setInvestigation] = useState<any>(null);
-  const [activeTab, setActiveTab] = useState<'5whys' | 'causalTree'>('5whys');
+  const [activeTab, setActiveTab] = useState<'5whys' | 'causalTree' | 'barriers'>('5whys');
 
   // ── 5 Whys state ─────────────────────────────────────────────
   const [whyChain, setWhyChain] = useState<any[]>([]);
@@ -35,9 +35,7 @@ export default function Visualisations() {
     nodeType: 'immediate',
     factorCategory: 'equipment'
   });
-  const [expandedNodes, setExpandedNodes] = useState<Record<string, boolean>>({});
-  const [editingTreeNodeId, setEditingTreeNodeId] = useState<string | null>(null);
-  const [editNode, setEditNode] = useState({ title: '', description: '', nodeType: 'immediate', factorCategory: 'equipment' });
+  const [expandedNodes, setExpandedNodes] = useState<Set<string>>(new Set());
 
   // ── Constants ────────────────────────────────────────────────
   const factorTypes = [
@@ -260,7 +258,7 @@ export default function Visualisations() {
 
       setCausalTree([...causalTree, data]);
       if (selectedParentId) {
-        setExpandedNodes({ ...expandedNodes, [selectedParentId]: true });
+        setExpandedNodes(new Set([...expandedNodes, selectedParentId]));
       }
       setNewNode({ title: '', description: '', nodeType: 'immediate', factorCategory: 'equipment' });
       setSelectedParentId(null);
@@ -275,9 +273,9 @@ export default function Visualisations() {
     if (!confirm('Delete this node and all its children?')) return;
     try {
       // Collect all descendant IDs recursively
-      const idsToDelete: string[] = [];
+      const idsToDelete = new Set<string>();
       const collectChildren = (parentId: string) => {
-        idsToDelete.push(parentId);
+        idsToDelete.add(parentId);
         causalTree.filter(n => n.parent_node_id === parentId).forEach(child => collectChildren(child.id));
       };
       collectChildren(id);
@@ -285,23 +283,128 @@ export default function Visualisations() {
       const { error } = await supabase
         .from('visualization_causal_tree')
         .delete()
-        .in('id', idsToDelete);
+        .in('id', Array.from(idsToDelete));
 
       if (error) throw error;
-      setCausalTree(causalTree.filter(n => !idsToDelete.includes(n.id)));
+      setCausalTree(causalTree.filter(n => !idsToDelete.has(n.id)));
     } catch (err) {
       console.error('Error deleting node:', err);
     }
   }
 
+  async function addBarrier() {
+    if (!investigationId || !newBarrier.name.trim()) return;
+    const needsReason = ['present_failed', 'present_partial', 'absent'].includes(newBarrier.status);
+    if (needsReason && !newBarrier.failureReason.trim()) {
+      alert('Please provide a reason for the barrier failure or absence.');
+      return;
+    }
+    try {
+      const { data, error } = await supabase
+        .from('visualization_barriers')
+        .insert({
+          investigation_id: investigationId,
+          barrier_name: newBarrier.name.trim(),
+          barrier_type: newBarrier.barrierType,
+          barrier_side: newBarrier.side,
+          status: newBarrier.status,
+          failure_reason: needsReason ? newBarrier.failureReason.trim() : null,
+          notes: newBarrier.notes.trim() || null
+        })
+        .select()
+        .single();
+
+      if (error) throw error;
+      setBarriers([...barriers, data]);
+      setNewBarrier({ name: '', barrierType: 'physical', side: 'prevention', status: 'present_performed', failureReason: '', notes: '' });
+      setShowAddBarrier(false);
+    } catch (err: any) {
+      console.error('Error adding barrier:', err);
+      alert(`Error: ${err.message}`);
+    }
+  }
+
+  async function updateBarrier() {
+    if (!editingBarrierId || !editBarrier.name.trim()) return;
+    const needsReason = ['present_failed', 'present_partial', 'absent'].includes(editBarrier.status);
+    if (needsReason && !editBarrier.failureReason.trim()) {
+      alert('Please provide a reason for the barrier failure or absence.');
+      return;
+    }
+    try {
+      const { error } = await supabase
+        .from('visualization_barriers')
+        .update({
+          barrier_name: editBarrier.name.trim(),
+          barrier_type: editBarrier.barrierType,
+          barrier_side: editBarrier.side,
+          status: editBarrier.status,
+          failure_reason: needsReason ? editBarrier.failureReason.trim() : null,
+          notes: editBarrier.notes.trim() || null
+        })
+        .eq('id', editingBarrierId);
+      if (error) throw error;
+      setBarriers(prev => prev.map(b =>
+        b.id === editingBarrierId
+          ? { ...b, barrier_name: editBarrier.name.trim(), barrier_type: editBarrier.barrierType, barrier_side: editBarrier.side, status: editBarrier.status, failure_reason: needsReason ? editBarrier.failureReason.trim() : null, notes: editBarrier.notes.trim() || null }
+          : b
+      ));
+      setEditingBarrierId(null);
+    } catch (err: any) {
+      console.error('Error updating barrier:', err);
+      alert(`Error: ${err.message}`);
+    }
+  }
+
+  async function deleteBarrier(id: string) {
+    try {
+      const { error } = await supabase
+        .from('visualization_barriers')
+        .delete()
+        .eq('id', id);
+      if (error) throw error;
+      setBarriers(prev => prev.filter(b => b.id !== id));
+    } catch (err: any) {
+      console.error('Error deleting barrier:', err);
+      alert(`Error: ${err.message}`);
+    }
+  }
+
+  function getBarrierStatusStyle(status: string) {
+    switch (status) {
+      case 'present_performed': return 'bg-green-100 text-green-700';
+      case 'present_partial': return 'bg-amber-100 text-amber-700';
+      case 'present_failed': return 'bg-red-100 text-red-700';
+      case 'absent': return 'bg-slate-100 text-slate-600';
+      default: return 'bg-slate-100 text-slate-600';
+    }
+  }
+
+  function getBarrierStatusLabel(status: string) {
+    switch (status) {
+      case 'present_performed': return 'Present & Performed';
+      case 'present_partial': return 'Present & Partial';
+      case 'present_failed': return 'Present & Failed';
+      case 'absent': return 'Absent';
+      default: return status;
+    }
+  }
+
+  function getBarrierTypeLabel(type: string) {
+    switch (type) {
+      case 'physical': return 'Physical';
+      case 'administrative': return 'Administrative';
+      case 'detection': return 'Detection';
+      case 'communication': return 'Communication';
+      case 'recovery': return 'Recovery';
+      default: return type;
+    }
+  }
+
   function toggleExpand(id: string) {
     setExpandedNodes(prev => {
-      const next = { ...prev };
-      if (next[id]) {
-        delete next[id];
-      } else {
-        next[id] = true;
-      }
+      const next = new Set(prev);
+      next.has(id) ? next.delete(id) : next.add(id);
       return next;
     });
   }
@@ -315,142 +418,64 @@ export default function Visualisations() {
   }
 
   // ── Tree renderer ────────────────────────────────────────────
-  // Single node card — view mode or inline edit
-  function renderNodeBox(node: any) {
-    const isEditing = editingTreeNodeId === node.id;
-
-    if (isEditing) {
-      return (
-        <div className="bg-white border-2 border-blue-400 rounded-lg p-3 shadow-md w-48">
-          <input
-            type="text"
-            value={editNode.title}
-            onChange={(e) => setEditNode({ ...editNode, title: e.target.value })}
-            className="w-full border border-slate-300 rounded px-2 py-1 text-xs mb-2"
-            autoFocus
-          />
-          <textarea
-            value={editNode.description}
-            onChange={(e) => setEditNode({ ...editNode, description: e.target.value })}
-            className="w-full border border-slate-300 rounded px-2 py-1 text-xs mb-2"
-            rows={2}
-            placeholder="Description..."
-          />
-          <div className="flex gap-1 mb-2">
-            <select
-              value={editNode.nodeType}
-              onChange={(e) => setEditNode({ ...editNode, nodeType: e.target.value })}
-              className="flex-1 border border-slate-300 rounded px-1 py-1 text-xs"
-            >
-              {nodeTypes.map(nt => <option key={nt.value} value={nt.value}>{nt.label}</option>)}
-            </select>
-            <select
-              value={editNode.factorCategory}
-              onChange={(e) => setEditNode({ ...editNode, factorCategory: e.target.value })}
-              className="flex-1 border border-slate-300 rounded px-1 py-1 text-xs"
-            >
-              {factorCategories.map(fc => <option key={fc.value} value={fc.value}>{fc.label}</option>)}
-            </select>
-          </div>
-          <div className="flex gap-1">
-            <button onClick={updateTreeNode} className="px-2 py-1 bg-blue-600 text-white rounded text-xs hover:bg-blue-700">Save</button>
-            <button onClick={() => setEditingTreeNodeId(null)} className="px-2 py-1 border border-slate-300 rounded text-xs hover:bg-slate-50">Cancel</button>
-          </div>
-        </div>
-      );
-    }
-
-    return (
-      <div className={`border-2 rounded-lg p-3 shadow-sm w-48 ${getNodeTypeStyle(node.node_type)}`}>
-        <p className="font-semibold text-sm leading-snug">{node.title}</p>
-        {node.description && <p className="text-xs mt-1 opacity-75 leading-snug">{node.description}</p>}
-        <div className="flex flex-wrap gap-1 mt-2">
-          <span className={`px-1.5 py-0.5 rounded text-xs border ${getNodeTypeStyle(node.node_type)}`}>
-            {nodeTypes.find(t => t.value === node.node_type)?.label}
-          </span>
-          <span className="px-1.5 py-0.5 rounded text-xs bg-white bg-opacity-70 border border-slate-300 text-slate-600">
-            {factorCategories.find(c => c.value === node.factor_category)?.label}
-          </span>
-        </div>
-        {/* Action buttons */}
-        <div className="flex items-center gap-0.5 mt-2 pt-2 border-t border-current border-opacity-20">
-          <button
-            onClick={() => {
-              setEditingTreeNodeId(node.id);
-              setEditNode({ title: node.title, description: node.description || '', nodeType: node.node_type, factorCategory: node.factor_category });
-            }}
-            className="p-1 hover:bg-white hover:bg-opacity-50 rounded"
-            title="Edit"
-          ><Edit2 className="w-3.5 h-3.5" /></button>
-          <button
-            onClick={() => { setSelectedParentId(node.id); setShowAddNode(true); }}
-            className="p-1 hover:bg-white hover:bg-opacity-50 rounded"
-            title="Add child cause"
-          ><Plus className="w-3.5 h-3.5" /></button>
-          <button
-            onClick={() => deleteTreeNode(node.id)}
-            className="p-1 hover:bg-white hover:bg-opacity-50 rounded text-red-600"
-            title="Delete node and children"
-          ><Trash2 className="w-3.5 h-3.5" /></button>
-        </div>
-      </div>
-    );
-  }
-
-  // Recursive branch: renders one node, then its children beneath connected by lines
-  function renderTreeBranch(node: any): React.ReactNode {
+  function renderTreeNode(node: any, depth: number = 0) {
     const children = causalTree.filter(n => n.parent_node_id === node.id);
     const hasChildren = children.length > 0;
-    const isExpanded = !!expandedNodes[node.id];
+    const isExpanded = expandedNodes.has(node.id);
 
     return (
-      <div key={node.id} className="flex flex-col items-center">
-        {/* The node box */}
+      <div key={node.id} style={{ marginLeft: depth === 0 ? 0 : 24 }}>
         <div className="relative">
-          {renderNodeBox(node)}
-          {/* Expand/collapse toggle on bottom edge */}
-          {hasChildren && (
-            <button
-              onClick={() => toggleExpand(node.id)}
-              className="absolute -bottom-3 left-1/2 -translate-x-1/2 z-10
-                         w-6 h-6 rounded-full bg-white border border-slate-300 shadow-sm
-                         flex items-center justify-center hover:bg-slate-50"
-            >
-              {isExpanded
-                ? <ChevronDown className="w-3 h-3 text-slate-600" />
-                : <ChevronRight className="w-3 h-3 text-slate-600" />}
-            </button>
+          {depth > 0 && (
+            <div className="absolute -left-4 top-4 w-4 h-px bg-slate-300" />
           )}
-        </div>
-
-        {/* Connector lines + children */}
-        {hasChildren && isExpanded && (
-          <div className="flex flex-col items-center">
-            {/* Vertical stem down from this node */}
-            <div className="w-px h-6 bg-slate-400" />
-
-            {/* Horizontal bar spans across all children; each child has its own vertical drop */}
-            <div className="relative flex items-start">
-              {/* Horizontal bar — only visible when there are 2+ children */}
-              {children.length > 1 && (
-                <div className="absolute top-0 left-1/2 -translate-x-1/2 h-px bg-slate-400"
-                     style={{ width: 'calc(100% - 192px)' }} />
-              )}
-
-              {/* Row of children */}
-              <div className="flex gap-6 items-start">
-                {children.map(child => (
-                  <div key={child.id} className="flex flex-col items-center">
-                    {/* Vertical drop from bar to child */}
-                    <div className="w-px h-4 bg-slate-400" />
-                    {/* Recurse */}
-                    {renderTreeBranch(child)}
+          <div className={`border rounded-lg p-3 mb-2 ${getNodeTypeStyle(node.node_type)}`}>
+            <div className="flex items-start justify-between">
+              <div className="flex items-center gap-2 flex-1">
+                {hasChildren && (
+                  <button onClick={() => toggleExpand(node.id)} className="flex-shrink-0">
+                    {isExpanded ? <ChevronDown className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
+                  </button>
+                )}
+                <div className="flex-1">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <span className="font-semibold text-sm">{node.title}</span>
+                    <span className={`px-2 py-0.5 rounded-full text-xs border ${getNodeTypeStyle(node.node_type)}`}>
+                      {nodeTypes.find(t => t.value === node.node_type)?.label}
+                    </span>
+                    <span className="px-2 py-0.5 rounded-full text-xs bg-white bg-opacity-60 border border-slate-300 text-slate-600">
+                      {factorCategories.find(c => c.value === node.factor_category)?.label}
+                    </span>
                   </div>
-                ))}
+                  {node.description && (
+                    <p className="text-xs mt-1 opacity-80">{node.description}</p>
+                  )}
+                </div>
+              </div>
+              <div className="flex items-center gap-1 ml-2 flex-shrink-0">
+                <button
+                  onClick={() => {
+                    setSelectedParentId(node.id);
+                    setShowAddNode(true);
+                  }}
+                  className="p-1 hover:bg-white hover:bg-opacity-50 rounded text-slate-700"
+                  title="Add child cause"
+                >
+                  <Plus className="w-4 h-4" />
+                </button>
+                <button
+                  onClick={() => deleteTreeNode(node.id)}
+                  className="p-1 hover:bg-white hover:bg-opacity-50 rounded text-red-600"
+                  title="Delete"
+                >
+                  <Trash2 className="w-4 h-4" />
+                </button>
               </div>
             </div>
           </div>
-        )}
+        </div>
+
+        {isExpanded && children.map(child => renderTreeNode(child, depth + 1))}
       </div>
     );
   }
@@ -545,6 +570,24 @@ export default function Visualisations() {
                   {causalTree.length > 0 && (
                     <span className="ml-2 px-2 py-0.5 bg-blue-100 text-blue-700 rounded-full text-xs">
                       {causalTree.length} node{causalTree.length !== 1 ? 's' : ''}
+                    </span>
+                  )}
+                </div>
+              </button>
+              <button
+                onClick={() => setActiveTab('barriers')}
+                className={`flex-1 px-6 py-4 text-sm font-medium transition-colors ${
+                  activeTab === 'barriers'
+                    ? 'bg-blue-50 text-blue-700 border-b-2 border-blue-600'
+                    : 'text-slate-600 hover:bg-slate-50'
+                }`}
+              >
+                <div className="flex items-center justify-center gap-2">
+                  <span className="text-lg">🛡️</span>
+                  <span>Barrier Analysis</span>
+                  {barriers.length > 0 && (
+                    <span className="ml-2 px-2 py-0.5 bg-blue-100 text-blue-700 rounded-full text-xs">
+                      {barriers.length} barrier{barriers.length !== 1 ? 's' : ''}
                     </span>
                   )}
                 </div>
@@ -865,6 +908,327 @@ export default function Visualisations() {
               </div>
             )}
           </div>
+
+
+            {/* ── Barrier Analysis Tab ──────────────────────────── */}
+            {activeTab === 'barriers' && (
+              <div className="p-6">
+                {/* Summary cards */}
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
+                  <div className="bg-green-50 border border-green-200 rounded-lg p-3 text-center">
+                    <div className="text-2xl font-bold text-green-700">
+                      {barriers.filter(b => b.status === 'present_performed').length}
+                    </div>
+                    <div className="text-xs text-green-600 mt-0.5">Performed</div>
+                  </div>
+                  <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 text-center">
+                    <div className="text-2xl font-bold text-amber-700">
+                      {barriers.filter(b => b.status === 'present_partial').length}
+                    </div>
+                    <div className="text-xs text-amber-600 mt-0.5">Partial</div>
+                  </div>
+                  <div className="bg-red-50 border border-red-200 rounded-lg p-3 text-center">
+                    <div className="text-2xl font-bold text-red-700">
+                      {barriers.filter(b => b.status === 'present_failed').length}
+                    </div>
+                    <div className="text-xs text-red-600 mt-0.5">Failed</div>
+                  </div>
+                  <div className="bg-slate-50 border border-slate-200 rounded-lg p-3 text-center">
+                    <div className="text-2xl font-bold text-slate-600">
+                      {barriers.filter(b => b.status === 'absent').length}
+                    </div>
+                    <div className="text-xs text-slate-500 mt-0.5">Absent</div>
+                  </div>
+                </div>
+
+                {/* Intro text */}
+                <div className="bg-slate-50 border border-slate-200 rounded-lg p-4 mb-5">
+                  <p className="text-sm text-slate-600">
+                    Identify the barriers (safeguards) that were expected to prevent or mitigate this incident.
+                    Record whether each barrier was present and whether it performed as intended.
+                    Barriers are classified as <strong>Prevention</strong> (stopping the hazardous event) or <strong>Recovery</strong> (limiting consequences after the event).
+                  </p>
+                </div>
+
+                {/* Add barrier button / form */}
+                {!showAddBarrier && !editingBarrierId && (
+                  <button
+                    onClick={() => setShowAddBarrier(true)}
+                    className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white text-sm rounded-lg hover:bg-blue-700 transition-colors mb-5"
+                  >
+                    <Plus className="w-4 h-4" />
+                    Add Barrier
+                  </button>
+                )}
+
+                {/* Add Barrier Form */}
+                {showAddBarrier && (
+                  <div className="border border-blue-200 bg-blue-50 rounded-lg p-4 mb-5">
+                    <div className="flex items-center justify-between mb-3">
+                      <h4 className="text-sm font-semibold text-blue-800">New Barrier</h4>
+                      <button onClick={() => setShowAddBarrier(false)} className="text-slate-400 hover:text-slate-600">
+                        <X className="w-4 h-4" />
+                      </button>
+                    </div>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                      <div>
+                        <label className="block text-xs font-medium text-slate-600 mb-1">Barrier Name *</label>
+                        <input
+                          type="text"
+                          value={newBarrier.name}
+                          onChange={(e) => setNewBarrier({ ...newBarrier, name: e.target.value })}
+                          placeholder="e.g. Pressure relief valve"
+                          className="w-full px-3 py-2 text-sm border border-slate-300 rounded-lg focus:border-blue-500 focus:ring-1 focus:ring-blue-500 outline-none"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-xs font-medium text-slate-600 mb-1">Barrier Type *</label>
+                        <select
+                          value={newBarrier.barrierType}
+                          onChange={(e) => setNewBarrier({ ...newBarrier, barrierType: e.target.value })}
+                          className="w-full px-3 py-2 text-sm border border-slate-300 rounded-lg focus:border-blue-500 focus:ring-1 focus:ring-blue-500 outline-none bg-white"
+                        >
+                          <option value="physical">Physical</option>
+                          <option value="administrative">Administrative</option>
+                          <option value="detection">Detection</option>
+                          <option value="communication">Communication</option>
+                          <option value="recovery">Recovery</option>
+                        </select>
+                      </div>
+                      <div>
+                        <label className="block text-xs font-medium text-slate-600 mb-1">Classification *</label>
+                        <select
+                          value={newBarrier.side}
+                          onChange={(e) => setNewBarrier({ ...newBarrier, side: e.target.value })}
+                          className="w-full px-3 py-2 text-sm border border-slate-300 rounded-lg focus:border-blue-500 focus:ring-1 focus:ring-blue-500 outline-none bg-white"
+                        >
+                          <option value="prevention">Prevention</option>
+                          <option value="recovery">Recovery</option>
+                        </select>
+                      </div>
+                      <div>
+                        <label className="block text-xs font-medium text-slate-600 mb-1">Status *</label>
+                        <select
+                          value={newBarrier.status}
+                          onChange={(e) => setNewBarrier({ ...newBarrier, status: e.target.value, failureReason: '' })}
+                          className="w-full px-3 py-2 text-sm border border-slate-300 rounded-lg focus:border-blue-500 focus:ring-1 focus:ring-blue-500 outline-none bg-white"
+                        >
+                          <option value="present_performed">Present & Performed</option>
+                          <option value="present_partial">Present & Partially Performed</option>
+                          <option value="present_failed">Present & Failed</option>
+                          <option value="absent">Absent</option>
+                        </select>
+                      </div>
+                      {['present_failed', 'present_partial', 'absent'].includes(newBarrier.status) && (
+                        <div className="md:col-span-2">
+                          <label className="block text-xs font-medium text-slate-600 mb-1">
+                            {newBarrier.status === 'absent' ? 'Reason for Absence *' : 'Failure Reason *'}
+                          </label>
+                          <input
+                            type="text"
+                            value={newBarrier.failureReason}
+                            onChange={(e) => setNewBarrier({ ...newBarrier, failureReason: e.target.value })}
+                            placeholder={newBarrier.status === 'absent' ? 'Why was this barrier not in place?' : 'Why did this barrier fail?'}
+                            className="w-full px-3 py-2 text-sm border border-slate-300 rounded-lg focus:border-blue-500 focus:ring-1 focus:ring-blue-500 outline-none"
+                          />
+                        </div>
+                      )}
+                      <div className={newBarrier.status === 'present_performed' ? 'md:col-span-2' : ''}>
+                        <label className="block text-xs font-medium text-slate-600 mb-1">Notes</label>
+                        <input
+                          type="text"
+                          value={newBarrier.notes}
+                          onChange={(e) => setNewBarrier({ ...newBarrier, notes: e.target.value })}
+                          placeholder="Additional context (optional)"
+                          className="w-full px-3 py-2 text-sm border border-slate-300 rounded-lg focus:border-blue-500 focus:ring-1 focus:ring-blue-500 outline-none"
+                        />
+                      </div>
+                    </div>
+                    <div className="flex gap-2 mt-4">
+                      <button
+                        onClick={addBarrier}
+                        disabled={!newBarrier.name.trim()}
+                        className="px-4 py-2 bg-blue-600 text-white text-sm rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                      >
+                        Add Barrier
+                      </button>
+                      <button
+                        onClick={() => setShowAddBarrier(false)}
+                        className="px-4 py-2 text-slate-600 border border-slate-300 text-sm rounded-lg hover:bg-slate-50 transition-colors"
+                      >
+                        Cancel
+                      </button>
+                    </div>
+                  </div>
+                )}
+
+                {/* Barrier list grouped by side */}
+                {barriers.length === 0 && !showAddBarrier && (
+                  <p className="text-sm text-slate-500 italic">No barriers recorded yet. Add barriers to analyse which safeguards were in place during this incident.</p>
+                )}
+
+                {['prevention', 'recovery'].map(side => {
+                  const sideBarriers = barriers.filter(b => b.barrier_side === side);
+                  if (sideBarriers.length === 0) return null;
+                  return (
+                    <div key={side} className="mb-5">
+                      <div className={`flex items-center gap-2 mb-3 pb-2 border-b ${side === 'prevention' ? 'border-blue-200' : 'border-emerald-200'}`}>
+                        <span className={`text-xs font-bold uppercase px-2 py-0.5 rounded ${side === 'prevention' ? 'bg-blue-100 text-blue-700' : 'bg-emerald-100 text-emerald-700'}`}>
+                          {side === 'prevention' ? 'Prevention Barriers' : 'Recovery Barriers'}
+                        </span>
+                        <span className="text-xs text-slate-500">({sideBarriers.length})</span>
+                      </div>
+                      <div className="space-y-2">
+                        {sideBarriers.map((barrier: any) => (
+                          <div key={barrier.id} className="border border-slate-200 rounded-lg overflow-hidden">
+                            {editingBarrierId === barrier.id ? (
+                              /* Edit inline form */
+                              <div className="p-4 bg-blue-50 border-t border-blue-200">
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                                  <div>
+                                    <label className="block text-xs font-medium text-slate-600 mb-1">Barrier Name *</label>
+                                    <input
+                                      type="text"
+                                      value={editBarrier.name}
+                                      onChange={(e) => setEditBarrier({ ...editBarrier, name: e.target.value })}
+                                      className="w-full px-3 py-2 text-sm border border-slate-300 rounded-lg focus:border-blue-500 focus:ring-1 focus:ring-blue-500 outline-none bg-white"
+                                    />
+                                  </div>
+                                  <div>
+                                    <label className="block text-xs font-medium text-slate-600 mb-1">Barrier Type *</label>
+                                    <select
+                                      value={editBarrier.barrierType}
+                                      onChange={(e) => setEditBarrier({ ...editBarrier, barrierType: e.target.value })}
+                                      className="w-full px-3 py-2 text-sm border border-slate-300 rounded-lg focus:border-blue-500 focus:ring-1 focus:ring-blue-500 outline-none bg-white"
+                                    >
+                                      <option value="physical">Physical</option>
+                                      <option value="administrative">Administrative</option>
+                                      <option value="detection">Detection</option>
+                                      <option value="communication">Communication</option>
+                                      <option value="recovery">Recovery</option>
+                                    </select>
+                                  </div>
+                                  <div>
+                                    <label className="block text-xs font-medium text-slate-600 mb-1">Classification *</label>
+                                    <select
+                                      value={editBarrier.side}
+                                      onChange={(e) => setEditBarrier({ ...editBarrier, side: e.target.value })}
+                                      className="w-full px-3 py-2 text-sm border border-slate-300 rounded-lg focus:border-blue-500 focus:ring-1 focus:ring-blue-500 outline-none bg-white"
+                                    >
+                                      <option value="prevention">Prevention</option>
+                                      <option value="recovery">Recovery</option>
+                                    </select>
+                                  </div>
+                                  <div>
+                                    <label className="block text-xs font-medium text-slate-600 mb-1">Status *</label>
+                                    <select
+                                      value={editBarrier.status}
+                                      onChange={(e) => setEditBarrier({ ...editBarrier, status: e.target.value, failureReason: '' })}
+                                      className="w-full px-3 py-2 text-sm border border-slate-300 rounded-lg focus:border-blue-500 focus:ring-1 focus:ring-blue-500 outline-none bg-white"
+                                    >
+                                      <option value="present_performed">Present & Performed</option>
+                                      <option value="present_partial">Present & Partially Performed</option>
+                                      <option value="present_failed">Present & Failed</option>
+                                      <option value="absent">Absent</option>
+                                    </select>
+                                  </div>
+                                  {['present_failed', 'present_partial', 'absent'].includes(editBarrier.status) && (
+                                    <div className="md:col-span-2">
+                                      <label className="block text-xs font-medium text-slate-600 mb-1">
+                                        {editBarrier.status === 'absent' ? 'Reason for Absence *' : 'Failure Reason *'}
+                                      </label>
+                                      <input
+                                        type="text"
+                                        value={editBarrier.failureReason}
+                                        onChange={(e) => setEditBarrier({ ...editBarrier, failureReason: e.target.value })}
+                                        className="w-full px-3 py-2 text-sm border border-slate-300 rounded-lg focus:border-blue-500 focus:ring-1 focus:ring-blue-500 outline-none bg-white"
+                                      />
+                                    </div>
+                                  )}
+                                  <div className={editBarrier.status === 'present_performed' ? 'md:col-span-2' : ''}>
+                                    <label className="block text-xs font-medium text-slate-600 mb-1">Notes</label>
+                                    <input
+                                      type="text"
+                                      value={editBarrier.notes}
+                                      onChange={(e) => setEditBarrier({ ...editBarrier, notes: e.target.value })}
+                                      className="w-full px-3 py-2 text-sm border border-slate-300 rounded-lg focus:border-blue-500 focus:ring-1 focus:ring-blue-500 outline-none bg-white"
+                                    />
+                                  </div>
+                                </div>
+                                <div className="flex gap-2 mt-3">
+                                  <button
+                                    onClick={updateBarrier}
+                                    disabled={!editBarrier.name.trim()}
+                                    className="px-3 py-1.5 bg-blue-600 text-white text-xs rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50"
+                                  >
+                                    Save
+                                  </button>
+                                  <button
+                                    onClick={() => setEditingBarrierId(null)}
+                                    className="px-3 py-1.5 text-slate-600 border border-slate-300 text-xs rounded-lg hover:bg-slate-50 transition-colors"
+                                  >
+                                    Cancel
+                                  </button>
+                                </div>
+                              </div>
+                            ) : (
+                              /* Display row */
+                              <div className="flex items-start justify-between p-3 hover:bg-slate-50 transition-colors">
+                                <div className="flex-1 min-w-0">
+                                  <div className="flex flex-wrap items-center gap-2 mb-1">
+                                    <span className="text-sm font-medium text-slate-800">{barrier.barrier_name}</span>
+                                    <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${getBarrierStatusStyle(barrier.status)}`}>
+                                      {getBarrierStatusLabel(barrier.status)}
+                                    </span>
+                                    <span className="text-xs px-2 py-0.5 bg-slate-100 text-slate-600 rounded-full">
+                                      {getBarrierTypeLabel(barrier.barrier_type)}
+                                    </span>
+                                  </div>
+                                  {barrier.failure_reason && (
+                                    <p className="text-xs text-red-600 mt-1">
+                                      <strong>{barrier.status === 'absent' ? 'Absence reason:' : 'Failure reason:'}</strong> {barrier.failure_reason}
+                                    </p>
+                                  )}
+                                  {barrier.notes && (
+                                    <p className="text-xs text-slate-500 mt-0.5">{barrier.notes}</p>
+                                  )}
+                                </div>
+                                <div className="flex items-center gap-1 ml-3 flex-shrink-0">
+                                  <button
+                                    onClick={() => {
+                                      setEditingBarrierId(barrier.id);
+                                      setEditBarrier({
+                                        name: barrier.barrier_name,
+                                        barrierType: barrier.barrier_type,
+                                        side: barrier.barrier_side,
+                                        status: barrier.status,
+                                        failureReason: barrier.failure_reason || '',
+                                        notes: barrier.notes || ''
+                                      });
+                                    }}
+                                    className="p-1.5 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded transition-colors"
+                                    title="Edit"
+                                  >
+                                    <Edit2 className="w-3.5 h-3.5" />
+                                  </button>
+                                  <button
+                                    onClick={() => deleteBarrier(barrier.id)}
+                                    className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded transition-colors"
+                                    title="Delete"
+                                  >
+                                    <Trash2 className="w-3.5 h-3.5" />
+                                  </button>
+                                </div>
+                              </div>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
 
           {/* Navigation */}
           <div className="flex justify-between mt-6">
