@@ -5,7 +5,6 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { GitBranch, Plus, Edit2, Trash2, AlertTriangle, Lock, Unlock, ArrowRight, CheckCircle, Lightbulb } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import StepNavigation from '@/components/StepNavigation';
-import FiveWhysBuilder from '@/components/FiveWhysBuilder';
 
 export default function CausalAnalysis() {
   const router = useRouter();
@@ -253,7 +252,7 @@ export default function CausalAnalysis() {
       {/* Step Navigation */}
       <StepNavigation 
         investigationId={investigationId || ''} 
-        currentStep={4}
+        currentStep={5}
         investigationNumber={investigation?.investigation_number}
       />
       
@@ -579,13 +578,6 @@ export default function CausalAnalysis() {
 
                       </div>
                     )}
-
-                    {/* 5 Whys Visual Builder */}
-                    <FiveWhysBuilder 
-                      causalFactorId={factor.id}
-                      initialFactor={factor.causal_factor_title}
-                    />
-
                   </div>
                 )}
               </div>
