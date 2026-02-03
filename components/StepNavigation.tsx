@@ -8,10 +8,19 @@ interface StepNavigationProps {
   investigationId: string;
   currentStep: number;
   investigationNumber?: string;
+  onBeforeNavigate?: () => Promise<boolean>;
 }
 
-export default function StepNavigation({ investigationId, currentStep, investigationNumber }: StepNavigationProps) {
+export default function StepNavigation({ investigationId, currentStep, investigationNumber, onBeforeNavigate }: StepNavigationProps) {
   const router = useRouter();
+
+  const handleNavigate = async (path: string) => {
+    if (onBeforeNavigate) {
+      const canNavigate = await onBeforeNavigate();
+      if (!canNavigate) return;
+    }
+    router.push(path);
+  };
 
   const steps = [
     { number: 1, label: 'Overview',          icon: Home,       path: `/step1?investigationId=${investigationId}` },
@@ -52,7 +61,7 @@ export default function StepNavigation({ investigationId, currentStep, investiga
             return (
               <button
                 key={step.number}
-                onClick={() => router.push(step.path)}
+                onClick={() => handleNavigate(step.path)}
                 className={`flex items-center gap-2 px-4 py-2 rounded-lg border transition-all whitespace-nowrap ${
                   isCurrent 
                     ? 'bg-blue-600 text-white border-blue-600 shadow-sm' 
