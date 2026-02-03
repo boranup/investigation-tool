@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { GitBranch, Plus, Edit2, Trash2, AlertTriangle, CheckCircle, Lightbulb } from 'lucide-react';
+import { GitBranch, Plus, Edit2, Trash2, AlertTriangle, Lock, Unlock, ArrowRight, CheckCircle, Lightbulb , X } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import StepNavigation from '@/components/StepNavigation';
 
@@ -18,6 +18,7 @@ export default function CausalAnalysis() {
   const [hfatAssessments, setHfatAssessments] = useState<any>({});
   
   const [showAddFactor, setShowAddFactor] = useState(false);
+  const [showCauseTypeModal, setShowCauseTypeModal] = useState(false);
   const [editingFactor, setEditingFactor] = useState<any>(null);
   const [filterType, setFilterType] = useState('all');
   const [filterStatus, setFilterStatus] = useState('all');
@@ -218,6 +219,24 @@ export default function CausalAnalysis() {
     { value: 'external', label: 'External Factor' }
   ];
 
+  const causeTypeDefinitions = [
+    {
+      label: 'Immediate Cause',
+      definition: 'What directly led to the incident at the point it occurred. The final unsafe act or condition that triggered the event.',
+      guidance: 'Immediate causes explain what happened — but not why it was allowed to happen.'
+    },
+    {
+      label: 'Contributing Factor',
+      definition: 'Conditions or influences that increased the likelihood or severity of the incident but did not directly trigger it alone.',
+      guidance: 'Contributing factors create the environment where the immediate cause could occur.'
+    },
+    {
+      label: 'Root Cause',
+      definition: 'The most fundamental underlying system or organisational failure that, if corrected, would prevent recurrence or significantly reduce likelihood.',
+      guidance: 'Root causes explain why the causal and immediate causes existed in the first place.'
+    }
+  ];
+
   const filteredFactors = causalFactors.filter(f => {
     if (filterType !== 'all' && f.factor_type !== filterType) return false;
     if (filterStatus !== 'all' && f.analysis_status !== filterStatus) return false;
@@ -352,7 +371,7 @@ export default function CausalAnalysis() {
                     />
                     <div className="grid grid-cols-2 gap-4">
                       <div>
-                        <label className="block text-sm font-medium mb-2">Type</label>
+                        <label className="block text-sm font-medium mb-2 flex items-center">Type<button type="button" onClick={() => setShowCauseTypeModal(true)} className="ml-1.5 text-slate-400 hover:text-blue-600 transition-colors" aria-label="Cause type definitions"><svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-3a1 1 0 11-2 0 1 1 0 012 0zM9 5a1 1 0 100 2h2a1 1 0 100-2H9zm0 4a1 1 0 00-1 1v2a1 1 0 100 2h2a1 1 0 100-2v-2a1 1 0 00-1-1H9z" clipRule="evenodd" /></svg></button></label>
                         <select
                           value={editingFactor.factor_type}
                           onChange={(e) => setEditingFactor({...editingFactor, factor_type: e.target.value})}
@@ -481,7 +500,7 @@ export default function CausalAnalysis() {
                         <div className="flex items-center justify-between mb-2">
                           <h4 className="font-medium text-sm">HOP Assessment</h4>
                           {hopAssessments[factor.id]?.length > 0 && (
-                            <span className="text-xs text-green-600">✓ Complete</span>
+                            <span className="text-xs text-green-600">\u2713 Complete</span>
                           )}
                         </div>
 
@@ -491,9 +510,9 @@ export default function CausalAnalysis() {
                               <div className="text-xs flex-1">
                                 <div className="font-medium mb-1">
                                   {hopAssessments[factor.id][0].action_type === 'error' ? (
-                                    <span className="text-red-600">⚫ Error Analysis</span>
+                                    <span className="text-red-600">\u26ab Error Analysis</span>
                                   ) : (
-                                    <span className="text-amber-600">⚫ Violation Analysis</span>
+                                    <span className="text-amber-600">\u26ab Violation Analysis</span>
                                   )}
                                   {hopAssessments[factor.id][0].violation_type && ` - ${hopAssessments[factor.id][0].violation_type.charAt(0).toUpperCase() + hopAssessments[factor.id][0].violation_type.slice(1)}`}
                                 </div>
@@ -504,7 +523,7 @@ export default function CausalAnalysis() {
                                   }
                                 </div>
                                 <div className="text-gray-600 mt-2">
-                                  {hopAssessments[factor.id][0].status === 'complete' ? '✅ Complete' : '📝 Draft'} - 
+                                  {hopAssessments[factor.id][0].status === 'complete' ? '\u2705 Complete' : '\ud83d\udcdd Draft'} - 
                                   {' '}{new Date(hopAssessments[factor.id][0].updated_at).toLocaleDateString()}
                                 </div>
                               </div>
@@ -534,7 +553,7 @@ export default function CausalAnalysis() {
                         <div className="flex items-center justify-between mb-2">
                           <h4 className="font-medium text-sm">HFAT Assessment</h4>
                           {hfatAssessments[factor.id]?.length > 0 && (
-                            <span className="text-xs text-purple-600">✓ Complete</span>
+                            <span className="text-xs text-purple-600">\u2713 Complete</span>
                           )}
                         </div>
 
@@ -544,7 +563,7 @@ export default function CausalAnalysis() {
                               <div className="text-xs">
                                 <div className="font-medium">HFAT Analysis</div>
                                 <div className="text-gray-600 mt-1">
-                                  {hfatAssessments[factor.id][0].status === 'complete' ? '✅ Complete' : '📝 Draft'} - 
+                                  {hfatAssessments[factor.id][0].status === 'complete' ? '\u2705 Complete' : '\ud83d\udcdd Draft'} - 
                                   {' '}{new Date(hfatAssessments[factor.id][0].updated_at).toLocaleDateString()}
                                 </div>
                               </div>
@@ -589,19 +608,19 @@ export default function CausalAnalysis() {
               <h3 className="font-bold text-blue-900 mb-3 text-lg">Key Investigation Principles:</h3>
               <ul className="space-y-2 text-sm text-blue-900">
                 <li className="flex items-start gap-2">
-                  <span className="font-bold mt-0.5">•</span>
+                  <span className="font-bold mt-0.5">\u2022</span>
                   <span><strong>Local Rationality:</strong> People's actions made sense to them at the time given their knowledge, training, and context</span>
                 </li>
                 <li className="flex items-start gap-2">
-                  <span className="font-bold mt-0.5">•</span>
+                  <span className="font-bold mt-0.5">\u2022</span>
                   <span><strong>Multiple Theories:</strong> Generate at least 2-3 possible explanations before reaching conclusions</span>
                 </li>
                 <li className="flex items-start gap-2">
-                  <span className="font-bold mt-0.5">•</span>
+                  <span className="font-bold mt-0.5">\u2022</span>
                   <span><strong>System Focus:</strong> Even when human action is involved, understand what system factors made the error likely</span>
                 </li>
                 <li className="flex items-start gap-2">
-                  <span className="font-bold mt-0.5">•</span>
+                  <span className="font-bold mt-0.5">\u2022</span>
                   <span><strong>Don't Stop at "Human Error":</strong> That's a starting point, not a conclusion. Ask WHY the error was made</span>
                 </li>
               </ul>
@@ -640,7 +659,7 @@ export default function CausalAnalysis() {
 
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <label className="block text-sm font-medium mb-2">Type *</label>
+                    <label className="block text-sm font-medium mb-2 flex items-center">Type *<button type="button" onClick={() => setShowCauseTypeModal(true)} className="ml-1.5 text-slate-400 hover:text-blue-600 transition-colors" aria-label="Cause type definitions"><svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-3a1 1 0 11-2 0 1 1 0 012 0zM9 5a1 1 0 100 2h2a1 1 0 100-2H9zm0 4a1 1 0 00-1 1v2a1 1 0 100 2h2a1 1 0 100-2v-2a1 1 0 00-1-1H9z" clipRule="evenodd" /></svg></button></label>
                     <select
                       value={newFactor.factorType}
                       onChange={(e) => setNewFactor({...newFactor, factorType: e.target.value})}
@@ -709,6 +728,30 @@ export default function CausalAnalysis() {
         )}
       </div>
       </div>
+
+      {/* Cause Type Definitions Modal */}
+      {showCauseTypeModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg shadow-xl border border-slate-200 max-w-md w-full p-6">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-sm font-semibold text-slate-800">Cause Type Definitions</h3>
+              <button onClick={() => setShowCauseTypeModal(false)} className="text-slate-400 hover:text-slate-600">
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+            <div className="space-y-4">
+              {causeTypeDefinitions.map((def, i) => (
+                <div key={i} className="border-b border-slate-100 last:border-0 pb-3 last:pb-0">
+                  <p className="text-sm font-semibold text-slate-800">{def.label}</p>
+                  <p className="text-sm text-slate-600 mt-1">{def.definition}</p>
+                  <p className="text-sm text-blue-600 italic mt-1">👉 {def.guidance}</p>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
+"
