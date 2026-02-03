@@ -1,19 +1,15 @@
 'use client'
-
 import React from 'react';
 import { useRouter } from 'next/navigation';
 import { Home, Upload, Clock, Network, GitBranch, Lightbulb, FileText } from 'lucide-react';
-
 interface StepNavigationProps {
   investigationId: string;
   currentStep: number;
   investigationNumber?: string;
   onBeforeNavigate?: () => Promise<boolean>;
 }
-
 export default function StepNavigation({ investigationId, currentStep, investigationNumber, onBeforeNavigate }: StepNavigationProps) {
   const router = useRouter();
-
   const handleNavigate = async (path: string) => {
     if (onBeforeNavigate) {
       const canNavigate = await onBeforeNavigate();
@@ -21,7 +17,6 @@ export default function StepNavigation({ investigationId, currentStep, investiga
     }
     router.push(path);
   };
-
   const steps = [
     { number: 1, label: 'Overview',          icon: Home,       path: `/step1?investigationId=${investigationId}` },
     { number: 2, label: 'Evidence',          icon: Upload,     path: `/step2?investigationId=${investigationId}` },
@@ -29,9 +24,8 @@ export default function StepNavigation({ investigationId, currentStep, investiga
     { number: 4, label: 'Visualisations',    icon: Network,    path: `/step4?investigationId=${investigationId}` },
     { number: 5, label: 'Causal Analysis',   icon: GitBranch,  path: `/step5?investigationId=${investigationId}` },
     { number: 6, label: 'Recommendations',   icon: Lightbulb,  path: `/step6?investigationId=${investigationId}` },
-    { number: 7, label: 'Report',            icon: FileText,   path: `/step7?investigationId=${investigationId}` }
+    { number: 7, label: 'Report',            icon: FileText,   path: `/report?investigationId=${investigationId}` }
   ];
-
   return (
     <div className="bg-white border-b border-slate-200 sticky top-0 z-40 shadow-sm">
       <div className="max-w-7xl mx-auto px-6 py-3">
@@ -51,13 +45,11 @@ export default function StepNavigation({ investigationId, currentStep, investiga
             </div>
           </div>
         )}
-
         {/* Step Navigation */}
         <div className="flex items-center gap-2 overflow-x-auto pb-2">
           {steps.map((step) => {
             const Icon = step.icon;
             const isCurrent = step.number === currentStep;
-
             return (
               <button
                 key={step.number}
