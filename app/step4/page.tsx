@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { useSearchParams } from 'next/navigation';
-import { Network, Plus, Trash2, ChevronDown, ChevronRight, AlertCircle } from 'lucide-react';
+import { Network, Plus, Trash2, Edit2, ChevronDown, ChevronRight, AlertCircle, X } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import StepNavigation from '@/components/StepNavigation';
 
@@ -17,6 +17,8 @@ export default function Visualisations() {
   // ── 5 Whys state ─────────────────────────────────────────────
   const [whyChain, setWhyChain] = useState<any[]>([]);
   const [showAddWhy, setShowAddWhy] = useState(false);
+  const [editingWhyId, setEditingWhyId] = useState<string | null>(null);
+  const [editWhy, setEditWhy] = useState({ answer: '', isRootCause: false, factorType: 'individual' });
   const [newWhy, setNewWhy] = useState({
     answer: '',
     isRootCause: false,
@@ -34,6 +36,8 @@ export default function Visualisations() {
     factorCategory: 'equipment'
   });
   const [expandedNodes, setExpandedNodes] = useState<Record<string, boolean>>({});
+  const [editingTreeNodeId, setEditingTreeNodeId] = useState<string | null>(null);
+  const [editNode, setEditNode] = useState({ title: '', description: '', nodeType: 'immediate', factorCategory: 'equipment' });
 
   // ── Constants ────────────────────────────────────────────────
   const factorTypes = [
@@ -96,6 +100,16 @@ export default function Visualisations() {
         .eq('investigation_id', investigationId)
         .order('created_at', { ascending: true });
       setCausalTree(treeData || []);
+      // Auto-expand all nodes that have children so tree is visible on load
+      if (treeData && treeData.length > 0) {
+        const parentIds: Record<string, boolean> = {};
+        treeData.forEach((node: any) => {
+          if (node.parent_node_id) {
+            parentIds[node.parent_node_id] = true;
+          }
+        });
+        setExpandedNodes(parentIds);
+      }
     } catch (err) {
       console.error('Error loading visualisations:', err);
     } finally {
@@ -167,6 +181,56 @@ export default function Visualisations() {
       setWhyChain([]);
     } catch (err) {
       console.error('Error clearing chain:', err);
+    }
+  }
+
+  async function updateWhyLevel() {
+    if (!editingWhyId) return;
+    try {
+      const { error } = await supabase
+        .from('visualization_5whys')
+        .update({
+          answer: editWhy.answer.trim(),
+          is_root_cause: editWhy.isRootCause,
+          factor_type: editWhy.factorType
+        })
+        .eq('id', editingWhyId);
+      if (error) throw error;
+      // Update local state
+      setWhyChain(prev => prev.map(w =>
+        w.id === editingWhyId
+          ? { ...w, answer: editWhy.answer.trim(), is_root_cause: editWhy.isRootCause, factor_type: editWhy.factorType }
+          : w
+      ));
+      setEditingWhyId(null);
+    } catch (err: any) {
+      console.error('Error updating why level:', err);
+      alert(`Error: ${err.message}`);
+    }
+  }
+
+  async function updateTreeNode() {
+    if (!editingTreeNodeId) return;
+    try {
+      const { error } = await supabase
+        .from('visualization_causal_tree')
+        .update({
+          title: editNode.title.trim(),
+          description: editNode.description.trim() || null,
+          node_type: editNode.nodeType,
+          factor_category: editNode.factorCategory
+        })
+        .eq('id', editingTreeNodeId);
+      if (error) throw error;
+      setCausalTree(prev => prev.map(n =>
+        n.id === editingTreeNodeId
+          ? { ...n, title: editNode.title.trim(), description: editNode.description.trim() || null, node_type: editNode.nodeType, factor_category: editNode.factorCategory }
+          : n
+      ));
+      setEditingTreeNodeId(null);
+    } catch (err: any) {
+      console.error('Error updating tree node:', err);
+      alert(`Error: ${err.message}`);
     }
   }
 
@@ -251,64 +315,142 @@ export default function Visualisations() {
   }
 
   // ── Tree renderer ────────────────────────────────────────────
-  function renderTreeNode(node: any, depth: number = 0) {
+  // Single node card — view mode or inline edit
+  function renderNodeBox(node: any) {
+    const isEditing = editingTreeNodeId === node.id;
+
+    if (isEditing) {
+      return (
+        <div className="bg-white border-2 border-blue-400 rounded-lg p-3 shadow-md w-48">
+          <input
+            type="text"
+            value={editNode.title}
+            onChange={(e) => setEditNode({ ...editNode, title: e.target.value })}
+            className="w-full border border-slate-300 rounded px-2 py-1 text-xs mb-2"
+            autoFocus
+          />
+          <textarea
+            value={editNode.description}
+            onChange={(e) => setEditNode({ ...editNode, description: e.target.value })}
+            className="w-full border border-slate-300 rounded px-2 py-1 text-xs mb-2"
+            rows={2}
+            placeholder="Description..."
+          />
+          <div className="flex gap-1 mb-2">
+            <select
+              value={editNode.nodeType}
+              onChange={(e) => setEditNode({ ...editNode, nodeType: e.target.value })}
+              className="flex-1 border border-slate-300 rounded px-1 py-1 text-xs"
+            >
+              {nodeTypes.map(nt => <option key={nt.value} value={nt.value}>{nt.label}</option>)}
+            </select>
+            <select
+              value={editNode.factorCategory}
+              onChange={(e) => setEditNode({ ...editNode, factorCategory: e.target.value })}
+              className="flex-1 border border-slate-300 rounded px-1 py-1 text-xs"
+            >
+              {factorCategories.map(fc => <option key={fc.value} value={fc.value}>{fc.label}</option>)}
+            </select>
+          </div>
+          <div className="flex gap-1">
+            <button onClick={updateTreeNode} className="px-2 py-1 bg-blue-600 text-white rounded text-xs hover:bg-blue-700">Save</button>
+            <button onClick={() => setEditingTreeNodeId(null)} className="px-2 py-1 border border-slate-300 rounded text-xs hover:bg-slate-50">Cancel</button>
+          </div>
+        </div>
+      );
+    }
+
+    return (
+      <div className={`border-2 rounded-lg p-3 shadow-sm w-48 ${getNodeTypeStyle(node.node_type)}`}>
+        <p className="font-semibold text-sm leading-snug">{node.title}</p>
+        {node.description && <p className="text-xs mt-1 opacity-75 leading-snug">{node.description}</p>}
+        <div className="flex flex-wrap gap-1 mt-2">
+          <span className={`px-1.5 py-0.5 rounded text-xs border ${getNodeTypeStyle(node.node_type)}`}>
+            {nodeTypes.find(t => t.value === node.node_type)?.label}
+          </span>
+          <span className="px-1.5 py-0.5 rounded text-xs bg-white bg-opacity-70 border border-slate-300 text-slate-600">
+            {factorCategories.find(c => c.value === node.factor_category)?.label}
+          </span>
+        </div>
+        {/* Action buttons */}
+        <div className="flex items-center gap-0.5 mt-2 pt-2 border-t border-current border-opacity-20">
+          <button
+            onClick={() => {
+              setEditingTreeNodeId(node.id);
+              setEditNode({ title: node.title, description: node.description || '', nodeType: node.node_type, factorCategory: node.factor_category });
+            }}
+            className="p-1 hover:bg-white hover:bg-opacity-50 rounded"
+            title="Edit"
+          ><Edit2 className="w-3.5 h-3.5" /></button>
+          <button
+            onClick={() => { setSelectedParentId(node.id); setShowAddNode(true); }}
+            className="p-1 hover:bg-white hover:bg-opacity-50 rounded"
+            title="Add child cause"
+          ><Plus className="w-3.5 h-3.5" /></button>
+          <button
+            onClick={() => deleteTreeNode(node.id)}
+            className="p-1 hover:bg-white hover:bg-opacity-50 rounded text-red-600"
+            title="Delete node and children"
+          ><Trash2 className="w-3.5 h-3.5" /></button>
+        </div>
+      </div>
+    );
+  }
+
+  // Recursive branch: renders one node, then its children beneath connected by lines
+  function renderTreeBranch(node: any): React.ReactNode {
     const children = causalTree.filter(n => n.parent_node_id === node.id);
     const hasChildren = children.length > 0;
     const isExpanded = !!expandedNodes[node.id];
 
     return (
-      <div key={node.id} style={{ marginLeft: depth === 0 ? 0 : 24 }}>
+      <div key={node.id} className="flex flex-col items-center">
+        {/* The node box */}
         <div className="relative">
-          {depth > 0 && (
-            <div className="absolute -left-4 top-4 w-4 h-px bg-slate-300" />
+          {renderNodeBox(node)}
+          {/* Expand/collapse toggle on bottom edge */}
+          {hasChildren && (
+            <button
+              onClick={() => toggleExpand(node.id)}
+              className="absolute -bottom-3 left-1/2 -translate-x-1/2 z-10
+                         w-6 h-6 rounded-full bg-white border border-slate-300 shadow-sm
+                         flex items-center justify-center hover:bg-slate-50"
+            >
+              {isExpanded
+                ? <ChevronDown className="w-3 h-3 text-slate-600" />
+                : <ChevronRight className="w-3 h-3 text-slate-600" />}
+            </button>
           )}
-          <div className={`border rounded-lg p-3 mb-2 ${getNodeTypeStyle(node.node_type)}`}>
-            <div className="flex items-start justify-between">
-              <div className="flex items-center gap-2 flex-1">
-                {hasChildren && (
-                  <button onClick={() => toggleExpand(node.id)} className="flex-shrink-0">
-                    {isExpanded ? <ChevronDown className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
-                  </button>
-                )}
-                <div className="flex-1">
-                  <div className="flex items-center gap-2 flex-wrap">
-                    <span className="font-semibold text-sm">{node.title}</span>
-                    <span className={`px-2 py-0.5 rounded-full text-xs border ${getNodeTypeStyle(node.node_type)}`}>
-                      {nodeTypes.find(t => t.value === node.node_type)?.label}
-                    </span>
-                    <span className="px-2 py-0.5 rounded-full text-xs bg-white bg-opacity-60 border border-slate-300 text-slate-600">
-                      {factorCategories.find(c => c.value === node.factor_category)?.label}
-                    </span>
+        </div>
+
+        {/* Connector lines + children */}
+        {hasChildren && isExpanded && (
+          <div className="flex flex-col items-center">
+            {/* Vertical stem down from this node */}
+            <div className="w-px h-6 bg-slate-400" />
+
+            {/* Horizontal bar spans across all children; each child has its own vertical drop */}
+            <div className="relative flex items-start">
+              {/* Horizontal bar — only visible when there are 2+ children */}
+              {children.length > 1 && (
+                <div className="absolute top-0 left-1/2 -translate-x-1/2 h-px bg-slate-400"
+                     style={{ width: 'calc(100% - 192px)' }} />
+              )}
+
+              {/* Row of children */}
+              <div className="flex gap-6 items-start">
+                {children.map(child => (
+                  <div key={child.id} className="flex flex-col items-center">
+                    {/* Vertical drop from bar to child */}
+                    <div className="w-px h-4 bg-slate-400" />
+                    {/* Recurse */}
+                    {renderTreeBranch(child)}
                   </div>
-                  {node.description && (
-                    <p className="text-xs mt-1 opacity-80">{node.description}</p>
-                  )}
-                </div>
-              </div>
-              <div className="flex items-center gap-1 ml-2 flex-shrink-0">
-                <button
-                  onClick={() => {
-                    setSelectedParentId(node.id);
-                    setShowAddNode(true);
-                  }}
-                  className="p-1 hover:bg-white hover:bg-opacity-50 rounded text-slate-700"
-                  title="Add child cause"
-                >
-                  <Plus className="w-4 h-4" />
-                </button>
-                <button
-                  onClick={() => deleteTreeNode(node.id)}
-                  className="p-1 hover:bg-white hover:bg-opacity-50 rounded text-red-600"
-                  title="Delete"
-                >
-                  <Trash2 className="w-4 h-4" />
-                </button>
+                ))}
               </div>
             </div>
           </div>
-        </div>
-
-        {isExpanded && children.map(child => renderTreeNode(child, depth + 1))}
+        )}
       </div>
     );
   }
@@ -434,31 +576,96 @@ export default function Visualisations() {
                         {index < whyChain.length - 1 && <div className="w-0.5 flex-1 bg-blue-300 min-h-[16px]" />}
                       </div>
 
-                      {/* Card */}
+                      {/* Card — view or edit mode */}
                       <div className="flex-1 bg-white border border-slate-200 rounded-lg p-4 mb-2">
-                        <div className="flex items-start justify-between">
-                          <div className="flex-1">
-                            <p className="text-xs text-slate-500 italic mb-1">{why.question}</p>
-                            <p className="text-slate-800 font-medium">{why.answer}</p>
-                            <div className="flex items-center gap-2 mt-2">
-                              <span className={`px-2 py-0.5 rounded-full text-xs border ${getFactorTypeStyle(why.factor_type)}`}>
-                                {factorTypes.find(t => t.value === why.factor_type)?.label}
-                              </span>
-                              {why.is_root_cause && (
-                                <span className="px-2 py-0.5 rounded-full text-xs bg-green-100 text-green-700 border border-green-200 font-semibold">
-                                  ✓ Root Cause
-                                </span>
-                              )}
+                        {editingWhyId === why.id ? (
+                          /* ── Edit mode ── */
+                          <div className="space-y-3">
+                            <textarea
+                              value={editWhy.answer}
+                              onChange={(e) => setEditWhy({ ...editWhy, answer: e.target.value })}
+                              className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm"
+                              rows={2}
+                              autoFocus
+                            />
+                            <div className="grid grid-cols-2 gap-3">
+                              <div>
+                                <label className="block text-xs font-medium text-slate-600 mb-1">Factor Type</label>
+                                <select
+                                  value={editWhy.factorType}
+                                  onChange={(e) => setEditWhy({ ...editWhy, factorType: e.target.value })}
+                                  className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm"
+                                >
+                                  {factorTypes.map(ft => (
+                                    <option key={ft.value} value={ft.value}>{ft.label}</option>
+                                  ))}
+                                </select>
+                              </div>
+                              <div className="flex items-end">
+                                <label className="flex items-center gap-2 cursor-pointer">
+                                  <input
+                                    type="checkbox"
+                                    checked={editWhy.isRootCause}
+                                    onChange={(e) => setEditWhy({ ...editWhy, isRootCause: e.target.checked })}
+                                    className="w-4 h-4 text-blue-600"
+                                  />
+                                  <span className="text-sm text-slate-700">Root cause</span>
+                                </label>
+                              </div>
+                            </div>
+                            <div className="flex gap-2">
+                              <button
+                                onClick={updateWhyLevel}
+                                className="px-3 py-1.5 bg-blue-600 text-white rounded-lg text-sm hover:bg-blue-700"
+                              >
+                                Save
+                              </button>
+                              <button
+                                onClick={() => setEditingWhyId(null)}
+                                className="px-3 py-1.5 border border-slate-300 rounded-lg text-sm hover:bg-slate-50"
+                              >
+                                Cancel
+                              </button>
                             </div>
                           </div>
-                          <button
-                            onClick={() => deleteWhyLevel(why.id, why.level)}
-                            className="p-1.5 text-red-500 hover:bg-red-50 rounded"
-                            title="Delete this and subsequent levels"
-                          >
-                            <Trash2 className="w-4 h-4" />
-                          </button>
-                        </div>
+                        ) : (
+                          /* ── View mode ── */
+                          <div className="flex items-start justify-between">
+                            <div className="flex-1">
+                              <p className="text-xs text-slate-500 italic mb-1">{why.question}</p>
+                              <p className="text-slate-800 font-medium">{why.answer}</p>
+                              <div className="flex items-center gap-2 mt-2">
+                                <span className={`px-2 py-0.5 rounded-full text-xs border ${getFactorTypeStyle(why.factor_type)}`}>
+                                  {factorTypes.find(t => t.value === why.factor_type)?.label}
+                                </span>
+                                {why.is_root_cause && (
+                                  <span className="px-2 py-0.5 rounded-full text-xs bg-green-100 text-green-700 border border-green-200 font-semibold">
+                                    ✓ Root Cause
+                                  </span>
+                                )}
+                              </div>
+                            </div>
+                            <div className="flex items-center gap-1">
+                              <button
+                                onClick={() => {
+                                  setEditingWhyId(why.id);
+                                  setEditWhy({ answer: why.answer, isRootCause: why.is_root_cause, factorType: why.factor_type });
+                                }}
+                                className="p-1.5 text-slate-500 hover:bg-slate-100 rounded"
+                                title="Edit"
+                              >
+                                <Edit2 className="w-4 h-4" />
+                              </button>
+                              <button
+                                onClick={() => deleteWhyLevel(why.id, why.level)}
+                                className="p-1.5 text-red-500 hover:bg-red-50 rounded"
+                                title="Delete this and subsequent levels"
+                              >
+                                <Trash2 className="w-4 h-4" />
+                              </button>
+                            </div>
+                          </div>
+                        )}
                       </div>
                     </div>
                   ))}
@@ -564,8 +771,10 @@ export default function Visualisations() {
                   ))}
                 </div>
 
-                {/* Root-level nodes */}
-                {causalTree.filter(n => !n.parent_node_id).map(node => renderTreeNode(node, 0))}
+                {/* Root-level nodes — rendered as vertical tree */}
+                <div className="flex flex-wrap justify-center gap-8 py-4">
+                  {causalTree.filter(n => !n.parent_node_id).map(node => renderTreeBranch(node))}
+                </div>
 
                 {causalTree.length === 0 && (
                   <div className="text-center py-8 text-slate-500">
