@@ -2,115 +2,60 @@
 
 import React, { useState, useEffect } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { Lightbulb, Plus, Edit2, Trash2, Filter, Target, Calendar, Users, Shield, CheckCircle, X, Save } from 'lucide-react';
+import { GitBranch, Plus, Edit2, Trash2, AlertTriangle, Lock, Unlock, ArrowRight, CheckCircle, Lightbulb } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import StepNavigation from '@/components/StepNavigation';
 
-export default function RecommendationsDevelopment() {
+export default function CausalAnalysis() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const investigationId = searchParams.get('investigationId');
 
-  const [showAddRecommendation, setShowAddRecommendation] = useState(false);
-  const [filterType, setFilterType] = useState('all');
-  const [filterPriority, setFilterPriority] = useState('all');
-  const [saving, setSaving] = useState(false);
-  const [editingRecommendationId, setEditingRecommendationId] = useState<string | null>(null);
-
+  const [loading, setLoading] = useState(true);
   const [investigation, setInvestigation] = useState<any>(null);
-  const [recommendations, setRecommendations] = useState<any[]>([]);
-  const [causalFactors, setCausalFactors] = useState<any[]>([]);
+  const [causalFactors, setFactors] = useState<any[]>([]);
+  const [hopAssessments, setHopAssessments] = useState<any>({});
+  const [hfatAssessments, setHfatAssessments] = useState<any>({});
+  
+  const [showAddFactor, setShowAddFactor] = useState(false);
+  const [editingFactor, setEditingFactor] = useState<any>(null);
+  const [filterType, setFilterType] = useState('all');
+  const [filterStatus, setFilterStatus] = useState('all');
 
-  const [newRecommendation, setNewRecommendation] = useState({
+  const [newFactor, setNewFactor] = useState({
     title: '',
     description: '',
-    linkedFactors: [] as string[],
-    controlType: 'engineering',
-    priority: 'high',
-    responsibility: '',
-    targetDate: '',
-    estimatedCost: 'Medium'
+    factorType: 'immediate',
+    factorCategory: 'equipment',
+    parentFactorId: null,
+    requiresHFAT: false,
+    requiresHOP: false
   });
-
-  const controlTypes = [
-    { 
-      value: 'elimination', 
-      label: 'Elimination', 
-      description: 'Physically remove the hazard',
-      rank: 1,
-      color: 'bg-green-600'
-    },
-    { 
-      value: 'substitution', 
-      label: 'Substitution', 
-      description: 'Replace with less hazardous alternative',
-      rank: 2,
-      color: 'bg-green-500'
-    },
-    { 
-      value: 'engineering', 
-      label: 'Engineering Controls', 
-      description: 'Isolate people from hazard',
-      rank: 3,
-      color: 'bg-blue-500'
-    },
-    { 
-      value: 'administrative', 
-      label: 'Administrative Controls', 
-      description: 'Change work practices/procedures',
-      rank: 4,
-      color: 'bg-orange-500'
-    },
-    { 
-      value: 'ppe', 
-      label: 'PPE', 
-      description: 'Protect the worker',
-      rank: 5,
-      color: 'bg-red-500'
-    }
-  ];
 
   useEffect(() => {
     if (investigationId) {
       loadInvestigation();
-      loadRecommendations();
       loadCausalFactors();
+      loadAssessments();
     }
   }, [investigationId]);
 
-  const loadInvestigation = async () => {
-    const { data } = await supabase
-      .from('investigations')
-      .select('*')
-      .eq('id', investigationId)
-      .single();
-    
-    setInvestigation(data);
-  };
-
-  const loadRecommendations = async () => {
-    if (!investigationId) return;
-
+  async function loadInvestigation() {
     try {
       const { data, error } = await supabase
-        .from('recommendations')
+        .from('investigations')
         .select('*')
-        .eq('investigation_id', investigationId)
-        .order('created_at', { ascending: false });
+        .eq('id', investigationId)
+        .single();
 
-      if (error) {
-        console.error('Error loading recommendations:', error);
-      } else {
-        setRecommendations(data || []);
-      }
+      if (error) throw error;
+      setInvestigation(data);
     } catch (error) {
-      console.error('Error loading recommendations:', error);
+      console.error('Error loading investigation:', error);
     }
-  };
+  }
 
-  const loadCausalFactors = async () => {
-    if (!investigationId) return;
-
+  async function loadCausalFactors() {
     try {
       const { data, error } = await supabase
         .from('causal_factors')
@@ -118,606 +63,663 @@ export default function RecommendationsDevelopment() {
         .eq('investigation_id', investigationId)
         .order('created_at', { ascending: true });
 
-      if (error) {
-        console.error('Error loading causal factors:', error);
-      } else {
-        setCausalFactors(data || []);
-      }
+      if (error) throw error;
+      setFactors(data || []);
     } catch (error) {
       console.error('Error loading causal factors:', error);
+    } finally {
+      setLoading(false);
     }
-  };
+  }
 
-  // Auto-save handler for navigation - closes any open modals
-  const handleBeforeNavigate = async (): Promise<boolean> => {
-    setShowAddRecommendation(false);
-    setEditingRecommendationId(null);
-    return true; // Allow navigation
-  };
-
-  const handleAddRecommendation = async () => {
-    if (!newRecommendation.title || !newRecommendation.description) {
-      alert('Please fill in title and description');
-      return;
-    }
-
-    if (!investigationId) {
-      alert('No investigation selected');
-      return;
-    }
-
-    setSaving(true);
-
+  async function loadAssessments() {
     try {
-      const recommendationData = {
+      // Get all causal factors for this investigation
+      const { data: factors } = await supabase
+        .from('causal_factors')
+        .select('id')
+        .eq('investigation_id', investigationId);
+
+      if (!factors) return;
+
+      const factorIds = factors.map(f => f.id);
+
+      // Load all HOP assessments
+      const { data: hopData } = await supabase
+        .from('hop_assessments')
+        .select('*')
+        .in('causal_factor_id', factorIds);
+
+      // Load all HFAT assessments  
+      const { data: hfatData } = await supabase
+        .from('hfat_assessments')
+        .select('*')
+        .in('causal_factor_id', factorIds);
+
+      // Group by causal_factor_id
+      const hopMap: any = {};
+      hopData?.forEach((assessment: any) => {
+        if (!hopMap[assessment.causal_factor_id]) {
+          hopMap[assessment.causal_factor_id] = [];
+        }
+        hopMap[assessment.causal_factor_id].push(assessment);
+      });
+
+      const hfatMap: any = {};
+      hfatData?.forEach((assessment: any) => {
+        if (!hfatMap[assessment.causal_factor_id]) {
+          hfatMap[assessment.causal_factor_id] = [];
+        }
+        hfatMap[assessment.causal_factor_id].push(assessment);
+      });
+
+      setHopAssessments(hopMap);
+      setHfatAssessments(hfatMap);
+    } catch (error) {
+      console.error('Error loading assessments:', error);
+    }
+  }
+
+  async function addCausalFactor() {
+    try {
+      const factorData = {
         investigation_id: investigationId,
-        title: newRecommendation.title,
-        description: newRecommendation.description,
-        linked_causal_factors: newRecommendation.linkedFactors,
-        control_type: newRecommendation.controlType,
-        priority: newRecommendation.priority,
-        responsibility: newRecommendation.responsibility || null,
-        target_date: newRecommendation.targetDate || null,
-        estimated_cost: newRecommendation.estimatedCost,
-        status: 'proposed'
+        causal_factor_title: newFactor.title,
+        causal_factor_description: newFactor.description,
+        factor_type: newFactor.factorType,
+        factor_category: newFactor.factorCategory,
+        parent_causal_factor_id: newFactor.parentFactorId,
+        requires_hfat: newFactor.requiresHFAT,
+        requires_hop: newFactor.requiresHOP,
+        analysis_status: 'identified'
       };
 
-      if (editingRecommendationId) {
-        // UPDATE existing recommendation
-        const { error } = await supabase
-          .from('recommendations')
-          .update(recommendationData)
-          .eq('id', editingRecommendationId);
+      console.log('Attempting to insert causal factor:', factorData);
 
-        if (error) {
-          console.error('Database error:', error);
-          alert('Error updating recommendation');
-          return;
-        }
+      const { data, error } = await supabase
+        .from('causal_factors')
+        .insert([factorData])
+        .select();
 
-        alert('Recommendation updated successfully!');
-      } else {
-        // INSERT new recommendation
-        const { data, error } = await supabase
-          .from('recommendations')
-          .insert([recommendationData])
-          .select()
-          .single();
-
-        if (error) {
-          console.error('Database error:', error);
-          alert('Error saving recommendation');
-          return;
-        }
-
-        // Add to local state
-        setRecommendations([data, ...recommendations]);
-        alert('Recommendation added successfully!');
+      if (error) {
+        console.error('Supabase error:', error);
+        throw error;
       }
 
-      // Reset form
-      setNewRecommendation({
+      console.log('Successfully added causal factor:', data);
+
+      setNewFactor({
         title: '',
         description: '',
-        linkedFactors: [],
-        controlType: 'engineering',
-        priority: 'high',
-        responsibility: '',
-        targetDate: '',
-        estimatedCost: 'Medium'
+        factorType: 'immediate',
+        factorCategory: 'equipment',
+        parentFactorId: null,
+        requiresHFAT: false,
+        requiresHOP: false
       });
-      setEditingRecommendationId(null);
-      setShowAddRecommendation(false);
-      loadRecommendations();
-    } catch (error) {
-      console.error('Error:', error);
-      alert('Error saving recommendation');
-    } finally {
-      setSaving(false);
+      setShowAddFactor(false);
+      loadCausalFactors();
+      loadAssessments();
+    } catch (error: any) {
+      console.error('Error adding causal factor:', error);
+      alert(`Error adding causal factor: ${error.message}\n\nCheck browser console for details.`);
     }
-  };
+  }
 
-  const deleteRecommendation = async (id: string) => {
-    if (!confirm('Delete this recommendation?')) return;
+  async function updateCausalFactor() {
+    if (!editingFactor) return;
 
     try {
       const { error } = await supabase
-        .from('recommendations')
+        .from('causal_factors')
+        .update({
+          causal_factor_title: editingFactor.causal_factor_title,
+          causal_factor_description: editingFactor.causal_factor_description,
+          factor_type: editingFactor.factor_type,
+          factor_category: editingFactor.factor_category,
+          parent_causal_factor_id: editingFactor.parent_causal_factor_id,
+          requires_hfat: editingFactor.requires_hfat,
+          requires_hop: editingFactor.requires_hop,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', editingFactor.id);
+
+      if (error) throw error;
+
+      setEditingFactor(null);
+      loadCausalFactors();
+    } catch (error) {
+      console.error('Error updating causal factor:', error);
+      alert('Error updating causal factor');
+    }
+  }
+
+  async function deleteCausalFactor(id: string) {
+    if (!confirm('Are you sure you want to delete this causal factor?')) return;
+
+    try {
+      const { error } = await supabase
+        .from('causal_factors')
         .delete()
         .eq('id', id);
 
-      if (error) {
-        console.error('Error deleting recommendation:', error);
-        alert('Error deleting recommendation');
-        return;
-      }
-
-      setRecommendations(recommendations.filter(r => r.id !== id));
-      alert('Recommendation deleted');
+      if (error) throw error;
+      loadCausalFactors();
+      loadAssessments();
     } catch (error) {
-      console.error('Error:', error);
-      alert('Error deleting recommendation');
+      console.error('Error deleting causal factor:', error);
+      alert('Error deleting causal factor');
     }
-  };
+  }
 
-  const getPriorityColor = (priority: string) => {
-    const colors: Record<string, string> = {
-      high: 'bg-red-100 text-red-700 border-red-200',
-      medium: 'bg-amber-100 text-amber-700 border-amber-200',
-      low: 'bg-green-100 text-green-700 border-green-200'
-    };
-    return colors[priority] || 'bg-gray-100 text-gray-700 border-gray-200';
-  };
+  const factorTypes = [
+    { value: 'immediate', label: 'Immediate Cause', color: 'red' },
+    { value: 'contributing', label: 'Contributing Factor', color: 'amber' },
+    { value: 'root', label: 'Root Cause', color: 'purple' }
+  ];
 
-  const getControlTypeInfo = (type: string) => {
-    return controlTypes.find(ct => ct.value === type);
-  };
+  const factorCategories = [
+    { value: 'equipment', label: 'Equipment/Hardware' },
+    { value: 'human_performance', label: 'Human Performance' },
+    { value: 'procedure', label: 'Procedure/Process' },
+    { value: 'organizational', label: 'Organizational' },
+    { value: 'external', label: 'External Factor' }
+  ];
 
-  const filteredRecommendations = recommendations.filter(rec => {
-    const matchesType = filterType === 'all' || rec.control_type === filterType;
-    const matchesPriority = filterPriority === 'all' || rec.priority === filterPriority;
-    return matchesType && matchesPriority;
+  const filteredFactors = causalFactors.filter(f => {
+    if (filterType !== 'all' && f.factor_type !== filterType) return false;
+    if (filterStatus !== 'all' && f.analysis_status !== filterStatus) return false;
+    return true;
   });
 
-  const toggleFactorSelection = (factorId: string) => {
-    setNewRecommendation(prev => ({
-      ...prev,
-      linkedFactors: prev.linkedFactors.includes(factorId)
-        ? prev.linkedFactors.filter(id => id !== factorId)
-        : [...prev.linkedFactors, factorId]
-    }));
-  };
+  // Check if all causal factors are validated (for Step 5 gate)
+  const allFactorsValidated = causalFactors.length > 0 && 
+    causalFactors.every(f => f.analysis_status === 'validated');
 
-  if (!investigationId) {
+  if (loading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 p-6 flex items-center justify-center">
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="text-center">
-          <h2 className="text-xl font-semibold text-slate-900 mb-2">No Investigation Selected</h2>
-          <p className="text-slate-600">Please start from Step 1 to create an investigation.</p>
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
+          <p className="mt-4 text-gray-600">Loading Causal Analysis...</p>
         </div>
       </div>
     );
   }
 
   return (
-    <>
-      {investigation && (
-        <StepNavigation 
-          investigationId={investigationId} 
-          currentStep={5}
-          investigationNumber={investigation.investigation_number}
-          onBeforeNavigate={handleBeforeNavigate}
-        />
-      )}
-      <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 p-6">
-        <div className="max-w-7xl mx-auto">
-          {/* Header */}
-          <div className="bg-white rounded-lg shadow-sm border border-slate-200 p-6 mb-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <h1 className="text-2xl font-bold text-slate-900">Step 5: Recommendations</h1>
-                <p className="text-slate-600 mt-1">Develop corrective and preventive actions</p>
-                {investigation && (
-                  <div className="mt-2 text-sm">
-                    <span className="text-slate-500">Investigation:</span>{' '}
-                    <span className="font-medium text-slate-700">{investigation.investigation_number}</span>
-                    {' - '}
-                    <span className="text-slate-600">{investigation.incident_description}</span>
-                  </div>
-                )}
+    <div className="min-h-screen bg-gray-50">
+      {/* Step Navigation */}
+      <StepNavigation 
+        investigationId={investigationId || ''} 
+        currentStep={5}
+        investigationNumber={investigation?.investigation_number}
+      />
+      
+      <div className="py-8">
+      <div className="max-w-6xl mx-auto px-4">
+        {/* Header */}
+        <div className="bg-white rounded-lg shadow-sm p-6 mb-6">
+          <div className="flex items-center justify-between mb-4">
+            <div>
+              <h1 className="text-2xl font-bold text-gray-900">
+                Step 4: Causal Factor Analysis
+              </h1>
+              <p className="text-gray-600 mt-1">
+                Investigation: {investigation?.investigation_number} - {investigation?.incident_description}
+              </p>
+            </div>
+            <button
+              onClick={() => setShowAddFactor(true)}
+              className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+            >
+              <Plus size={20} />
+              Add Causal Factor
+            </button>
+          </div>
+
+          {/* Progress Indicator */}
+          <div className="flex items-center gap-4 p-4 bg-blue-50 rounded-lg">
+            <GitBranch className="text-blue-600" size={24} />
+            <div className="flex-1">
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-sm font-medium text-blue-900">
+                  Analysis Progress
+                </span>
+                <span className="text-sm text-blue-700">
+                  {causalFactors.filter(f => f.analysis_status === 'validated').length} / {causalFactors.length} Validated
+                </span>
               </div>
-              <button
-                onClick={() => setShowAddRecommendation(true)}
-                className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-              >
-                <Plus className="w-4 h-4" />
-                Add Recommendation
-              </button>
+              <div className="w-full bg-blue-200 rounded-full h-2">
+                <div
+                  className="bg-blue-600 h-2 rounded-full transition-all"
+                  style={{
+                    width: `${causalFactors.length > 0 
+                      ? (causalFactors.filter(f => f.analysis_status === 'validated').length / causalFactors.length) * 100 
+                      : 0}%`
+                  }}
+                ></div>
+              </div>
             </div>
           </div>
 
+          {/* Removed Step 5 lock - not all factors require validation */}
+        </div>
+
         {/* Filters */}
-        <div className="bg-white rounded-lg shadow-sm border border-slate-200 p-4 mb-6">
-          <div className="flex items-center gap-4">
-            <div className="flex items-center gap-2">
-              <Filter className="w-4 h-4 text-slate-600" />
-              <label className="text-sm font-medium text-slate-700">Control Type:</label>
+        <div className="bg-white rounded-lg shadow-sm p-4 mb-6">
+          <div className="flex gap-4">
+            <div className="flex-1">
+              <label className="block text-sm font-medium mb-2">Filter by Type</label>
               <select
                 value={filterType}
                 onChange={(e) => setFilterType(e.target.value)}
-                className="border border-slate-300 rounded px-3 py-1 text-sm"
+                className="w-full border rounded-lg px-3 py-2"
               >
                 <option value="all">All Types</option>
-                {controlTypes.map(ct => (
-                  <option key={ct.value} value={ct.value}>{ct.label}</option>
+                {factorTypes.map(type => (
+                  <option key={type.value} value={type.value}>{type.label}</option>
                 ))}
               </select>
             </div>
-            <div className="flex items-center gap-2">
-              <label className="text-sm font-medium text-slate-700">Priority:</label>
+            <div className="flex-1">
+              <label className="block text-sm font-medium mb-2">Filter by Status</label>
               <select
-                value={filterPriority}
-                onChange={(e) => setFilterPriority(e.target.value)}
-                className="border border-slate-300 rounded px-3 py-1 text-sm"
+                value={filterStatus}
+                onChange={(e) => setFilterStatus(e.target.value)}
+                className="w-full border rounded-lg px-3 py-2"
               >
-                <option value="all">All Priorities</option>
-                <option value="high">High</option>
-                <option value="medium">Medium</option>
-                <option value="low">Low</option>
+                <option value="all">All Statuses</option>
+                <option value="identified">Identified</option>
+                <option value="analysis_required">Analysis Required</option>
+                <option value="under_analysis">Under Analysis</option>
+                <option value="validated">Validated</option>
               </select>
-            </div>
-            <div className="ml-auto text-sm text-slate-600">
-              {filteredRecommendations.length} recommendation(s)
             </div>
           </div>
         </div>
 
-        {/* Recommendations List */}
+        {/* Causal Factors List */}
         <div className="space-y-4">
-          {filteredRecommendations.map((rec) => {
-            const controlInfo = getControlTypeInfo(rec.control_type);
-            
+          {filteredFactors.map(factor => {
+            const typeInfo = factorTypes.find(t => t.value === factor.factor_type);
+            const categoryInfo = factorCategories.find(c => c.value === factor.factor_category);
+
             return (
-              <div key={rec.id} className="bg-white rounded-lg shadow-sm border border-slate-200 p-6">
-                <div className="flex items-start gap-4">
-                  <div className="flex-1">
-                    <div className="flex items-start gap-3 mb-3">
-                      <Lightbulb className="w-5 h-5 text-amber-500 mt-1 flex-shrink-0" />
-                      <div className="flex-1">
-                        <h3 className="font-semibold text-lg text-slate-900 mb-2">{rec.title}</h3>
-                        <p className="text-slate-600 text-sm mb-3">{rec.description}</p>
-                        
-                        <div className="flex flex-wrap items-center gap-2 mb-3">
-                          <span className={`px-3 py-1 rounded-full text-xs font-medium border ${getPriorityColor(rec.priority)}`}>
-                            {rec.priority.toUpperCase()} Priority
-                          </span>
-                          {controlInfo && (
-                            <div className="flex items-center gap-2">
-                              <span className={`w-3 h-3 rounded-full ${controlInfo.color}`} />
-                              <span className="text-xs font-medium text-slate-700">
-                                {controlInfo.label} (Rank {controlInfo.rank})
-                              </span>
-                            </div>
-                          )}
-                        </div>
-
-                        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
-                          {rec.responsibility && (
-                            <div className="flex items-center gap-2 text-slate-600">
-                              <Users className="w-4 h-4" />
-                              <div>
-                                <div className="text-xs text-slate-500">Responsibility</div>
-                                <div className="font-medium">{rec.responsibility}</div>
-                              </div>
-                            </div>
-                          )}
-                          {rec.target_date && (
-                            <div className="flex items-center gap-2 text-slate-600">
-                              <Calendar className="w-4 h-4" />
-                              <div>
-                                <div className="text-xs text-slate-500">Target Date</div>
-                                <div className="font-medium">{rec.target_date}</div>
-                              </div>
-                            </div>
-                          )}
-                          {rec.estimated_cost && (
-                            <div className="flex items-center gap-2 text-slate-600">
-                              <Target className="w-4 h-4" />
-                              <div>
-                                <div className="text-xs text-slate-500">Cost Estimate</div>
-                                <div className="font-medium">{rec.estimated_cost}</div>
-                              </div>
-                            </div>
-                          )}
-                          <div className="flex items-center gap-2 text-slate-600">
-                            <Shield className="w-4 h-4" />
-                            <div>
-                              <div className="text-xs text-slate-500">Status</div>
-                              <div className="font-medium capitalize">{rec.status}</div>
-                            </div>
-                          </div>
-                        </div>
-
-                        {rec.linked_causal_factors && rec.linked_causal_factors.length > 0 && (
-                          <div className="mt-3 flex items-center gap-2 text-xs text-slate-500">
-                            <span>Addresses:</span>
-                            {rec.linked_causal_factors.map((cfId: string, idx: number) => {
-                              const factor = causalFactors.find(cf => cf.id === cfId);
-                              return (
-                                <span key={idx} className="px-2 py-1 bg-blue-50 text-blue-700 rounded border border-blue-200">
-                                  {factor ? factor.causal_factor_title : cfId}
-                                </span>
-                              );
-                            })}
-                          </div>
-                        )}
+              <div key={factor.id} className="bg-white rounded-lg shadow-sm border-2 border-gray-200 p-6">
+                {editingFactor?.id === factor.id ? (
+                  /* Edit Mode */
+                  <div className="space-y-4">
+                    <input
+                      type="text"
+                      value={editingFactor.causal_factor_title}
+                      onChange={(e) => setEditingFactor({...editingFactor, causal_factor_title: e.target.value})}
+                      className="w-full border rounded-lg px-3 py-2 font-medium"
+                      placeholder="Causal factor title..."
+                    />
+                    <textarea
+                      value={editingFactor.causal_factor_description}
+                      onChange={(e) => setEditingFactor({...editingFactor, causal_factor_description: e.target.value})}
+                      className="w-full border rounded-lg px-3 py-2"
+                      rows={3}
+                      placeholder="Description..."
+                    />
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <label className="block text-sm font-medium mb-2">Type</label>
+                        <select
+                          value={editingFactor.factor_type}
+                          onChange={(e) => setEditingFactor({...editingFactor, factor_type: e.target.value})}
+                          className="w-full border rounded-lg px-3 py-2"
+                        >
+                          {factorTypes.map(type => (
+                            <option key={type.value} value={type.value}>{type.label}</option>
+                          ))}
+                        </select>
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium mb-2">Category</label>
+                        <select
+                          value={editingFactor.factor_category}
+                          onChange={(e) => setEditingFactor({...editingFactor, factor_category: e.target.value})}
+                          className="w-full border rounded-lg px-3 py-2"
+                        >
+                          {factorCategories.map(cat => (
+                            <option key={cat.value} value={cat.value}>{cat.label}</option>
+                          ))}
+                        </select>
                       </div>
                     </div>
-                  </div>
 
-                  <div className="flex items-center gap-2">
-                    <button
-                      onClick={() => {
-                        setEditingRecommendationId(rec.id);
-                        setNewRecommendation({
-                          title: rec.title,
-                          description: rec.description,
-                          linkedFactors: rec.linked_causal_factors || [],
-                          controlType: rec.control_type,
-                          priority: rec.priority,
-                          responsibility: rec.responsibility || '',
-                          targetDate: rec.target_date || '',
-                          estimatedCost: rec.estimated_cost
-                        });
-                        setShowAddRecommendation(true);
-                      }}
-                      className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
-                      title="Edit recommendation"
-                    >
-                      <Edit2 className="w-4 h-4" />
-                    </button>
-                    <button
-                      onClick={() => deleteRecommendation(rec.id)}
-                      className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
-                      title="Delete recommendation"
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </button>
+                    <div className="space-y-3 mt-4 p-4 bg-gray-50 rounded-lg">
+                      <p className="text-sm font-medium text-gray-700">Required Assessments:</p>
+                      <label className="flex items-center gap-2 cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={editingFactor.requires_hfat || false}
+                          onChange={(e) => setEditingFactor({...editingFactor, requires_hfat: e.target.checked})}
+                          className="w-4 h-4"
+                        />
+                        <span className="text-sm">HFAT Assessment Required</span>
+                      </label>
+                      <label className="flex items-center gap-2 cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={editingFactor.requires_hop || false}
+                          onChange={(e) => setEditingFactor({...editingFactor, requires_hop: e.target.checked})}
+                          className="w-4 h-4"
+                        />
+                        <span className="text-sm">HOP Assessment Required</span>
+                      </label>
+                    </div>
+
+                    <div className="flex gap-2 justify-end">
+                      <button
+                        onClick={() => setEditingFactor(null)}
+                        className="px-4 py-2 border rounded-lg hover:bg-gray-50"
+                      >
+                        Cancel
+                      </button>
+                      <button
+                        onClick={updateCausalFactor}
+                        className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+                      >
+                        Save Changes
+                      </button>
+                    </div>
                   </div>
-                </div>
+                ) : (
+                  /* View Mode */
+                  <div>
+                    <div className="flex items-start justify-between mb-3">
+                      <div className="flex-1">
+                        <div className="flex items-center gap-3 mb-2">
+                          <h3 className="text-lg font-semibold text-gray-900">
+                            {factor.causal_factor_title}
+                          </h3>
+                          <span className={`px-3 py-1 rounded-full text-xs font-medium bg-${typeInfo?.color}-100 text-${typeInfo?.color}-700`}>
+                            {typeInfo?.label}
+                          </span>
+                          <span className="px-3 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-700">
+                            {categoryInfo?.label}
+                          </span>
+                        </div>
+                        <p className="text-gray-600 text-sm">
+                          {factor.causal_factor_description}
+                        </p>
+                      </div>
+                      <div className="flex gap-2">
+                        <button
+                          onClick={() => setEditingFactor(factor)}
+                          className="p-2 hover:bg-gray-100 rounded"
+                        >
+                          <Edit2 size={16} className="text-gray-600" />
+                        </button>
+                        <button
+                          onClick={() => deleteCausalFactor(factor.id)}
+                          className="p-2 hover:bg-gray-100 rounded"
+                        >
+                          <Trash2 size={16} className="text-red-600" />
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* Status Badge */}
+                    <div className="mb-4">
+                      {factor.analysis_status === 'validated' && (
+                        <div className="inline-flex items-center gap-2 px-3 py-1 bg-green-100 text-green-700 rounded-full text-sm">
+                          <CheckCircle size={16} />
+                          Validated
+                        </div>
+                      )}
+                      {factor.analysis_status === 'analysis_required' && (
+                        <div className="inline-flex items-center gap-2 px-3 py-1 bg-amber-100 text-amber-700 rounded-full text-sm">
+                          <AlertTriangle size={16} />
+                          Analysis Required
+                        </div>
+                      )}
+                      {factor.analysis_status === 'identified' && (
+                        <div className="inline-flex items-center gap-2 px-3 py-1 bg-gray-100 text-gray-700 rounded-full text-sm">
+                          Identified
+                        </div>
+                      )}
+                    </div>
+
+                    {/* HOP Assessment Section - Only show if required */}
+                    {factor.requires_hop && (
+                      <div className="mt-4 pt-4 border-t">
+                        <div className="flex items-center justify-between mb-2">
+                          <h4 className="font-medium text-sm">HOP Assessment</h4>
+                          {hopAssessments[factor.id]?.length > 0 && (
+                            <span className="text-xs text-green-600">✓ Complete</span>
+                          )}
+                        </div>
+
+                        {hopAssessments[factor.id]?.[0] ? (
+                          <div className="mb-2 p-3 bg-green-50 rounded border border-green-200">
+                            <div className="flex items-center justify-between">
+                              <div className="text-xs flex-1">
+                                <div className="font-medium mb-1">
+                                  {hopAssessments[factor.id][0].action_type === 'error' ? (
+                                    <span className="text-red-600">⚫ Error Analysis</span>
+                                  ) : (
+                                    <span className="text-amber-600">⚫ Violation Analysis</span>
+                                  )}
+                                  {hopAssessments[factor.id][0].violation_type && ` - ${hopAssessments[factor.id][0].violation_type.charAt(0).toUpperCase() + hopAssessments[factor.id][0].violation_type.slice(1)}`}
+                                </div>
+                                <div className="text-gray-700 italic mt-1">
+                                  {hopAssessments[factor.id][0].action_type === 'error' 
+                                    ? 'Person did not intend this outcome; made a mistake, forgot, misperceived'
+                                    : 'Person knowingly deviated from procedure/rule (but did not intend harm)'
+                                  }
+                                </div>
+                                <div className="text-gray-600 mt-2">
+                                  {hopAssessments[factor.id][0].status === 'complete' ? '✅ Complete' : '📝 Draft'} - 
+                                  {' '}{new Date(hopAssessments[factor.id][0].updated_at).toLocaleDateString()}
+                                </div>
+                              </div>
+                              <button
+                                onClick={() => router.push(`/hop-new?investigationId=${investigationId}&causalFactorId=${factor.id}&assessmentId=${hopAssessments[factor.id][0].id}`)}
+                                className="text-xs px-3 py-1 bg-green-600 text-white rounded hover:bg-green-700 ml-3"
+                              >
+                                View/Edit
+                              </button>
+                            </div>
+                          </div>
+                        ) : (
+                          <button
+                            onClick={() => router.push(`/hop-new?investigationId=${investigationId}&causalFactorId=${factor.id}`)}
+                            className="w-full flex items-center justify-center gap-2 px-3 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 text-sm"
+                          >
+                            <Plus className="w-4 h-4" />
+                            Launch HOP Assessment
+                          </button>
+                        )}
+                      </div>
+                    )}
+
+                    {/* HFAT Assessment Section - Only show if required */}
+                    {factor.requires_hfat && (
+                      <div className="mt-4 pt-4 border-t">
+                        <div className="flex items-center justify-between mb-2">
+                          <h4 className="font-medium text-sm">HFAT Assessment</h4>
+                          {hfatAssessments[factor.id]?.length > 0 && (
+                            <span className="text-xs text-purple-600">✓ Complete</span>
+                          )}
+                        </div>
+
+                        {hfatAssessments[factor.id]?.[0] ? (
+                          <div className="mb-2 p-3 bg-purple-50 rounded border border-purple-200">
+                            <div className="flex items-center justify-between">
+                              <div className="text-xs">
+                                <div className="font-medium">HFAT Analysis</div>
+                                <div className="text-gray-600 mt-1">
+                                  {hfatAssessments[factor.id][0].status === 'complete' ? '✅ Complete' : '📝 Draft'} - 
+                                  {' '}{new Date(hfatAssessments[factor.id][0].updated_at).toLocaleDateString()}
+                                </div>
+                              </div>
+                              <button
+                                onClick={() => router.push(`/hfat-new?investigationId=${investigationId}&causalFactorId=${factor.id}&assessmentId=${hfatAssessments[factor.id][0].id}`)}
+                                className="text-xs px-3 py-1 bg-purple-600 text-white rounded hover:bg-purple-700"
+                              >
+                                View/Edit
+                              </button>
+                            </div>
+                          </div>
+                        ) : (
+                          <button
+                            onClick={() => router.push(`/hfat-new?investigationId=${investigationId}&causalFactorId=${factor.id}`)}
+                            className="w-full flex items-center justify-center gap-2 px-3 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 text-sm"
+                          >
+                            <Plus className="w-4 h-4" />
+                            Launch HFAT Assessment
+                          </button>
+                        )}
+
+                      </div>
+                    )}
+                  </div>
+                )}
               </div>
             );
           })}
         </div>
 
-        {filteredRecommendations.length === 0 && (
-          <div className="bg-white rounded-lg shadow-sm border border-slate-200 p-12 text-center">
-            <Lightbulb className="w-12 h-12 text-slate-300 mx-auto mb-4" />
-            <h3 className="text-lg font-medium text-slate-900 mb-2">No Recommendations Yet</h3>
-            <p className="text-slate-600 mb-4">Start developing corrective and preventive actions</p>
-            <button
-              onClick={() => setShowAddRecommendation(true)}
-              className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-            >
-              <Plus className="w-4 h-4" />
-              Add First Recommendation
-            </button>
+        {filteredFactors.length === 0 && (
+          <div className="bg-white rounded-lg shadow-sm p-12 text-center">
+            <GitBranch className="w-16 h-16 text-gray-300 mx-auto mb-4" />
+            <p className="text-gray-600">No causal factors match your filters</p>
           </div>
         )}
 
-        {/* Navigation */}
-        <div className="flex justify-between mt-8">
-          <button
-            onClick={() => window.history.back()}
-            className="px-6 py-2 text-slate-700 border border-slate-300 rounded-lg hover:bg-slate-50 transition-colors"
-          >
-            Previous Step
-          </button>
-          <button
-            onClick={async () => {
-              if (!investigationId) {
-                alert('No investigation ID found');
-                return;
-              }
-              
-              if (confirm('Mark this investigation as complete? This will update the status and you can generate the final report.')) {
-                try {
-                  const { error } = await supabase
-                    .from('investigations')
-                    .update({ 
-                      status: 'completed'
-                    })
-                    .eq('id', investigationId);
-
-                  if (error) {
-                    console.error('Error completing investigation:', error);
-                    alert('Error updating investigation status: ' + error.message);
-                  } else {
-                    alert('Investigation marked as complete! Redirecting to report...');
-                    router.push(`/report?investigationId=${investigationId}`);
-                  }
-                } catch (error: any) {
-                  console.error('Error:', error);
-                  alert('Error completing investigation: ' + error.message);
-                }
-              }
-            }}
-            className="px-6 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
-          >
-            Complete Investigation
-          </button>
-        </div>
-      </div>
-
-      {/* Add Recommendation Modal */}
-      {showAddRecommendation && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-          <div className="bg-white rounded-lg p-6 max-w-3xl w-full max-h-[90vh] overflow-y-auto">
-            <div className="flex justify-between items-center mb-6">
-              <h2 className="text-xl font-bold">{editingRecommendationId ? 'Edit Recommendation' : 'Add Recommendation'}</h2>
-              <button
-                onClick={() => {
-                  setShowAddRecommendation(false);
-                  setEditingRecommendationId(null);
-                  setNewRecommendation({
-                    title: '',
-                    description: '',
-                    linkedFactors: [],
-                    controlType: 'engineering',
-                    priority: 'high',
-                    responsibility: '',
-                    targetDate: '',
-                    estimatedCost: 'Medium'
-                  });
-                }}
-                className="p-2 hover:bg-slate-100 rounded-lg transition-colors"
-              >
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-            
-            <div className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-slate-700 mb-2">
-                  Recommendation Title *
-                </label>
-                <input
-                  type="text"
-                  value={newRecommendation.title}
-                  onChange={(e) => setNewRecommendation({ ...newRecommendation, title: e.target.value })}
-                  className="w-full border border-slate-300 rounded-lg px-4 py-2"
-                  placeholder="Brief description of the recommendation"
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-slate-700 mb-2">
-                  Detailed Description *
-                </label>
-                <textarea
-                  value={newRecommendation.description}
-                  onChange={(e) => setNewRecommendation({ ...newRecommendation, description: e.target.value })}
-                  className="w-full border border-slate-300 rounded-lg px-4 py-2"
-                  rows={4}
-                  placeholder="Provide detailed explanation of what should be done..."
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-slate-700 mb-2">
-                  Control Type (Hierarchy of Controls) *
-                </label>
-                <select 
-                  value={newRecommendation.controlType}
-                  onChange={(e) => setNewRecommendation({ ...newRecommendation, controlType: e.target.value })}
-                  className="w-full border border-slate-300 rounded-lg px-4 py-2"
-                >
-                  {controlTypes.map((ct, idx) => (
-                    <option key={ct.value} value={ct.value}>
-                      {idx + 1}. {ct.label} - {ct.description}
-                    </option>
-                  ))}
-                </select>
-                <p className="text-xs text-slate-500 mt-1">
-                  Select from most effective (1. Elimination) to least effective (5. PPE)
-                </p>
-              </div>
-
-              {causalFactors.length > 0 && (
-                <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-2">
-                    Link to Causal Factors
-                  </label>
-                  <div className="border border-slate-300 rounded-lg p-3 max-h-40 overflow-y-auto">
-                    {causalFactors.map(factor => (
-                      <label key={factor.id} className="flex items-start gap-2 py-2 hover:bg-slate-50 px-2 rounded cursor-pointer">
-                        <input
-                          type="checkbox"
-                          checked={newRecommendation.linkedFactors.includes(factor.id)}
-                          onChange={() => toggleFactorSelection(factor.id)}
-                          className="mt-1"
-                        />
-                        <span className="text-sm text-slate-700">{factor.causal_factor_title}</span>
-                      </label>
-                    ))}
-                  </div>
-                  <p className="text-xs text-slate-500 mt-1">
-                    Select which causal factors this recommendation addresses
-                  </p>
-                </div>
-              )}
-
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-2">
-                    Priority *
-                  </label>
-                  <select 
-                    value={newRecommendation.priority}
-                    onChange={(e) => setNewRecommendation({ ...newRecommendation, priority: e.target.value })}
-                    className="w-full border border-slate-300 rounded-lg px-4 py-2"
-                  >
-                    <option value="high">High</option>
-                    <option value="medium">Medium</option>
-                    <option value="low">Low</option>
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-2">
-                    Cost Estimate
-                  </label>
-                  <select 
-                    value={newRecommendation.estimatedCost}
-                    onChange={(e) => setNewRecommendation({ ...newRecommendation, estimatedCost: e.target.value })}
-                    className="w-full border border-slate-300 rounded-lg px-4 py-2"
-                  >
-                    <option value="Low">Low (&lt;$10k)</option>
-                    <option value="Medium">Medium ($10k-$100k)</option>
-                    <option value="High">High (&gt;$100k)</option>
-                  </select>
-                </div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-2">
-                    Responsible Party
-                  </label>
-                  <input
-                    type="text"
-                    value={newRecommendation.responsibility}
-                    onChange={(e) => setNewRecommendation({ ...newRecommendation, responsibility: e.target.value })}
-                    className="w-full border border-slate-300 rounded-lg px-4 py-2"
-                    placeholder="Department or role"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-2">
-                    Target Completion Date
-                  </label>
-                  <input
-                    type="date"
-                    value={newRecommendation.targetDate}
-                    onChange={(e) => setNewRecommendation({ ...newRecommendation, targetDate: e.target.value })}
-                    className="w-full border border-slate-300 rounded-lg px-4 py-2"
-                  />
-                </div>
-              </div>
-            </div>
-
-            <div className="flex gap-3 mt-6">
-              <button
-                onClick={handleAddRecommendation}
-                disabled={saving}
-                className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-              >
-                {saving ? 'Saving...' : editingRecommendationId ? 'Update Recommendation' : 'Add Recommendation'}
-              </button>
-              <button
-                onClick={() => {
-                  setShowAddRecommendation(false);
-                  setEditingRecommendationId(null);
-                  setNewRecommendation({
-                    title: '',
-                    description: '',
-                    linkedFactors: [],
-                    controlType: 'engineering',
-                    priority: 'high',
-                    responsibility: '',
-                    targetDate: '',
-                    estimatedCost: 'Medium'
-                  });
-                }}
-                disabled={saving}
-                className="px-4 py-2 border border-slate-300 rounded-lg hover:bg-slate-50 disabled:opacity-50 transition-colors"
-              >
-                Cancel
-              </button>
+        {/* Investigation Principles - Always Visible */}
+        <div className="bg-blue-50 border-2 border-blue-300 rounded-lg p-6 mt-6">
+          <div className="flex items-start gap-3">
+            <Lightbulb className="w-6 h-6 text-blue-600 flex-shrink-0 mt-1" />
+            <div>
+              <h3 className="font-bold text-blue-900 mb-3 text-lg">Key Investigation Principles:</h3>
+              <ul className="space-y-2 text-sm text-blue-900">
+                <li className="flex items-start gap-2">
+                  <span className="font-bold mt-0.5">•</span>
+                  <span><strong>Local Rationality:</strong> People's actions made sense to them at the time given their knowledge, training, and context</span>
+                </li>
+                <li className="flex items-start gap-2">
+                  <span className="font-bold mt-0.5">•</span>
+                  <span><strong>Multiple Theories:</strong> Generate at least 2-3 possible explanations before reaching conclusions</span>
+                </li>
+                <li className="flex items-start gap-2">
+                  <span className="font-bold mt-0.5">•</span>
+                  <span><strong>System Focus:</strong> Even when human action is involved, understand what system factors made the error likely</span>
+                </li>
+                <li className="flex items-start gap-2">
+                  <span className="font-bold mt-0.5">•</span>
+                  <span><strong>Don't Stop at "Human Error":</strong> That's a starting point, not a conclusion. Ask WHY the error was made</span>
+                </li>
+              </ul>
             </div>
           </div>
         </div>
-      )}
+
+        {/* Add Causal Factor Modal */}
+        {showAddFactor && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+            <div className="bg-white rounded-lg max-w-2xl w-full p-6">
+              <h2 className="text-xl font-bold mb-4">Add Causal Factor</h2>
+              
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium mb-2">Title *</label>
+                  <input
+                    type="text"
+                    value={newFactor.title}
+                    onChange={(e) => setNewFactor({...newFactor, title: e.target.value})}
+                    className="w-full border rounded-lg px-3 py-2"
+                    placeholder="Brief description of the causal factor..."
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium mb-2">Description *</label>
+                  <textarea
+                    value={newFactor.description}
+                    onChange={(e) => setNewFactor({...newFactor, description: e.target.value})}
+                    className="w-full border rounded-lg px-3 py-2"
+                    rows={4}
+                    placeholder="Detailed explanation of this causal factor..."
+                  />
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium mb-2">Type *</label>
+                    <select
+                      value={newFactor.factorType}
+                      onChange={(e) => setNewFactor({...newFactor, factorType: e.target.value})}
+                      className="w-full border rounded-lg px-3 py-2"
+                    >
+                      {factorTypes.map(type => (
+                        <option key={type.value} value={type.value}>{type.label}</option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium mb-2">Category *</label>
+                    <select
+                      value={newFactor.factorCategory}
+                      onChange={(e) => setNewFactor({...newFactor, factorCategory: e.target.value})}
+                      className="w-full border rounded-lg px-3 py-2"
+                    >
+                      {factorCategories.map(cat => (
+                        <option key={cat.value} value={cat.value}>{cat.label}</option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+
+                <div className="space-y-3 mt-4 p-4 bg-gray-50 rounded-lg">
+                  <p className="text-sm font-medium text-gray-700">Required Assessments:</p>
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={newFactor.requiresHFAT}
+                      onChange={(e) => setNewFactor({...newFactor, requiresHFAT: e.target.checked})}
+                      className="w-4 h-4"
+                    />
+                    <span className="text-sm">HFAT Assessment Required</span>
+                  </label>
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={newFactor.requiresHOP}
+                      onChange={(e) => setNewFactor({...newFactor, requiresHOP: e.target.checked})}
+                      className="w-4 h-4"
+                    />
+                    <span className="text-sm">HOP Assessment Required</span>
+                  </label>
+                </div>
+              </div>
+
+              <div className="flex gap-4 mt-6">
+                <button
+                  onClick={() => setShowAddFactor(false)}
+                  className="flex-1 px-4 py-2 border rounded-lg hover:bg-gray-50"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={addCausalFactor}
+                  disabled={!newFactor.title || !newFactor.description}
+                  className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:bg-gray-300"
+                >
+                  Add Causal Factor
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
+      </div>
     </div>
-    </>
   );
 }
