@@ -303,72 +303,39 @@ export default function ReportPage() {
               <h2 className="text-2xl font-bold text-slate-900 mb-4 pb-2 border-b border-slate-300">
                 2. INCIDENT DESCRIPTION
               </h2>
-              <p className="text-slate-700 whitespace-pre-wrap">{investigation?.incident_description || 'No description provided.'}</p>
+
+              {/* Structured details */}
+              <div className="grid grid-cols-2 gap-x-8 gap-y-2 text-sm mb-4 bg-slate-50 border border-slate-200 rounded-lg p-4">
+                {investigation?.location_facility && (
+                  <div><span className="font-semibold text-slate-600">Location:</span> <span className="text-slate-900">{investigation.location_facility}</span></div>
+                )}
+                {investigation?.incident_date && (
+                  <div><span className="font-semibold text-slate-600">Date:</span> <span className="text-slate-900">{formatDate(investigation.incident_date)}</span></div>
+                )}
+                {investigation?.incident_time && (
+                  <div><span className="font-semibold text-slate-600">Time:</span> <span className="text-slate-900">{investigation.incident_time}</span></div>
+                )}
+                {investigation?.incident_type && (
+                  <div><span className="font-semibold text-slate-600">Classification:</span> <span className="text-slate-900">{investigation.incident_type}</span></div>
+                )}
+              </div>
+
+              {/* Narrative description */}
+              <p className="text-slate-700 whitespace-pre-wrap mb-4">{investigation?.incident_description || 'No description provided.'}</p>
+
+              {/* Immediate actions */}
               {investigation?.immediate_actions && (
-                <div className="mt-4 pl-4 border-l-2 border-blue-400">
+                <div className="pl-4 border-l-2 border-blue-400">
                   <p className="font-semibold text-slate-800 text-sm mb-1">Immediate Actions Taken</p>
                   <p className="text-slate-700 whitespace-pre-wrap">{investigation.immediate_actions}</p>
                 </div>
               )}
             </section>
 
-            {/* ── 3. EVIDENCE & DATA COLLECTION ────────────────────────── */}
+            {/* ── 3. TIMELINE OF EVENTS ────────────────────────────────── */}
             <section className="mb-8">
               <h2 className="text-2xl font-bold text-slate-900 mb-4 pb-2 border-b border-slate-300">
-                3. EVIDENCE &amp; DATA COLLECTION
-              </h2>
-
-              {/* Evidence */}
-              <h3 className="font-semibold text-slate-800 mb-2">Physical Evidence</h3>
-              {evidence.length > 0 ? (
-                <div className="space-y-2 mb-5">
-                  {evidence.map((item, idx) => (
-                    <div key={item.id} className="flex gap-3 pl-4 border-l-2 border-blue-400">
-                      <span className="font-mono text-sm text-slate-500 min-w-[24px]">{idx + 1}.</span>
-                      <div className="flex-1">
-                        <p className="text-slate-900 font-medium">{item.evidence_title}</p>
-                        {item.evidence_description && <p className="text-sm text-slate-600 mt-0.5">{item.evidence_description}</p>}
-                        <div className="flex gap-3 mt-1 text-xs text-slate-500">
-                          {item.evidence_type  && <span>Type: {item.evidence_type}</span>}
-                          {item.collected_by   && <span>Collected by: {item.collected_by}</span>}
-                          {item.collection_date && <span>Date: {formatDate(item.collection_date)}</span>}
-                        </div>
-                        {item.file_path && (
-                          <a href={item.file_path} target="_blank" rel="noopener noreferrer"
-                             className="text-xs text-blue-600 hover:underline mt-1 inline-block">View Document</a>
-                        )}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <p className="text-slate-500 italic mb-5">No evidence recorded.</p>
-              )}
-
-              {/* Interviews */}
-              <h3 className="font-semibold text-slate-800 mb-2">Witness Interviews</h3>
-              {interviews.length > 0 ? (
-                <div className="space-y-2">
-                  {interviews.map((iv, idx) => (
-                    <div key={iv.id} className="pl-4 border-l-2 border-purple-400">
-                      <p className="font-medium text-slate-900">{iv.interviewee_name} — {iv.interview_role || 'Role not specified'}</p>
-                      <p className="text-sm text-slate-600">
-                        Interviewed: {formatDateTime(iv.interview_date, iv.interview_time)}
-                        {iv.interviewer_name && <span> by {iv.interviewer_name}</span>}
-                      </p>
-                      {iv.key_points && <p className="text-slate-700 mt-1 whitespace-pre-wrap">{iv.key_points}</p>}
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <p className="text-slate-500 italic">No interviews recorded.</p>
-              )}
-            </section>
-
-            {/* ── 4. TIMELINE OF EVENTS ────────────────────────────────── */}
-            <section className="mb-8">
-              <h2 className="text-2xl font-bold text-slate-900 mb-4 pb-2 border-b border-slate-300">
-                4. TIMELINE OF EVENTS
+                3. TIMELINE OF EVENTS
               </h2>
               {parentEvents.length > 0 ? (
                 <div className="space-y-1">
@@ -429,7 +396,7 @@ export default function ReportPage() {
             {/* ── 5. BARRIER ANALYSIS ──────────────────────────────────── */}
             <section className="mb-8">
               <h2 className="text-2xl font-bold text-slate-900 mb-4 pb-2 border-b border-slate-300">
-                5. BARRIER ANALYSIS
+                4. BARRIER ANALYSIS
               </h2>
               {barriers.length > 0 ? (
                 <div className="overflow-x-auto">
@@ -476,7 +443,7 @@ export default function ReportPage() {
             {/* ── 6. CAUSAL ANALYSIS ───────────────────────────────────── */}
             <section className="mb-8">
               <h2 className="text-2xl font-bold text-slate-900 mb-4 pb-2 border-b border-slate-300">
-                6. CAUSAL ANALYSIS
+                5. CAUSAL ANALYSIS
               </h2>
               {causalFactors.length > 0 ? causalFactors.map((factor, idx) => {
                 const hfat = hfatAssessments.find((h: any) => h.causal_factor_id === factor.id);
@@ -487,7 +454,7 @@ export default function ReportPage() {
                 return (
                   <div key={factor.id} className="mb-6 pb-6 border-b border-slate-200 last:border-0">
                     <h3 className="font-semibold text-lg text-slate-900 mb-2">
-                      6.{idx + 1}&nbsp; {factor.causal_factor_title}
+                      5.{idx + 1}&nbsp; {factor.causal_factor_title}
                     </h3>
 
                     {/* type + category badges */}
@@ -518,9 +485,12 @@ export default function ReportPage() {
                     )}
 
                     {/* ── HFAT grouped by IOGP section ──────────────────── */}
-                    {hfatGroups ? (() => {
+                    {(() => {
+                      if (!hfatGroups) return null;
                       const hasAny = Object.values(hfatGroups).some(g => g.items.length > 0);
-                      return hasAny ? (
+                      if (!hasAny) return null;  // Don't render section if no data
+                      
+                      return (
                         <div className="mt-4 pl-4 border-l-2 border-purple-500">
                           <h4 className="font-semibold text-slate-900 mb-3">Human Factors Analysis (HFAT) — IOGP 621</h4>
                           {Object.entries(hfatGroups).map(([sectionKey, section]) => {
@@ -547,69 +517,58 @@ export default function ReportPage() {
                             );
                           })}
                         </div>
-                      ) : (
-                        <div className="mt-4 pl-4 border-l-2 border-purple-500">
-                          <h4 className="font-semibold text-slate-900 mb-1">Human Factors Analysis (HFAT)</h4>
-                          <p className="text-slate-500 italic text-sm">None identified</p>
-                        </div>
                       );
-                    })() : (
-                      <div className="mt-4 pl-4 border-l-2 border-purple-500">
-                        <h4 className="font-semibold text-slate-900 mb-1">Human Factors Analysis (HFAT)</h4>
-                        <p className="text-slate-500 italic text-sm">None identified</p>
+                    })()}
+
+                    {/* ── Just Culture ──────────────────────────────────── */}
+                    {justCulture?.classification && (
+                      <div className="mt-4 pl-4 border-l-2 border-blue-500">
+                        <h4 className="font-semibold text-slate-900 mb-1">Just Culture Assessment</h4>
+                        <div className="flex items-center gap-2 mt-1">
+                          <span className={`inline-block px-2 py-0.5 text-xs rounded font-medium ${
+                            justCulture.classification === 'Human Error'       ? 'bg-green-100 text-green-800' :
+                            justCulture.classification === 'At-Risk Behavior'  ? 'bg-orange-100 text-orange-800' :
+                            'bg-red-100 text-red-800'
+                          }`}>
+                            {justCulture.classification}
+                          </span>
+                        </div>
+                        {justCulture.justification && (
+                          <p className="text-sm text-slate-700 mt-1.5 whitespace-pre-wrap">{justCulture.justification}</p>
+                        )}
                       </div>
                     )}
 
-                    {/* ── Just Culture ──────────────────────────────────── */}
-                    <div className="mt-4 pl-4 border-l-2 border-blue-500">
-                      <h4 className="font-semibold text-slate-900 mb-1">Just Culture Assessment</h4>
-                      {justCulture?.classification ? (
-                        <>
-                          <div className="flex items-center gap-2 mt-1">
-                            <span className={`inline-block px-2 py-0.5 text-xs rounded font-medium ${
-                              justCulture.classification === 'Human Error'       ? 'bg-green-100 text-green-800' :
-                              justCulture.classification === 'At-Risk Behavior'  ? 'bg-orange-100 text-orange-800' :
-                              'bg-red-100 text-red-800'
-                            }`}>
-                              {justCulture.classification}
-                            </span>
-                          </div>
-                          {justCulture.justification && (
-                            <p className="text-sm text-slate-700 mt-1.5 whitespace-pre-wrap">{justCulture.justification}</p>
-                          )}
-                        </>
-                      ) : (
-                        <p className="text-slate-500 italic text-sm">None identified</p>
-                      )}
-                    </div>
-
                     {/* ── HOP ───────────────────────────────────────────── */}
-                    <div className="mt-4 pl-4 border-l-2 border-green-500">
-                      <h4 className="font-semibold text-slate-900 mb-1">Human and Organisational Performance (HOP)</h4>
-                      {hop ? (() => {
-                        const hasAnyField = hopSections.some(s => s.fields.some(f => hop[f.key]));
-                        if (!hasAnyField) return <p className="text-slate-500 italic text-sm">None identified</p>;
-                        return hopSections.map((section, sIdx) => {
-                          const sectionFields = section.fields.filter(f => hop[f.key]);
-                          if (sectionFields.length === 0) return null;
-                          return (
-                            <div key={sIdx} className="mb-3">
-                              <p className="text-xs font-semibold text-green-700 uppercase tracking-wide mb-1.5">{section.title}</p>
-                              <div className="space-y-1.5 pl-3">
-                                {sectionFields.map(f => (
-                                  <div key={f.key}>
-                                    <p className="text-sm font-medium text-slate-700">{f.label}</p>
-                                    <p className="text-sm text-slate-600">{hop[f.key]}</p>
-                                  </div>
-                                ))}
+                    {(() => {
+                      if (!hop) return null;
+                      // Check if ANY field across all sections has data
+                      const hasAnyField = hopSections.some(s => s.fields.some(f => hop[f.key]));
+                      if (!hasAnyField) return null;  // Don't render section if no data
+
+                      return (
+                        <div className="mt-4 pl-4 border-l-2 border-green-500">
+                          <h4 className="font-semibold text-slate-900 mb-1">Human and Organisational Performance (HOP)</h4>
+                          {hopSections.map((section, sIdx) => {
+                            const sectionFields = section.fields.filter(f => hop[f.key]);
+                            if (sectionFields.length === 0) return null;
+                            return (
+                              <div key={sIdx} className="mb-3">
+                                <p className="text-xs font-semibold text-green-700 uppercase tracking-wide mb-1.5">{section.title}</p>
+                                <div className="space-y-1.5 pl-3">
+                                  {sectionFields.map(f => (
+                                    <div key={f.key}>
+                                      <p className="text-sm font-medium text-slate-700">{f.label}</p>
+                                      <p className="text-sm text-slate-600 whitespace-pre-wrap">{hop[f.key]}</p>
+                                    </div>
+                                  ))}
+                                </div>
                               </div>
-                            </div>
-                          );
-                        });
-                      })() : (
-                        <p className="text-slate-500 italic text-sm">None identified</p>
-                      )}
-                    </div>
+                            );
+                          })}
+                        </div>
+                      );
+                    })()}
                   </div>
                 );
               }) : (
@@ -620,7 +579,7 @@ export default function ReportPage() {
             {/* ── 7. RECOMMENDATIONS ───────────────────────────────────── */}
             <section className="mb-8">
               <h2 className="text-2xl font-bold text-slate-900 mb-4 pb-2 border-b border-slate-300">
-                7. RECOMMENDATIONS
+                6. RECOMMENDATIONS
               </h2>
               {recommendations.length > 0 ? (
                 <div className="space-y-4">
@@ -673,7 +632,7 @@ export default function ReportPage() {
             {/* ── 8. CONCLUSION ────────────────────────────────────────── */}
             <section className="mb-8">
               <h2 className="text-2xl font-bold text-slate-900 mb-4 pb-2 border-b border-slate-300">
-                8. CONCLUSION
+                7. CONCLUSION
               </h2>
               <p className="text-slate-700">
                 This investigation identified {causalFactors.length} causal factor{causalFactors.length !== 1 ? 's' : ''} and
