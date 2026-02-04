@@ -196,23 +196,7 @@ export default function ReportPage() {
   };
 
   // ── barrier status colour ────────────────────────────────────────────────
-  const barrierStatusStyle = (status: string) => {
-    switch (status?.toLowerCase()) {
-      case 'present':  return 'bg-green-100 text-green-800';
-      case 'absent':   return 'bg-red-100 text-red-800';
-      case 'degraded': return 'bg-orange-100 text-orange-800';
-      default:         return 'bg-slate-100 text-slate-700';
-    }
-  };
-
-  const performedStyle = (performed: string) => {
-    switch (performed?.toLowerCase()) {
-      case 'yes':     return 'bg-green-100 text-green-800';
-      case 'partial': return 'bg-orange-100 text-orange-800';
-      case 'no':      return 'bg-red-100 text-red-800';
-      default:        return 'bg-slate-100 text-slate-700';
-    }
-  };
+  // Status is a combined field like "present_performed", "absent", etc.
 
   // ── loading ──────────────────────────────────────────────────────────────
   if (loading) {
@@ -324,10 +308,10 @@ export default function ReportPage() {
               <p className="text-slate-700 whitespace-pre-wrap mb-4">{investigation?.incident_description || 'No description provided.'}</p>
 
               {/* Immediate actions */}
-              {investigation?.immediate_actions && (
+              {investigation?.immediate_actions_taken && (
                 <div className="pl-4 border-l-2 border-blue-400">
                   <p className="font-semibold text-slate-800 text-sm mb-1">Immediate Actions Taken</p>
-                  <p className="text-slate-700 whitespace-pre-wrap">{investigation.immediate_actions}</p>
+                  <p className="text-slate-700 whitespace-pre-wrap">{investigation.immediate_actions_taken}</p>
                 </div>
               )}
             </section>
@@ -350,8 +334,8 @@ export default function ReportPage() {
                           </div>
                           <div className="flex-1">
                             <div className="flex items-center gap-2 flex-wrap">
-                              {event.event_category && (
-                                <span className="inline-block px-2 py-0.5 text-xs rounded bg-slate-100 text-slate-700">{event.event_category}</span>
+                              {event.category && (
+                                <span className="inline-block px-2 py-0.5 text-xs rounded bg-slate-100 text-slate-700">{event.category}</span>
                               )}
                               {event.is_incident_event && (
                                 <span className="inline-block px-2 py-0.5 text-xs rounded bg-red-100 text-red-700 font-semibold">INCIDENT EVENT</span>
@@ -360,8 +344,8 @@ export default function ReportPage() {
                                 <span className="inline-block px-2 py-0.5 text-xs rounded bg-green-100 text-green-700">Verified</span>
                               )}
                             </div>
-                            <p className="text-slate-900 font-medium mt-1">{event.event_title}</p>
-                            {event.event_description && <p className="text-sm text-slate-600 mt-0.5">{event.event_description}</p>}
+                            <p className="text-slate-900 font-medium mt-1">{event.title}</p>
+                            {event.description && <p className="text-sm text-slate-600 mt-0.5">{event.description}</p>}
                           </div>
                         </div>
                         {/* child events — indented */}
@@ -379,8 +363,8 @@ export default function ReportPage() {
                                   <span className="inline-block px-1.5 py-0.5 text-xs rounded bg-green-100 text-green-700">Verified</span>
                                 )}
                               </div>
-                              <p className="text-sm text-slate-800">{child.event_title}</p>
-                              {child.event_description && <p className="text-xs text-slate-600 mt-0.5">{child.event_description}</p>}
+                              <p className="text-sm text-slate-800">{child.title}</p>
+                              {child.description && <p className="text-xs text-slate-600 mt-0.5">{child.description}</p>}
                             </div>
                           </div>
                         ))}
@@ -407,7 +391,6 @@ export default function ReportPage() {
                         <th className="text-left p-3 font-semibold text-slate-700 border-b border-slate-200">Barrier</th>
                         <th className="text-left p-3 font-semibold text-slate-700 border-b border-slate-200">Type</th>
                         <th className="text-left p-3 font-semibold text-slate-700 border-b border-slate-200">Status</th>
-                        <th className="text-left p-3 font-semibold text-slate-700 border-b border-slate-200">Performed</th>
                         <th className="text-left p-3 font-semibold text-slate-700 border-b border-slate-200">Failure Reason / Notes</th>
                       </tr>
                     </thead>
@@ -418,13 +401,12 @@ export default function ReportPage() {
                           <td className="p-3 font-medium text-slate-900">{b.barrier_name}</td>
                           <td className="p-3 text-slate-700">{b.barrier_type || '—'}</td>
                           <td className="p-3">
-                            <span className={`inline-block px-2 py-0.5 text-xs rounded font-medium ${barrierStatusStyle(b.status)}`}>
-                              {b.status || '—'}
-                            </span>
-                          </td>
-                          <td className="p-3">
-                            <span className={`inline-block px-2 py-0.5 text-xs rounded font-medium ${performedStyle(b.performed)}`}>
-                              {b.performed || '—'}
+                            <span className={`inline-block px-2 py-0.5 text-xs rounded font-medium ${
+                              b.status?.includes('absent') ? 'bg-red-100 text-red-800' :
+                              b.status?.includes('present') ? 'bg-green-100 text-green-800' :
+                              'bg-slate-100 text-slate-700'
+                            }`}>
+                              {b.status?.replace(/_/g, ' ') || '—'}
                             </span>
                           </td>
                           <td className="p-3 text-slate-600 whitespace-pre-wrap">
@@ -469,11 +451,6 @@ export default function ReportPage() {
                       {factor.factor_category && (
                         <span className="inline-block px-2 py-0.5 text-xs rounded bg-slate-100 text-slate-700">
                           {factor.factor_category}
-                        </span>
-                      )}
-                      {factor.subcategory && (
-                        <span className="inline-block px-2 py-0.5 text-xs rounded bg-slate-100 text-slate-600 italic">
-                          {factor.subcategory}
                         </span>
                       )}
                     </div>
@@ -590,7 +567,7 @@ export default function ReportPage() {
                           <div className="flex-1">
                             {/* Title with priority badge */}
                             <div className="flex items-center gap-2 flex-wrap mb-1">
-                              <p className="font-semibold text-lg text-slate-900">{rec.recommendation_title}</p>
+                              <p className="font-semibold text-lg text-slate-900">{rec.title}</p>
                               {rec.priority && (
                                 <span className={`inline-block px-2 py-0.5 text-xs rounded font-medium ${
                                   rec.priority === 'Critical' || rec.priority === 'HIGH' ? 'bg-red-100 text-red-800' :
@@ -604,8 +581,8 @@ export default function ReportPage() {
                             </div>
 
                             {/* Description */}
-                            {rec.recommendation_description && (
-                              <p className="text-slate-700 mt-2 whitespace-pre-wrap">{rec.recommendation_description}</p>
+                            {rec.description && (
+                              <p className="text-slate-700 mt-2 whitespace-pre-wrap">{rec.description}</p>
                             )}
 
                             {/* linked causal factor */}
@@ -618,14 +595,14 @@ export default function ReportPage() {
 
                             {/* metadata row */}
                             <div className="flex gap-4 mt-2 text-xs text-slate-600 flex-wrap">
-                              {rec.recommendation_type && (
-                                <span><strong>Hierarchy of Controls:</strong> {rec.recommendation_type}</span>
+                              {rec.control_type && (
+                                <span><strong>Hierarchy of Controls:</strong> {rec.control_type}</span>
                               )}
-                              {rec.responsible_party && (
-                                <span><strong>Owner:</strong> {rec.responsible_party}</span>
+                              {rec.responsibility && (
+                                <span><strong>Owner:</strong> {rec.responsibility}</span>
                               )}
-                              {rec.target_completion_date && (
-                                <span><strong>Target Date:</strong> {formatDate(rec.target_completion_date)}</span>
+                              {rec.target_date && (
+                                <span><strong>Target Date:</strong> {formatDate(rec.target_date)}</span>
                               )}
                             </div>
                           </div>
