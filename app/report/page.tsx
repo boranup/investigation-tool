@@ -393,12 +393,12 @@ export default function ReportPage() {
               )}
             </section>
 
-            {/* ── 5. BARRIER ANALYSIS ──────────────────────────────────── */}
-            <section className="mb-8">
-              <h2 className="text-2xl font-bold text-slate-900 mb-4 pb-2 border-b border-slate-300">
-                4. BARRIER ANALYSIS
-              </h2>
-              {barriers.length > 0 ? (
+            {/* ── 4. BARRIER ANALYSIS ──────────────────────────────────── */}
+            {barriers.length > 0 && (
+              <section className="mb-8">
+                <h2 className="text-2xl font-bold text-slate-900 mb-4 pb-2 border-b border-slate-300">
+                  4. BARRIER ANALYSIS
+                </h2>
                 <div className="overflow-x-auto">
                   <table className="w-full text-sm border-collapse">
                     <thead>
@@ -435,10 +435,8 @@ export default function ReportPage() {
                     </tbody>
                   </table>
                 </div>
-              ) : (
-                <p className="text-slate-500 italic">No barriers recorded.</p>
-              )}
-            </section>
+              </section>
+            )}
 
             {/* ── 6. CAUSAL ANALYSIS ───────────────────────────────────── */}
             <section className="mb-8">
@@ -590,9 +588,24 @@ export default function ReportPage() {
                         <div className="flex items-start gap-3">
                           <span className="font-bold text-slate-900 flex-shrink-0">{idx + 1}.</span>
                           <div className="flex-1">
-                            <p className="font-medium text-slate-900">{rec.recommendation_title}</p>
+                            {/* Title with priority badge */}
+                            <div className="flex items-center gap-2 flex-wrap mb-1">
+                              <p className="font-semibold text-lg text-slate-900">{rec.recommendation_title}</p>
+                              {rec.priority && (
+                                <span className={`inline-block px-2 py-0.5 text-xs rounded font-medium ${
+                                  rec.priority === 'Critical' || rec.priority === 'HIGH' ? 'bg-red-100 text-red-800' :
+                                  rec.priority === 'High' || rec.priority === 'MEDIUM' ? 'bg-orange-100 text-orange-800' :
+                                  rec.priority === 'Medium' || rec.priority === 'LOW' ? 'bg-yellow-100 text-yellow-800' :
+                                  'bg-green-100 text-green-800'
+                                }`}>
+                                  {rec.priority}
+                                </span>
+                              )}
+                            </div>
+
+                            {/* Description */}
                             {rec.recommendation_description && (
-                              <p className="text-slate-700 mt-1 whitespace-pre-wrap">{rec.recommendation_description}</p>
+                              <p className="text-slate-700 mt-2 whitespace-pre-wrap">{rec.recommendation_description}</p>
                             )}
 
                             {/* linked causal factor */}
@@ -605,9 +618,6 @@ export default function ReportPage() {
 
                             {/* metadata row */}
                             <div className="flex gap-4 mt-2 text-xs text-slate-600 flex-wrap">
-                              {rec.priority && (
-                                <span><strong>Priority:</strong> {rec.priority}</span>
-                              )}
                               {rec.recommendation_type && (
                                 <span><strong>Hierarchy of Controls:</strong> {rec.recommendation_type}</span>
                               )}
