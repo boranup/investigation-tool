@@ -111,7 +111,11 @@ export default function ReportPage() {
       setInterviews(iv || []);
 
       const { data: tl } = await supabase
-        .from('timeline_events').select('*').eq('investigation_id', investigationId!).order('event_date', { ascending: true });
+        .from('timeline_events')
+        .select('*')
+        .eq('investigation_id', investigationId!)
+        .order('event_date', { ascending: true })
+        .order('event_time', { ascending: true });
       setTimeline(tl || []);
 
       const { data: cf } = await supabase
