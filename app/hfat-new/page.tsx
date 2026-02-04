@@ -332,6 +332,21 @@ export default function HFATAssessment() {
               </div>
             )}
           </div>
+
+          {/* Rating Definitions */}
+          <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+            <h3 className="text-sm font-semibold text-blue-900 mb-2">Rating Definitions:</h3>
+            <div className="space-y-2 text-xs text-blue-900">
+              <div className="flex gap-2">
+                <span className="px-2 py-0.5 rounded bg-orange-500 text-white font-medium flex-shrink-0">Contributing</span>
+                <span>This factor increased the likelihood or severity of the incident, but did not directly cause it alone. It created conditions that made the incident more likely.</span>
+              </div>
+              <div className="flex gap-2">
+                <span className="px-2 py-0.5 rounded bg-red-500 text-white font-medium flex-shrink-0">Causal</span>
+                <span>This factor directly caused or was essential to the incident occurring. Without this factor, the incident would not have happened in this way.</span>
+              </div>
+            </div>
+          </div>
         </div>
 
         {/* Factor Categories */}
@@ -370,30 +385,26 @@ export default function HFATAssessment() {
                             </div>
                           </div>
                           <div className="flex gap-2">
-                            <Tooltip text="Contributing Factor: This factor increased the likelihood or severity of the incident, but did not directly cause it alone. It created conditions that made the incident more likely.">
-                              <button
-                                onClick={() => updateHumanFactor(key, item.id, 'contributing')}
-                                className={`px-3 py-1 text-xs rounded ${
-                                  factor?.rating === 'contributing'
-                                    ? 'bg-orange-500 text-white'
-                                    : 'bg-orange-100 text-orange-700'
-                                }`}
-                              >
-                                Contributing
-                              </button>
-                            </Tooltip>
-                            <Tooltip text="Causal Factor: This factor directly caused or was essential to the incident occurring. Without this factor, the incident would not have happened in this way.">
-                              <button
-                                onClick={() => updateHumanFactor(key, item.id, 'causal')}
-                                className={`px-3 py-1 text-xs rounded ${
-                                  factor?.rating === 'causal'
-                                    ? 'bg-red-500 text-white'
-                                    : 'bg-red-100 text-red-700'
-                                }`}
-                              >
-                                Causal
-                              </button>
-                            </Tooltip>
+                            <button
+                              onClick={() => updateHumanFactor(key, item.id, 'contributing')}
+                              className={`px-3 py-1 text-xs rounded ${
+                                factor?.rating === 'contributing'
+                                  ? 'bg-orange-500 text-white'
+                                  : 'bg-orange-100 text-orange-700'
+                              }`}
+                            >
+                              Contributing
+                            </button>
+                            <button
+                              onClick={() => updateHumanFactor(key, item.id, 'causal')}
+                              className={`px-3 py-1 text-xs rounded ${
+                                factor?.rating === 'causal'
+                                  ? 'bg-red-500 text-white'
+                                  : 'bg-red-100 text-red-700'
+                              }`}
+                            >
+                              Causal
+                            </button>
                           </div>
                         </div>
                         <textarea
