@@ -28,49 +28,47 @@ const hfatLabels: Record<string, string> = {
 // ─── HOP sections with their DB field mappings ──────────────────────────────
 const hopSections = [
   {
+    title: 'Action Classification',
+    fields: [
+      { key: 'classification', label: 'Classification' },
+    ]
+  },
+  {
     title: 'Context',
     fields: [
-      { key: 'task_description',   label: 'Task Description' },
-      { key: 'work_conditions',    label: 'Work Conditions' },
-      { key: 'time_of_day',        label: 'Time of Day' },
+      { key: 'context', label: 'Circumstances' },
     ]
   },
   {
-    title: 'Performance Influencing Factors — Task & Environment',
+    title: 'Performance Influencing Factors',
     fields: [
-      { key: 'workload_demands',      label: 'Workload Demands' },
-      { key: 'time_available',        label: 'Time Available' },
-      { key: 'procedural_guidance',   label: 'Procedural Guidance' },
-      { key: 'equipment_design',      label: 'Equipment Design' },
+      { key: 'error_precursors',        label: 'Error Precursors' },
+      { key: 'system_defenses',         label: 'System Defenses' },
+      { key: 'learning_opportunities',  label: 'Learning Opportunities' },
     ]
   },
   {
-    title: 'Performance Influencing Factors — Individual & Team',
+    title: 'Organizational Factors',
     fields: [
-      { key: 'training_experience',       label: 'Training & Experience' },
-      { key: 'communication_teamwork',    label: 'Communication & Teamwork' },
-      { key: 'supervisory_support',       label: 'Supervisory Support' },
+      { key: 'org_management_decisions', label: 'Management Decisions' },
+      { key: 'org_priorities',           label: 'Organizational Priorities' },
+      { key: 'org_systemic_issues',      label: 'Systemic Issues' },
     ]
   },
   {
-    title: 'Organisational Factors',
+    title: 'Latent Conditions',
     fields: [
-      { key: 'organizational_culture', label: 'Organisational Culture' },
+      { key: 'latent_condition_duration',        label: 'How Long Has This Existed' },
+      { key: 'latent_previous_opportunities',    label: 'Previous Opportunities to Identify/Correct' },
+      { key: 'latent_other_incidents',           label: 'Other Potential Incidents' },
     ]
   },
   {
-    title: 'Local Rationality',
+    title: 'Leadership Messaging',
     fields: [
-      { key: 'what_made_sense',       label: 'What Made Sense at the Time' },
-      { key: 'local_rationality',     label: 'Local Rationality Analysis' },
-      { key: 'tradeoffs_decisions',   label: 'Trade-offs & Decisions' },
-    ]
-  },
-  {
-    title: 'Learning & Improvements',
-    fields: [
-      { key: 'system_improvements', label: 'System Improvements' },
-      { key: 'learning_points',     label: 'Learning Points' },
+      { key: 'leadership_priority_messages',     label: 'Messages About Priorities' },
+      { key: 'leadership_production_safety',     label: 'Production vs Safety Decisions' },
+      { key: 'leadership_previous_response',     label: 'Response to Previous Issues' },
     ]
   },
 ];
