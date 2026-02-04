@@ -284,7 +284,7 @@ export default function RecommendationsDevelopment() {
       {investigation && (
         <StepNavigation 
           investigationId={investigationId} 
-          currentStep={5}
+          currentStep={6}
           investigationNumber={investigation.investigation_number}
           onBeforeNavigate={handleBeforeNavigate}
         />
