@@ -497,39 +497,35 @@ export default function CausalAnalysis() {
                     {/* HOP Assessment Section */}
                     {factor.requires_hop && (
                       <div className="mt-4 pt-4 border-t">
-                        <div className="flex items-center justify-between mb-2">
-                          <h4 className="font-medium text-sm">HOP Assessment</h4>
-                          {hopAssessments[factor.id]?.length > 0 && (
-                            <span className="text-xs text-green-600">\u2713 Complete</span>
-                          )}
-                        </div>
+                        <h4 className="font-medium text-sm mb-3">HOP Assessment</h4>
 
                         {hopAssessments[factor.id]?.[0] ? (
-                          <div className="mb-2 p-3 bg-green-50 rounded border border-green-200">
+                          <div className="p-3 bg-green-50 rounded border border-green-200">
                             <div className="flex items-center justify-between">
-                              <div className="text-xs flex-1">
-                                <div className="font-medium mb-1">
-                                  {hopAssessments[factor.id][0].action_type === 'error' ? (
-                                    <span className="text-red-600">\u26ab Error Analysis</span>
-                                  ) : (
-                                    <span className="text-amber-600">\u26ab Violation Analysis</span>
-                                  )}
-                                  {hopAssessments[factor.id][0].violation_type && ` - ${hopAssessments[factor.id][0].violation_type.charAt(0).toUpperCase() + hopAssessments[factor.id][0].violation_type.slice(1)}`}
+                              <div className="flex-1">
+                                <div className="flex items-center gap-2 mb-2">
+                                  <span className="text-xs font-medium text-gray-700">Classification:</span>
+                                  <span className="text-xs font-semibold text-green-800">
+                                    {hopAssessments[factor.id][0].action_type === 'error' ? 'Error Analysis' : 'Violation Analysis'}
+                                    {hopAssessments[factor.id][0].violation_type && ` - ${hopAssessments[factor.id][0].violation_type.charAt(0).toUpperCase() + hopAssessments[factor.id][0].violation_type.slice(1)}`}
+                                  </span>
                                 </div>
-                                <div className="text-gray-700 italic mt-1">
+                                <p className="text-xs text-gray-600 italic">
                                   {hopAssessments[factor.id][0].action_type === 'error' 
                                     ? 'Person did not intend this outcome; made a mistake, forgot, misperceived'
                                     : 'Person knowingly deviated from procedure/rule (but did not intend harm)'
                                   }
-                                </div>
-                                <div className="text-gray-600 mt-2">
-                                  {hopAssessments[factor.id][0].status === 'complete' ? '\u2705 Complete' : '\ud83d\udcdd Draft'} - 
-                                  {' '}{new Date(hopAssessments[factor.id][0].updated_at).toLocaleDateString()}
-                                </div>
+                                </p>
+                                {hopAssessments[factor.id][0].status === 'complete' && (
+                                  <div className="flex items-center gap-1 text-xs text-green-700 font-medium mt-2">
+                                    <CheckCircle className="w-3 h-3" />
+                                    Complete
+                                  </div>
+                                )}
                               </div>
                               <button
                                 onClick={() => router.push(`/hop-new?investigationId=${investigationId}&causalFactorId=${factor.id}&assessmentId=${hopAssessments[factor.id][0].id}`)}
-                                className="text-xs px-3 py-1 bg-green-600 text-white rounded hover:bg-green-700 ml-3"
+                                className="text-xs px-3 py-1.5 bg-green-600 text-white rounded hover:bg-green-700 ml-3 flex-shrink-0"
                               >
                                 View/Edit
                               </button>
@@ -550,26 +546,23 @@ export default function CausalAnalysis() {
                     {/* HFAT Assessment Section */}
                     {factor.requires_hfat && (
                       <div className="mt-4 pt-4 border-t">
-                        <div className="flex items-center justify-between mb-2">
-                          <h4 className="font-medium text-sm">HFAT Assessment</h4>
-                          {hfatAssessments[factor.id]?.length > 0 && (
-                            <span className="text-xs text-purple-600">\u2713 Complete</span>
-                          )}
-                        </div>
+                        <h4 className="font-medium text-sm mb-3">HFAT Assessment</h4>
 
                         {hfatAssessments[factor.id]?.[0] ? (
-                          <div className="mb-2 p-3 bg-purple-50 rounded border border-purple-200">
+                          <div className="p-3 bg-purple-50 rounded border border-purple-200">
                             <div className="flex items-center justify-between">
-                              <div className="text-xs">
-                                <div className="font-medium">HFAT Analysis</div>
-                                <div className="text-gray-600 mt-1">
-                                  {hfatAssessments[factor.id][0].status === 'complete' ? '\u2705 Complete' : '\ud83d\udcdd Draft'} - 
-                                  {' '}{new Date(hfatAssessments[factor.id][0].updated_at).toLocaleDateString()}
-                                </div>
+                              <div className="flex-1">
+                                <p className="text-xs font-medium text-gray-700 mb-1">HFAT Analysis</p>
+                                {hfatAssessments[factor.id][0].status === 'complete' && (
+                                  <div className="flex items-center gap-1 text-xs text-purple-700 font-medium">
+                                    <CheckCircle className="w-3 h-3" />
+                                    Complete
+                                  </div>
+                                )}
                               </div>
                               <button
                                 onClick={() => router.push(`/hfat-new?investigationId=${investigationId}&causalFactorId=${factor.id}&assessmentId=${hfatAssessments[factor.id][0].id}`)}
-                                className="text-xs px-3 py-1 bg-purple-600 text-white rounded hover:bg-purple-700"
+                                className="text-xs px-3 py-1.5 bg-purple-600 text-white rounded hover:bg-purple-700 flex-shrink-0"
                               >
                                 View/Edit
                               </button>
@@ -754,3 +747,4 @@ export default function CausalAnalysis() {
     </div>
   );
 }
+"
