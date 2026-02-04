@@ -370,26 +370,30 @@ export default function HFATAssessment() {
                             </div>
                           </div>
                           <div className="flex gap-2">
-                            <button
-                              onClick={() => updateHumanFactor(key, item.id, 'contributing')}
-                              className={`px-3 py-1 text-xs rounded ${
-                                factor?.rating === 'contributing'
-                                  ? 'bg-orange-500 text-white'
-                                  : 'bg-orange-100 text-orange-700'
-                              }`}
-                            >
-                              Contributing
-                            </button>
-                            <button
-                              onClick={() => updateHumanFactor(key, item.id, 'causal')}
-                              className={`px-3 py-1 text-xs rounded ${
-                                factor?.rating === 'causal'
-                                  ? 'bg-red-500 text-white'
-                                  : 'bg-red-100 text-red-700'
-                              }`}
-                            >
-                              Causal
-                            </button>
+                            <Tooltip text="Contributing Factor: This factor increased the likelihood or severity of the incident, but did not directly cause it alone. It created conditions that made the incident more likely.">
+                              <button
+                                onClick={() => updateHumanFactor(key, item.id, 'contributing')}
+                                className={`px-3 py-1 text-xs rounded ${
+                                  factor?.rating === 'contributing'
+                                    ? 'bg-orange-500 text-white'
+                                    : 'bg-orange-100 text-orange-700'
+                                }`}
+                              >
+                                Contributing
+                              </button>
+                            </Tooltip>
+                            <Tooltip text="Causal Factor: This factor directly caused or was essential to the incident occurring. Without this factor, the incident would not have happened in this way.">
+                              <button
+                                onClick={() => updateHumanFactor(key, item.id, 'causal')}
+                                className={`px-3 py-1 text-xs rounded ${
+                                  factor?.rating === 'causal'
+                                    ? 'bg-red-500 text-white'
+                                    : 'bg-red-100 text-red-700'
+                                }`}
+                              >
+                                Causal
+                              </button>
+                            </Tooltip>
                           </div>
                         </div>
                         <textarea
