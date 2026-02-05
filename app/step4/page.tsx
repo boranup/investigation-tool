@@ -32,12 +32,12 @@ export default function Visualisations() {
   const [newNode, setNewNode] = useState({
     title: '',
     description: '',
-    nodeType: 'immediate',
-    factorCategory: 'equipment'
+    nodeType: '',
+    factorCategory: ''
   });
   const [expandedNodes, setExpandedNodes] = useState<Set<string>>(new Set());
   const [editingTreeNodeId, setEditingTreeNodeId] = useState<string | null>(null);
-  const [editNode, setEditNode] = useState({ title: '', description: '', nodeType: 'immediate', factorCategory: 'equipment' });
+  const [editNode, setEditNode] = useState({ title: '', description: '', nodeType: '', factorCategory: '' });
 
   // ── Barrier Analysis state ──────────────────────────────────
   const [barriers, setBarriers] = useState<any[]>([]);
@@ -272,14 +272,14 @@ export default function Visualisations() {
         .update({
           title: editNode.title.trim(),
           description: editNode.description.trim() || null,
-          node_type: editNode.nodeType,
-          factor_category: editNode.factorCategory
+          node_type: editNode.nodeType || null,
+          factor_category: editNode.factorCategory || null
         })
         .eq('id', editingTreeNodeId);
       if (error) throw error;
       setCausalTree(prev => prev.map(n =>
         n.id === editingTreeNodeId
-          ? { ...n, title: editNode.title.trim(), description: editNode.description.trim() || null, node_type: editNode.nodeType, factor_category: editNode.factorCategory }
+          ? { ...n, title: editNode.title.trim(), description: editNode.description.trim() || null, node_type: editNode.nodeType || null, factor_category: editNode.factorCategory || null }
           : n
       ));
       setEditingTreeNodeId(null);
@@ -301,8 +301,8 @@ export default function Visualisations() {
         parent_node_id: selectedParentId,
         title: newNode.title.trim(),
         description: newNode.description.trim() || null,
-        node_type: newNode.nodeType,
-        factor_category: newNode.factorCategory
+        node_type: newNode.nodeType || null,
+        factor_category: newNode.factorCategory || null
       };
 
       const { data, error } = await supabase
@@ -317,7 +317,7 @@ export default function Visualisations() {
       if (selectedParentId) {
         setExpandedNodes(prev => { const next = new Set(prev); next.add(selectedParentId); return next; });
       }
-      setNewNode({ title: '', description: '', nodeType: 'immediate', factorCategory: 'equipment' });
+      setNewNode({ title: '', description: '', nodeType: '', factorCategory: '' });
       setSelectedParentId(null);
       setShowAddNode(false);
     } catch (err: any) {
@@ -466,8 +466,9 @@ export default function Visualisations() {
     });
   }
 
-  function getNodeTypeStyle(type: string) {
-    return nodeTypes.find(t => t.value === type)?.color || 'bg-grey-100 text-grey-700 border-grey-300';
+  function getNodeTypeStyle(type: string | null) {
+    if (!type) return 'bg-slate-100 text-slate-600 border-slate-300';
+    return nodeTypes.find(t => t.value === type)?.color || 'bg-slate-100 text-slate-600 border-slate-300';
   }
 
   function getFactorTypeStyle(type: string) {
@@ -502,6 +503,7 @@ export default function Visualisations() {
               onChange={(e) => setEditNode({ ...editNode, nodeType: e.target.value })}
               className="border border-slate-300 rounded px-1 py-1 text-xs"
             >
+              <option value="">Not Specified</option>
               {nodeTypes.map(nt => <option key={nt.value} value={nt.value}>{nt.label}</option>)}
             </select>
             <select
@@ -509,6 +511,7 @@ export default function Visualisations() {
               onChange={(e) => setEditNode({ ...editNode, factorCategory: e.target.value })}
               className="border border-slate-300 rounded px-1 py-1 text-xs"
             >
+              <option value="">Not Specified</option>
               {factorCategories.map(fc => <option key={fc.value} value={fc.value}>{fc.label}</option>)}
             </select>
           </div>
@@ -527,12 +530,16 @@ export default function Visualisations() {
             <p className="font-semibold text-sm truncate">{node.title}</p>
             {node.description && <p className="text-xs mt-0.5 opacity-75 line-clamp-2">{node.description}</p>}
             <div className="flex flex-wrap gap-1 mt-1.5">
-              <span className={`px-1.5 py-0.5 rounded text-xs border ${getNodeTypeStyle(node.node_type)}`}>
-                {nodeTypes.find(t => t.value === node.node_type)?.label}
-              </span>
-              <span className="px-1.5 py-0.5 rounded text-xs bg-white bg-opacity-70 border border-slate-300 text-slate-600">
-                {factorCategories.find(c => c.value === node.factor_category)?.label}
-              </span>
+              {node.node_type && (
+                <span className={`px-1.5 py-0.5 rounded text-xs border ${getNodeTypeStyle(node.node_type)}`}>
+                  {nodeTypes.find(t => t.value === node.node_type)?.label}
+                </span>
+              )}
+              {node.factor_category && (
+                <span className="px-1.5 py-0.5 rounded text-xs bg-white bg-opacity-70 border border-slate-300 text-slate-600">
+                  {factorCategories.find(c => c.value === node.factor_category)?.label}
+                </span>
+              )}
             </div>
           </div>
         </div>
@@ -541,7 +548,7 @@ export default function Visualisations() {
           <button
             onClick={() => {
               setEditingTreeNodeId(node.id);
-              setEditNode({ title: node.title, description: node.description || '', nodeType: node.node_type, factorCategory: node.factor_category });
+              setEditNode({ title: node.title, description: node.description || '', nodeType: node.node_type || '', factorCategory: node.factor_category || '' });
             }}
             className="p-1 hover:bg-white hover:bg-opacity-50 rounded"
             title="Edit"
@@ -1051,24 +1058,26 @@ export default function Visualisations() {
                     </div>
                     <div className="grid grid-cols-2 gap-3 mb-3">
                       <div>
-                        <label className="block text-xs font-medium text-slate-600 mb-1">Cause Type</label>
+                        <label className="block text-xs font-medium text-slate-600 mb-1">Cause Type (Optional)</label>
                         <select
                           value={newNode.nodeType}
                           onChange={(e) => setNewNode({ ...newNode, nodeType: e.target.value })}
                           className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm"
                         >
+                          <option value="">Not Specified</option>
                           {nodeTypes.map(nt => (
                             <option key={nt.value} value={nt.value}>{nt.label}</option>
                           ))}
                         </select>
                       </div>
                       <div>
-                        <label className="block text-xs font-medium text-slate-600 mb-1">Category</label>
+                        <label className="block text-xs font-medium text-slate-600 mb-1">Category (Optional)</label>
                         <select
                           value={newNode.factorCategory}
                           onChange={(e) => setNewNode({ ...newNode, factorCategory: e.target.value })}
                           className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm"
                         >
+                          <option value="">Not Specified</option>
                           {factorCategories.map(fc => (
                             <option key={fc.value} value={fc.value}>{fc.label}</option>
                           ))}
@@ -1083,7 +1092,7 @@ export default function Visualisations() {
                         Add Node
                       </button>
                       <button
-                        onClick={() => { setShowAddNode(false); setSelectedParentId(null); setNewNode({ title: '', description: '', nodeType: 'immediate', factorCategory: 'equipment' }); }}
+                        onClick={() => { setShowAddNode(false); setSelectedParentId(null); setNewNode({ title: '', description: '', nodeType: '', factorCategory: '' }); }}
                         className="px-4 py-2 border border-slate-300 rounded-lg text-sm hover:bg-slate-50"
                       >
                         Cancel
