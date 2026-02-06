@@ -795,7 +795,7 @@ export default function Visualisations() {
     );
   }
 
-  function CategoryTooltip({ category }: { category: any }) {
+function CategoryTooltip({ category }: { category: any }) {
     const [open, setOpen] = useState(false);
     return (
       <div className="relative inline-block">
