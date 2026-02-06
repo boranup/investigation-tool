@@ -1857,6 +1857,27 @@ export default function Visualisations() {
                           </button>
                           <button
                             onClick={() => {
+                              setShowAddBarrier(false);
+                              setNewBarrier({
+                                name: '',
+                                barrierType: 'physical',
+                                side: 'prevention',
+                                status: 'present_performed',
+                                failureReason: '',
+                                notes: ''
+                              });
+                            }}
+                            className="px-4 py-2 border border-slate-300 rounded-lg hover:bg-slate-50"
+                          >
+                            Cancel
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
 
             {activeTab === 'fishbone' && (
               <div className="p-6 space-y-6">
