@@ -63,6 +63,7 @@ export default function Visualisations() {
   const [editingCauseId, setEditingCauseId] = useState<string | null>(null);
   const [showGuidance, setShowGuidance] = useState(true);
   const [editCause, setEditCause] = useState({ text: '', subCauses: [] as string[] });
+  const [fishboneView, setFishboneView] = useState<'list' | 'diagram'>('list');
 
   const factorTypes = [
     { value: 'individual', label: 'Individual / Team', color: 'bg-red-100 text-red-700 border-red-200' },
@@ -246,19 +247,31 @@ export default function Visualisations() {
           if (subCauseError) throw subCauseError;
         }
       }
+      console.log('Fishbone data saved successfully');
     } catch (err: any) {
       console.error('Error saving fishbone:', err);
+      console.error('Full error details:', {
+        message: err.message,
+        details: err.details,
+        hint: err.hint,
+        code: err.code
+      });
+      alert(`Failed to save fishbone data: ${err.message}`);
     }
   }
 
   useEffect(() => {
     const timer = setTimeout(() => {
       if (investigationId && (fishboneProblemStatement || fishboneCauses.length > 0)) {
+        console.log('Auto-saving fishbone data...', { 
+          problemStatement: fishboneProblemStatement, 
+          causesCount: fishboneCauses.length 
+        });
         saveFishboneData();
       }
     }, 2000);
     return () => clearTimeout(timer);
-  }, [fishboneProblemStatement, fishboneCauses]);
+  }, [fishboneProblemStatement, fishboneCauses, investigationId]);
 
   function addFishboneCause(categoryId: string) {
     const newCauseObj = { id: `temp-${Date.now()}`, categoryId, text: '', subCauses: [] };
@@ -809,6 +822,152 @@ export default function Visualisations() {
             </p>
           </div>
         )}
+      </div>
+    );
+  }
+
+  function FishboneDiagramVisual() {
+    const svgWidth = 1200;
+    const svgHeight = 600;
+    const centerY = svgHeight / 2;
+    const headX = svgWidth - 100;
+    const tailX = 50;
+    
+    const topCategories = FISHBONE_CATEGORIES.filter(c => c.position === 'top');
+    const bottomCategories = FISHBONE_CATEGORIES.filter(c => c.position === 'bottom');
+
+    return (
+      <div className="bg-white border border-slate-200 rounded-lg p-6 overflow-x-auto">
+        <svg width={svgWidth} height={svgHeight} className="mx-auto">
+          
+          <line 
+            x1={tailX} 
+            y1={centerY} 
+            x2={headX} 
+            y2={centerY} 
+            stroke="#334155" 
+            strokeWidth="3"
+          />
+          
+          <polygon 
+            points={`${headX},${centerY} ${headX-15},${centerY-8} ${headX-15},${centerY+8}`}
+            fill="#334155"
+          />
+
+          <foreignObject x={headX + 10} y={centerY - 40} width="150" height="80">
+            <div className="text-xs font-semibold text-slate-900 text-center">
+              {fishboneProblemStatement || 'Problem Statement'}
+            </div>
+          </foreignObject>
+
+          {topCategories.map((category, index) => {
+            const x = tailX + 150 + (index * 300);
+            const causes = getCausesForCategory(category.id);
+            
+            return (
+              <g key={category.id}>
+                <line 
+                  x1={x} 
+                  y1={centerY} 
+                  x2={x + 80} 
+                  y2={centerY - 120} 
+                  stroke="#64748b" 
+                  strokeWidth="2"
+                />
+                
+                <foreignObject x={x + 85} y={centerY - 140} width="120" height="40">
+                  <div className="text-xs font-bold text-blue-700 text-center">
+                    {category.label}
+                  </div>
+                </foreignObject>
+
+                {causes.slice(0, 3).map((cause, causeIdx) => {
+                  const causeY = centerY - 100 + (causeIdx * -30);
+                  return (
+                    <g key={cause.id}>
+                      <line 
+                        x1={x + 40} 
+                        y1={centerY - 60} 
+                        x2={x + 80} 
+                        y2={causeY} 
+                        stroke="#94a3b8" 
+                        strokeWidth="1"
+                      />
+                      <foreignObject x={x + 85} y={causeY - 12} width="100" height="50">
+                        <div className="text-xs text-slate-700 bg-white px-1 py-0.5 border border-slate-200 rounded">
+                          {cause.text.substring(0, 30)}{cause.text.length > 30 ? '...' : ''}
+                        </div>
+                      </foreignObject>
+                    </g>
+                  );
+                })}
+                {causes.length > 3 && (
+                  <foreignObject x={x + 85} y={centerY - 190} width="100" height="20">
+                    <div className="text-xs text-slate-500 italic">
+                      +{causes.length - 3} more
+                    </div>
+                  </foreignObject>
+                )}
+              </g>
+            );
+          })}
+
+          {bottomCategories.map((category, index) => {
+            const x = tailX + 150 + (index * 300);
+            const causes = getCausesForCategory(category.id);
+            
+            return (
+              <g key={category.id}>
+                <line 
+                  x1={x} 
+                  y1={centerY} 
+                  x2={x + 80} 
+                  y2={centerY + 120} 
+                  stroke="#64748b" 
+                  strokeWidth="2"
+                />
+                
+                <foreignObject x={x + 85} y={centerY + 100} width="120" height="40">
+                  <div className="text-xs font-bold text-purple-700 text-center">
+                    {category.label}
+                  </div>
+                </foreignObject>
+
+                {causes.slice(0, 3).map((cause, causeIdx) => {
+                  const causeY = centerY + 100 + (causeIdx * 30);
+                  return (
+                    <g key={cause.id}>
+                      <line 
+                        x1={x + 40} 
+                        y1={centerY + 60} 
+                        x2={x + 80} 
+                        y2={causeY} 
+                        stroke="#94a3b8" 
+                        strokeWidth="1"
+                      />
+                      <foreignObject x={x + 85} y={causeY - 12} width="100" height="50">
+                        <div className="text-xs text-slate-700 bg-white px-1 py-0.5 border border-slate-200 rounded">
+                          {cause.text.substring(0, 30)}{cause.text.length > 30 ? '...' : ''}
+                        </div>
+                      </foreignObject>
+                    </g>
+                  );
+                })}
+                {causes.length > 3 && (
+                  <foreignObject x={x + 85} y={centerY + 190} width="100" height="20">
+                    <div className="text-xs text-slate-500 italic">
+                      +{causes.length - 3} more
+                    </div>
+                  </foreignObject>
+                )}
+              </g>
+            );
+          })}
+        </svg>
+
+        <div className="mt-4 text-center text-xs text-slate-500">
+          Visual diagram shows up to 3 causes per category. Switch to List View to see all causes and edit.
+        </div>
       </div>
     );
   }
@@ -1699,27 +1858,6 @@ export default function Visualisations() {
                           </button>
                           <button
                             onClick={() => {
-                              setShowAddBarrier(false);
-                              setNewBarrier({
-                                name: '',
-                                barrierType: 'physical',
-                                side: 'prevention',
-                                status: 'present_performed',
-                                failureReason: '',
-                                notes: ''
-                              });
-                            }}
-                            className="px-4 py-2 border border-slate-300 rounded-lg hover:bg-slate-50"
-                          >
-                            Cancel
-                          </button>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                )}
-              </div>
-            )}
 
             {activeTab === 'fishbone' && (
               <div className="p-6 space-y-6">
@@ -1756,106 +1894,146 @@ export default function Visualisations() {
                   />
                 </div>
 
-                {FISHBONE_CATEGORIES.map((category) => {
-                  const categoryCauses = getCausesForCategory(category.id);
-                  return (
-                    <div key={category.id} className={`bg-white border-l-4 ${category.color} border-t border-r border-b border-slate-200 rounded-lg`}>
-                      <div className="p-4">
-                        <div className="flex items-start justify-between mb-3">
-                          <div className="flex-1">
-                            <div className="flex items-center gap-2">
-                              <h3 className="text-base font-semibold text-slate-800">{category.label}</h3>
-                              <CategoryTooltip category={category} />
-                            </div>
-                            <p className="text-xs text-slate-600 mt-1">{category.description}</p>
-                          </div>
-                          <button onClick={() => addFishboneCause(category.id)} className="px-3 py-1.5 bg-blue-600 text-white rounded-lg text-xs hover:bg-blue-700 flex items-center gap-1">
-                            <Plus className="w-3 h-3" />Add Cause
-                          </button>
-                        </div>
+                <div className="flex items-center justify-center gap-3 p-4 bg-slate-50 rounded-lg">
+                  <button
+                    onClick={() => setFishboneView('list')}
+                    className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                      fishboneView === 'list'
+                        ? 'bg-blue-600 text-white'
+                        : 'bg-white text-slate-600 border border-slate-300 hover:bg-slate-50'
+                    }`}
+                  >
+                    📝 List View
+                  </button>
+                  <button
+                    onClick={() => setFishboneView('diagram')}
+                    className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                      fishboneView === 'diagram'
+                        ? 'bg-blue-600 text-white'
+                        : 'bg-white text-slate-600 border border-slate-300 hover:bg-slate-50'
+                    }`}
+                  >
+                    📊 Diagram View
+                  </button>
+                </div>
 
-                        {categoryCauses.length === 0 ? (
-                          <div className="text-xs text-slate-500 italic py-3 text-center border-2 border-dashed border-slate-200 rounded-lg">
-                            No causes identified yet
-                          </div>
-                        ) : (
-                          <div className="space-y-3">
-                            {categoryCauses.map((cause) => (
-                              <div key={cause.id} className="border border-slate-200 rounded-lg p-3 bg-slate-50">
-                                {editingCauseId === cause.id ? (
-                                  <div className="space-y-2">
-                                    <textarea 
-                                      value={editCause.text} 
-                                      onChange={(e) => setEditCause({ ...editCause, text: e.target.value })}
-                                      placeholder="Main cause..." 
-                                      className="w-full border border-slate-300 rounded-lg px-2 py-1.5 text-xs" 
-                                      rows={2} 
-                                      autoFocus 
-                                    />
-                                    <div>
-                                      <div className="flex items-center justify-between mb-1">
-                                        <label className="text-xs font-semibold">Contributing Factors</label>
-                                        <button onClick={() => setEditCause({ ...editCause, subCauses: [...editCause.subCauses, ''] })} className="text-xs text-blue-600 flex items-center gap-1">
-                                          <Plus className="w-3 h-3" />Add
-                                        </button>
-                                      </div>
-                                      {editCause.subCauses.map((sc, idx) => (
-                                        <div key={idx} className="flex items-center gap-2 mb-1">
-                                          <span className="text-xs text-slate-400">└─</span>
-                                          <input 
-                                            type="text" 
-                                            value={sc} 
-                                            onChange={(e) => {
-                                              const newSub = [...editCause.subCauses];
-                                              newSub[idx] = e.target.value;
-                                              setEditCause({ ...editCause, subCauses: newSub });
-                                            }} 
-                                            placeholder="Why?" 
-                                            className="flex-1 border border-slate-300 rounded px-2 py-1 text-xs" 
-                                          />
-                                          <button onClick={() => setEditCause({ ...editCause, subCauses: editCause.subCauses.filter((_, i) => i !== idx) })} className="text-red-500">
-                                            <X className="w-3 h-3" />
-                                          </button>
-                                        </div>
-                                      ))}
-                                    </div>
-                                    <div className="flex gap-2 pt-2">
-                                      <button onClick={() => updateFishboneCause(cause.id)} className="px-3 py-1 bg-blue-600 text-white rounded text-xs">Save</button>
-                                      <button onClick={() => setEditingCauseId(null)} className="px-3 py-1 border border-slate-300 rounded text-xs">Cancel</button>
-                                    </div>
-                                  </div>
-                                ) : (
-                                  <div>
-                                    <div className="flex items-start justify-between">
-                                      <div className="flex-1">
-                                        <p className="text-sm font-medium text-slate-800">{cause.text || <span className="italic text-slate-400">No description</span>}</p>
-                                        {cause.subCauses.length > 0 && (
-                                          <div className="mt-2 ml-4 space-y-1">
-                                            {cause.subCauses.map((sc: string, idx: number) => (
-                                              <p key={idx} className="text-xs text-slate-600">└─ {sc}</p>
-                                            ))}
-                                          </div>
-                                        )}
-                                      </div>
-                                      <div className="flex gap-1">
-                                        <button onClick={() => { setEditingCauseId(cause.id); setEditCause({ text: cause.text, subCauses: cause.subCauses }); }} className="p-1 text-slate-400 hover:text-blue-600">
-                                          <Edit2 className="w-3.5 h-3.5" />
-                                        </button>
-                                        <button onClick={() => deleteFishboneCause(cause.id)} className="p-1 text-slate-400 hover:text-red-600">
-                                          <Trash2 className="w-3.5 h-3.5" />
-                                        </button>
-                                      </div>
-                                    </div>
-                                  </div>
-                                )}
-                              </div>
-                            ))}
-                          </div>
-                        )}
+                {fishboneView === 'diagram' && (
+                  <>
+                    {fishboneCauses.length === 0 ? (
+                      <div className="text-center py-12 bg-slate-50 rounded-lg border-2 border-dashed border-slate-200">
+                        <p className="text-slate-600 mb-2">No causes added yet</p>
+                        <p className="text-sm text-slate-500">Switch to List View to add causes</p>
                       </div>
-                    </div>
-                  );
-                })}
+                    ) : (
+                      <FishboneDiagramVisual />
+                    )}
+                  </>
+                )}
+
+                {fishboneView === 'list' && (
+                  <>
+                    {FISHBONE_CATEGORIES.map((category) => {
+                      const categoryCauses = getCausesForCategory(category.id);
+                      return (
+                        <div key={category.id} className={`bg-white border-l-4 ${category.color} border-t border-r border-b border-slate-200 rounded-lg`}>
+                          <div className="p-4">
+                            <div className="flex items-start justify-between mb-3">
+                              <div className="flex-1">
+                                <div className="flex items-center gap-2">
+                                  <h3 className="text-base font-semibold text-slate-800">{category.label}</h3>
+                                  <CategoryTooltip category={category} />
+                                </div>
+                                <p className="text-xs text-slate-600 mt-1">{category.description}</p>
+                              </div>
+                              <button onClick={() => addFishboneCause(category.id)} className="px-3 py-1.5 bg-blue-600 text-white rounded-lg text-xs hover:bg-blue-700 flex items-center gap-1">
+                                <Plus className="w-3 h-3" />Add Cause
+                              </button>
+                            </div>
+
+                            {categoryCauses.length === 0 ? (
+                              <div className="text-xs text-slate-500 italic py-3 text-center border-2 border-dashed border-slate-200 rounded-lg">
+                                No causes identified yet
+                              </div>
+                            ) : (
+                              <div className="space-y-3">
+                                {categoryCauses.map((cause) => (
+                                  <div key={cause.id} className="border border-slate-200 rounded-lg p-3 bg-slate-50">
+                                    {editingCauseId === cause.id ? (
+                                      <div className="space-y-2">
+                                        <textarea 
+                                          value={editCause.text} 
+                                          onChange={(e) => setEditCause({ ...editCause, text: e.target.value })}
+                                          placeholder="Main cause..." 
+                                          className="w-full border border-slate-300 rounded-lg px-2 py-1.5 text-xs" 
+                                          rows={2} 
+                                          autoFocus 
+                                        />
+                                        <div>
+                                          <div className="flex items-center justify-between mb-1">
+                                            <label className="text-xs font-semibold">Contributing Factors</label>
+                                            <button onClick={() => setEditCause({ ...editCause, subCauses: [...editCause.subCauses, ''] })} className="text-xs text-blue-600 flex items-center gap-1">
+                                              <Plus className="w-3 h-3" />Add
+                                            </button>
+                                          </div>
+                                          {editCause.subCauses.map((sc, idx) => (
+                                            <div key={idx} className="flex items-center gap-2 mb-1">
+                                              <span className="text-xs text-slate-400">└─</span>
+                                              <input 
+                                                type="text" 
+                                                value={sc} 
+                                                onChange={(e) => {
+                                                  const newSub = [...editCause.subCauses];
+                                                  newSub[idx] = e.target.value;
+                                                  setEditCause({ ...editCause, subCauses: newSub });
+                                                }} 
+                                                placeholder="Why?" 
+                                                className="flex-1 border border-slate-300 rounded px-2 py-1 text-xs" 
+                                              />
+                                              <button onClick={() => setEditCause({ ...editCause, subCauses: editCause.subCauses.filter((_, i) => i !== idx) })} className="text-red-500">
+                                                <X className="w-3 h-3" />
+                                              </button>
+                                            </div>
+                                          ))}
+                                        </div>
+                                        <div className="flex gap-2 pt-2">
+                                          <button onClick={() => updateFishboneCause(cause.id)} className="px-3 py-1 bg-blue-600 text-white rounded text-xs">Save</button>
+                                          <button onClick={() => setEditingCauseId(null)} className="px-3 py-1 border border-slate-300 rounded text-xs">Cancel</button>
+                                        </div>
+                                      </div>
+                                    ) : (
+                                      <div>
+                                        <div className="flex items-start justify-between">
+                                          <div className="flex-1">
+                                            <p className="text-sm font-medium text-slate-800">{cause.text || <span className="italic text-slate-400">No description</span>}</p>
+                                            {cause.subCauses.length > 0 && (
+                                              <div className="mt-2 ml-4 space-y-1">
+                                                {cause.subCauses.map((sc: string, idx: number) => (
+                                                  <p key={idx} className="text-xs text-slate-600">└─ {sc}</p>
+                                                ))}
+                                              </div>
+                                            )}
+                                          </div>
+                                          <div className="flex gap-1">
+                                            <button onClick={() => { setEditingCauseId(cause.id); setEditCause({ text: cause.text, subCauses: cause.subCauses }); }} className="p-1 text-slate-400 hover:text-blue-600">
+                                              <Edit2 className="w-3.5 h-3.5" />
+                                            </button>
+                                            <button onClick={() => deleteFishboneCause(cause.id)} className="p-1 text-slate-400 hover:text-red-600">
+                                              <Trash2 className="w-3.5 h-3.5" />
+                                            </button>
+                                          </div>
+                                        </div>
+                                      </div>
+                                    )}
+                                  </div>
+                                ))}
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </>
+                )}
 
                 <div className="bg-white border border-slate-200 rounded-lg p-4">
                   <div className="flex items-center justify-between">
