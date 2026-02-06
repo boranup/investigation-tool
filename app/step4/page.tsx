@@ -940,7 +940,6 @@ export default function Visualisations() {
                 </div>
               </button>
             </div>
-            // CONTINUE FROM PART 1 - APPEND DIRECTLY AFTER PART 1 ENDS
 
             {activeTab === '5whys' && (
               <div className="p-6">
