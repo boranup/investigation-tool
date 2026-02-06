@@ -1099,7 +1099,6 @@ export default function Visualisations() {
                 </div>
               </button>
             </div>
-
             {activeTab === '5whys' && (
               <div className="p-6">
                 <div className="space-y-6">
