@@ -787,7 +787,7 @@ export default function Visualisations() {
         </button>
         {open && (
           <div className="absolute z-50 left-1/2 -translate-x-1/2 mt-2 w-72 bg-white border border-slate-200 rounded-lg shadow-lg p-4">
-            <div className="absolute -top-2 right-4 w-4 h-4 bg-white border-l border-t border-slate-200 rotate-45" />
+            <div className="absolute -top-2 left-1/2 -translate-x-1/2 w-4 h-4 bg-white border-l border-t border-slate-200 rotate-45" />
             <p className="text-xs font-semibold text-slate-800">Root Cause</p>
             <p className="text-xs text-slate-600 mt-1">{rootCauseDefinition.definition}</p>
             <p className="text-xs text-blue-600 italic mt-1">👉 {rootCauseDefinition.guidance}</p>
@@ -813,8 +813,11 @@ export default function Visualisations() {
           <HelpCircle className="w-4 h-4" />
         </button>
         {open && (
-          <div className="absolute z-50 right-0 mt-2 w-80 bg-white border border-slate-200 rounded-lg shadow-lg p-4">
-            <div className="absolute -top-2 right-4 w-4 h-4 bg-white border-l border-t border-slate-200 rotate-45" />
+          <div className="fixed z-50 w-80 bg-white border border-slate-200 rounded-lg shadow-lg p-4" style={{
+            top: '50%',
+            left: '50%',
+            transform: 'translate(-50%, -50%)'
+          }}>
             <p className="text-xs font-semibold text-slate-800">{category.label}</p>
             <p className="text-xs text-slate-600 mt-1">{category.description}</p>
             <p className="text-xs text-blue-600 mt-2">
@@ -875,7 +878,7 @@ export default function Visualisations() {
                   strokeWidth="2"
                 />
                 
-                <foreignObject x={x + 85} y={centerY - 140} width="120" height="40">
+                <foreignObject x={x + 40} y={centerY - 180} width="120" height="40">
                   <div className="text-xs font-bold text-blue-700 text-center">
                     {category.label}
                   </div>
@@ -927,7 +930,7 @@ export default function Visualisations() {
                   strokeWidth="2"
                 />
                 
-                <foreignObject x={x + 85} y={centerY + 100} width="120" height="40">
+                <foreignObject x={x + 40} y={centerY + 140} width="120" height="40">
                   <div className="text-xs font-bold text-purple-700 text-center">
                     {category.label}
                   </div>
