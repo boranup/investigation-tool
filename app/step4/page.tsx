@@ -787,7 +787,7 @@ export default function Visualisations() {
         </button>
         {open && (
           <div className="absolute z-50 left-1/2 -translate-x-1/2 mt-2 w-72 bg-white border border-slate-200 rounded-lg shadow-lg p-4">
-            <div className="absolute -top-2 left-1/2 -translate-x-1/2 w-4 h-4 bg-white border-l border-t border-slate-200 rotate-45" />
+            <div className="absolute -top-2 right-4 w-4 h-4 bg-white border-l border-t border-slate-200 rotate-45" />
             <p className="text-xs font-semibold text-slate-800">Root Cause</p>
             <p className="text-xs text-slate-600 mt-1">{rootCauseDefinition.definition}</p>
             <p className="text-xs text-blue-600 italic mt-1">👉 {rootCauseDefinition.guidance}</p>
@@ -813,8 +813,8 @@ export default function Visualisations() {
           <HelpCircle className="w-4 h-4" />
         </button>
         {open && (
-          <div className="absolute z-50 left-1/2 -translate-x-1/2 mt-2 w-80 bg-white border border-slate-200 rounded-lg shadow-lg p-4">
-            <div className="absolute -top-2 left-1/2 -translate-x-1/2 w-4 h-4 bg-white border-l border-t border-slate-200 rotate-45" />
+          <div className="absolute z-50 right-0 mt-2 w-80 bg-white border border-slate-200 rounded-lg shadow-lg p-4">
+            <div className="absolute -top-2 right-4 w-4 h-4 bg-white border-l border-t border-slate-200 rotate-45" />
             <p className="text-xs font-semibold text-slate-800">{category.label}</p>
             <p className="text-xs text-slate-600 mt-1">{category.description}</p>
             <p className="text-xs text-blue-600 mt-2">
@@ -1379,7 +1379,7 @@ export default function Visualisations() {
                           className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 inline-flex items-center gap-2"
                         >
                           <Plus className="w-4 h-4" />
-                          Add Another Root Cause
+                          Add Another Node
                         </button>
                       </div>
                     )}
