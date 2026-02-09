@@ -4,7 +4,7 @@
 // Created: 3 February 2026
 // ============================================================================
 
-import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
+import { supabase } from '@/lib/supabase';
 
 // ============================================================================
 // TYPE DEFINITIONS
@@ -75,7 +75,6 @@ export const INVESTIGATION_STEPS = [
  * Calculate progress for Step 1: Investigation Initiation
  */
 export async function calculateStep1Progress(investigationId: string): Promise<StepProgress> {
-  const supabase = createClientComponentClient();
   const warnings: ValidationWarning[] = [];
 
   const { data: investigation, error } = await supabase
@@ -147,7 +146,7 @@ export async function calculateStep1Progress(investigationId: string): Promise<S
  * Calculate progress for Step 2: Data Collection & Evidence
  */
 export async function calculateStep2Progress(investigationId: string): Promise<StepProgress> {
-  const supabase = createClientComponentClient();
+  
   const warnings: ValidationWarning[] = [];
 
   const { data: evidence } = await supabase
@@ -211,7 +210,7 @@ export async function calculateStep2Progress(investigationId: string): Promise<S
  * Calculate progress for Step 3: Timeline Construction
  */
 export async function calculateStep3Progress(investigationId: string): Promise<StepProgress> {
-  const supabase = createClientComponentClient();
+  
   const warnings: ValidationWarning[] = [];
 
   const { data: events } = await supabase
@@ -261,7 +260,7 @@ export async function calculateStep3Progress(investigationId: string): Promise<S
  * Calculate progress for Step 4: Visualisations
  */
 export async function calculateStep4Progress(investigationId: string): Promise<StepProgress> {
-  const supabase = createClientComponentClient();
+  
   const warnings: ValidationWarning[] = [];
 
   const { data: causalFactors } = await supabase
@@ -301,7 +300,7 @@ export async function calculateStep4Progress(investigationId: string): Promise<S
  * Calculate progress for Step 5: Causal Factor Analysis
  */
 export async function calculateStep5Progress(investigationId: string): Promise<StepProgress> {
-  const supabase = createClientComponentClient();
+  
   const warnings: ValidationWarning[] = [];
 
   const { data: causalFactors } = await supabase
@@ -378,7 +377,7 @@ export async function calculateStep5Progress(investigationId: string): Promise<S
  * Calculate progress for Step 6: Recommendations Development
  */
 export async function calculateStep6Progress(investigationId: string): Promise<StepProgress> {
-  const supabase = createClientComponentClient();
+  
   const warnings: ValidationWarning[] = [];
 
   const { data: causalFactors } = await supabase
@@ -437,7 +436,7 @@ export async function calculateStep6Progress(investigationId: string): Promise<S
  * Calculate progress for Step 7: Report Generation
  */
 export async function calculateStep7Progress(investigationId: string): Promise<StepProgress> {
-  const supabase = createClientComponentClient();
+  
   const warnings: ValidationWarning[] = [];
 
   const { data: investigation } = await supabase
@@ -517,7 +516,7 @@ export async function calculateInvestigationProgress(
 export async function updateInvestigationProgress(
   investigationId: string
 ): Promise<InvestigationProgress> {
-  const supabase = createClientComponentClient();
+  
   
   const progress = await calculateInvestigationProgress(investigationId);
 
@@ -543,7 +542,7 @@ export async function updateInvestigationProgress(
 export async function fetchCachedProgress(
   investigationId: string
 ): Promise<InvestigationProgress | null> {
-  const supabase = createClientComponentClient();
+  
 
   const { data, error } = await supabase
     .from('investigation_progress')
@@ -607,7 +606,7 @@ export async function logActivity(
   itemId: string | null,
   description: string
 ): Promise<void> {
-  const supabase = createClientComponentClient();
+  
 
   await supabase.from('investigation_activity').insert({
     investigation_id: investigationId,
@@ -623,7 +622,7 @@ export async function fetchRecentActivity(
   investigationId: string,
   limit: number = 10
 ): Promise<ActivityLogEntry[]> {
-  const supabase = createClientComponentClient();
+  
 
   const { data, error } = await supabase
     .from('investigation_activity')
@@ -659,7 +658,7 @@ export async function createRelationship(
   relationshipType: string,
   notes?: string
 ): Promise<void> {
-  const supabase = createClientComponentClient();
+  
 
   await supabase.from('item_relationships').insert({
     investigation_id: investigationId,
@@ -676,7 +675,7 @@ export async function fetchRelationships(
   itemType: string,
   itemId: string
 ): Promise<any[]> {
-  const supabase = createClientComponentClient();
+  
 
   const { data: asSource } = await supabase
     .from('item_relationships')
@@ -694,7 +693,7 @@ export async function fetchRelationships(
 }
 
 export async function deleteRelationship(relationshipId: string): Promise<void> {
-  const supabase = createClientComponentClient();
+  
 
   await supabase
     .from('item_relationships')
@@ -734,7 +733,7 @@ export async function fetchOutstandingItems(
 // ============================================================================
 
 export async function initializeProgressTracking(investigationId: string): Promise<void> {
-  const supabase = createClientComponentClient();
+  
 
   await supabase.rpc('initialize_investigation_progress', {
     inv_id: investigationId
