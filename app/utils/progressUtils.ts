@@ -1,492 +1,27 @@
 // ============================================================================
-// INVESTIGATION DASHBOARD - PART 1
-// Main landing page for investigation with progress tracking and navigation
-// Path: app/investigation/[id]/dashboard/page.tsx
+// PROGRESS UTILITIES
+// Investigation Tool - Step Progress Calculation and Status Management
 // Created: 3 February 2026
 // ============================================================================
 
-'use client';
-
-import { useEffect, useState } from 'react';
-import { useParams, useRouter } from 'next/navigation';
-import { createClient } from '@/utils/supabase/client';
-import {
-  AlertCircle,
-  CheckCircle2,
-  Clock,
-  Circle,
-  ChevronRight,
-  TrendingUp,
-  FileText,
-  Users,
-  Calendar,
-  AlertTriangle,
-  BarChart3,
-  ArrowRight
-} from 'lucide-react';
-
-// Import progress utilities
-import {
-  calculateInvestigationProgress,
-  fetchCachedProgress,
-  fetchRecentActivity,
-  fetchOutstandingItems,
-  updateInvestigationProgress,
-  getStatusColour,
-  getStatusTextColour,
-  formatRelativeTime,
-  type InvestigationProgress,
-  type StepProgress,
-  type ActivityLogEntry,
-  type OutstandingItem,
-  type StepStatus
-} from '@/utils/progressUtils';
+import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
 
 // ============================================================================
-// MAIN DASHBOARD COMPONENT
+// TYPE DEFINITIONS
 // ============================================================================
 
-export default function InvestigationDashboard() {
-  const params = useParams();
-  const router = useRouter();
-  const investigationId = params?.id as string;
+export type StepStatus = 'not_started' | 'in_progress' | 'complete' | 'attention_required';
 
-  // State management
-  const [loading, setLoading] = useState(true);
-  const [investigation, setInvestigation] = useState<any>(null);
-  const [progress, setProgress] = useState<InvestigationProgress | null>(null);
-  const [recentActivity, setRecentActivity] = useState<ActivityLogEntry[]>([]);
-  const [outstandingItems, setOutstandingItems] = useState<OutstandingItem[]>([]);
-  const [refreshing, setRefreshing] = useState(false);
-
-  // ============================================================================
-  // DATA LOADING
-  // ============================================================================
-
-  useEffect(() => {
-    if (investigationId) {
-      loadDashboardData();
-    }
-  }, [investigationId]);
-
-  const loadDashboardData = async () => {
-    setLoading(true);
-    const supabase = createClient();
-
-    try {
-      // Load investigation details
-      const { data: invData, error: invError } = await supabase
-        .from('investigations')
-        .select('*')
-        .eq('id', investigationId)
-        .single();
-
-      if (invError) throw invError;
-      setInvestigation(invData);
-
-      // Try to load cached progress first (faster)
-      let progressData = await fetchCachedProgress(investigationId);
-
-      // If no cached data, calculate fresh
-      if (!progressData) {
-        progressData = await calculateInvestigationProgress(investigationId);
-        await updateInvestigationProgress(investigationId);
-      }
-
-      setProgress(progressData);
-
-      // Load recent activity
-      const activity = await fetchRecentActivity(investigationId, 10);
-      setRecentActivity(activity);
-
-      // Load outstanding items
-      const outstanding = await fetchOutstandingItems(investigationId);
-      setOutstandingItems(outstanding);
-
-    } catch (error) {
-      console.error('Error loading dashboard:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleRefreshProgress = async () => {
-    setRefreshing(true);
-    try {
-      const progressData = await calculateInvestigationProgress(investigationId);
-      await updateInvestigationProgress(investigationId);
-      setProgress(progressData);
-
-      const outstanding = await fetchOutstandingItems(investigationId);
-      setOutstandingItems(outstanding);
-    } catch (error) {
-      console.error('Error refreshing progress:', error);
-    } finally {
-      setRefreshing(false);
-    }
-  };
-
-  const navigateToStep = (stepNumber: number) => {
-    const stepRoutes = [
-      'initiation',
-      'evidence',
-      'timeline',
-      'visualisations',
-      'analysis',
-      'recommendations',
-      'report'
-    ];
-    router.push(`/investigation/${investigationId}/${stepRoutes[stepNumber - 1]}`);
-  };
-
-  // ============================================================================
-  // RENDER HELPERS
-  // ============================================================================
-
-  const getStatusIcon = (status: StepStatus) => {
-    switch (status) {
-      case 'complete':
-        return <CheckCircle2 className="w-5 h-5 text-green-600" />;
-      case 'in_progress':
-        return <Clock className="w-5 h-5 text-amber-600" />;
-      case 'attention_required':
-        return <AlertCircle className="w-5 h-5 text-red-600" />;
-      default:
-        return <Circle className="w-5 h-5 text-grey-400" />;
-    }
-  };
-
-  const getSeverityIcon = (severity: 'info' | 'warning' | 'critical') => {
-    switch (severity) {
-      case 'critical':
-        return <AlertCircle className="w-5 h-5 text-red-600" />;
-      case 'warning':
-        return <AlertTriangle className="w-5 h-5 text-amber-600" />;
-      default:
-        return <AlertCircle className="w-5 h-5 text-blue-600" />;
-    }
-  };
-
-  const getSeverityColour = (severity: 'info' | 'warning' | 'critical') => {
-    switch (severity) {
-      case 'critical':
-        return 'bg-red-50 border-red-200';
-      case 'warning':
-        return 'bg-amber-50 border-amber-200';
-      default:
-        return 'bg-blue-50 border-blue-200';
-    }
-  };
-
-  // ============================================================================
-  // LOADING STATE
-  // ============================================================================
-
-  if (loading) {
-    return (
-      <div className="min-h-screen bg-grey-50 flex items-centre justify-centre">
-        <div className="text-centre">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
-          <p className="text-grey-600">Loading investigation dashboard...</p>
-        </div>
-      </div>
-    );
-  }
-
-  if (!investigation || !progress) {
-    return (
-      <div className="min-h-screen bg-grey-50 flex items-centre justify-centre">
-        <div className="text-centre">
-          <AlertCircle className="w-12 h-12 text-red-600 mx-auto mb-4" />
-          <p className="text-grey-600">Investigation not found</p>
-        </div>
-      </div>
-    );
-  }
-
-  // ============================================================================
-  // MAIN RENDER
-  // ============================================================================
-
-  return (
-    <div className="min-h-screen bg-grey-50">
-      {/* Header */}
-      <div className="bg-white border-b border-grey-200">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
-          <div className="flex items-centre justify-between">
-            <div>
-              <h1 className="text-2xl font-bold text-grey-900">
-                Investigation Dashboard
-              </h1>
-              <p className="mt-1 text-sm text-grey-600">
-                {investigation.incident_title || 'Untitled Investigation'} 
-                {investigation.incident_date && (
-                  <span className="ml-2">
-                    • {new Date(investigation.incident_date).toLocaleDateString('en-GB')}
-                  </span>
-                )}
-              </p>
-            </div>
-            <button
-              onClick={handleRefreshProgress}
-              disabled={refreshing}
-              className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 
-                       disabled:opacity-50 disabled:cursor-not-allowed flex items-centre gap-2"
-            >
-              {refreshing ? (
-                <>
-                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
-                  Refreshing...
-                </>
-              ) : (
-                <>
-                  <TrendingUp className="w-4 h-4" />
-                  Refresh Progress
-                </>
-              )}
-            </button>
-          </div>
-
-          {/* Overall Progress Bar */}
-          <div className="mt-6">
-            <div className="flex items-centre justify-between mb-2">
-              <span className="text-sm font-medium text-grey-700">
-                Overall Progress
-              </span>
-              <span className="text-sm font-bold text-blue-600">
-                {progress.overallProgress}%
-              </span>
-            </div>
-            <div className="w-full bg-grey-200 rounded-full h-3">
-              <div
-                className="bg-blue-600 h-3 rounded-full transition-all duration-500"
-                style={{ width: `${progress.overallProgress}%` }}
-              ></div>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* Main Content Grid */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          
-          {/* Left Column - Progress & Navigation */}
-          <div className="lg:col-span-2 space-y-6">
-            
-            {/* Investigation Summary Card */}
-            <div className="bg-white rounded-lg shadow-sm border border-grey-200 p-6">
-              <h2 className="text-lg font-semibold text-grey-900 mb-4 flex items-centre gap-2">
-                <FileText className="w-5 h-5 text-blue-600" />
-                Investigation Summary
-              </h2>
-              
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <p className="text-sm text-grey-600">Location</p>
-                  <p className="font-medium text-grey-900">
-                    {investigation.location || 'Not specified'}
-                  </p>
-                </div>
-                <div>
-                  <p className="text-sm text-grey-600">Classification</p>
-                  <p className="font-medium text-grey-900">
-                    {investigation.actual_or_near_miss || 'Not classified'}
-                  </p>
-                </div>
-                <div>
-                  <p className="text-sm text-grey-600">Lead Investigator</p>
-                  <p className="font-medium text-grey-900">
-                    {investigation.lead_investigator || 'Not assigned'}
-                  </p>
-                </div>
-                <div>
-                  <p className="text-sm text-grey-600">Status</p>
-                  <div className="flex items-centre gap-2">
-                    <span className={`inline-flex items-centre px-2.5 py-0.5 rounded-full text-xs font-medium
-                      ${investigation.status === 'closed' ? 'bg-green-100 text-green-800' : 
-                        investigation.status === 'in_progress' ? 'bg-blue-100 text-blue-800' : 
-                        'bg-grey-100 text-grey-800'}`}>
-                      {investigation.status || 'Open'}
-                    </span>
-                    {investigation.high_potential && (
-                      <span className="inline-flex items-centre px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800">
-                        High Potential
-                      </span>
-                    )}
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            {/* Step Progress Cards */}
-            <div className="bg-white rounded-lg shadow-sm border border-grey-200 p-6">
-              <h2 className="text-lg font-semibold text-grey-900 mb-4 flex items-centre gap-2">
-                <BarChart3 className="w-5 h-5 text-blue-600" />
-                Investigation Steps
-              </h2>
-
-              <div className="space-y-3">
-                {progress.steps.map((step) => (
-                  <StepProgressCard
-                    key={step.stepNumber}
-                    step={step}
-                    onNavigate={() => navigateToStep(step.stepNumber)}
-                  />
-                ))}
-              </div>
-            </div>
-          </div>
-
-          {/* Right Column - Activity & Alerts */}
-          <div className="space-y-6">
-            
-            {/* Outstanding Items */}
-            {outstandingItems.length > 0 && (
-              <div className="bg-white rounded-lg shadow-sm border border-grey-200 p-6">
-                <h2 className="text-lg font-semibold text-grey-900 mb-4 flex items-centre gap-2">
-                  <AlertTriangle className="w-5 h-5 text-amber-600" />
-                  Outstanding Items
-                  <span className="ml-auto text-sm font-normal text-grey-600">
-                    {outstandingItems.length}
-                  </span>
-                </h2>
-
-                <div className="space-y-3">
-                  {outstandingItems.slice(0, 5).map((item, index) => (
-                    <div
-                      key={index}
-                      className={`p-3 rounded-lg border ${getSeverityColour(item.severity)}`}
-                    >
-                      <div className="flex items-start gap-2">
-                        {getSeverityIcon(item.severity)}
-                        <div className="flex-1 min-w-0">
-                          <p className="text-sm font-medium text-grey-900">
-                            Step {item.stepNumber}: {item.message}
-                          </p>
-                          {item.action && (
-                            <p className="text-xs text-grey-600 mt-1">
-                              {item.action}
-                            </p>
-                          )}
-                        </div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-
-                {outstandingItems.length > 5 && (
-                  <p className="text-sm text-grey-600 mt-3 text-centre">
-                    +{outstandingItems.length - 5} more items
-                  </p>
-                )}
-              </div>
-            )}
-
-            {/* Recent Activity */}
-            <div className="bg-white rounded-lg shadow-sm border border-grey-200 p-6">
-              <h2 className="text-lg font-semibold text-grey-900 mb-4 flex items-centre gap-2">
-                <Clock className="w-5 h-5 text-blue-600" />
-                Recent Activity
-              </h2>
-
-              {recentActivity.length === 0 ? (
-                <p className="text-sm text-grey-500 text-centre py-4">
-                  No recent activity
-                </p>
-              ) : (
-                <div className="space-y-3">
-                  {recentActivity.map((activity) => (
-                    <div key={activity.id} className="flex items-start gap-3">
-                      <div className="w-2 h-2 bg-blue-600 rounded-full mt-2"></div>
-                      <div className="flex-1 min-w-0">
-                        <p className="text-sm text-grey-900">
-                          {activity.description}
-                        </p>
-                        <p className="text-xs text-grey-500 mt-1">
-                          {formatRelativeTime(activity.createdAt)}
-                          {activity.stepNumber && (
-                            <span className="ml-2">• Step {activity.stepNumber}</span>
-                          )}
-                        </p>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-
-            {/* Quick Actions */}
-            <div className="bg-white rounded-lg shadow-sm border border-grey-200 p-6">
-              <h2 className="text-lg font-semibold text-grey-900 mb-4">
-                Quick Actions
-              </h2>
-
-              <div className="space-y-2">
-                <button
-                  onClick={() => router.push(`/investigation/${investigationId}/evidence`)}
-                  className="w-full px-4 py-3 bg-grey-50 hover:bg-grey-100 rounded-lg 
-                           text-left flex items-centre justify-between group"
-                >
-                  <span className="text-sm font-medium text-grey-900">Add Evidence</span>
-                  <ArrowRight className="w-4 h-4 text-grey-400 group-hover:text-grey-600" />
-                </button>
-
-                <button
-                  onClick={() => router.push(`/investigation/${investigationId}/timeline`)}
-                  className="w-full px-4 py-3 bg-grey-50 hover:bg-grey-100 rounded-lg 
-                           text-left flex items-centre justify-between group"
-                >
-                  <span className="text-sm font-medium text-grey-900">Build Timeline</span>
-                  <ArrowRight className="w-4 h-4 text-grey-400 group-hover:text-grey-600" />
-                </button>
-
-                <button
-                  onClick={() => router.push(`/investigation/${investigationId}/report`)}
-                  className="w-full px-4 py-3 bg-grey-50 hover:bg-grey-100 rounded-lg 
-                           text-left flex items-centre justify-between group"
-                >
-                  <span className="text-sm font-medium text-grey-900">Generate Report</span>
-                  <ArrowRight className="w-4 h-4 text-grey-400 group-hover:text-grey-600" />
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-// Continue in PART 2 with StepProgressCard component...
-// ============================================================================
-// INVESTIGATION DASHBOARD - PART 2
-// StepProgressCard component and supporting UI elements
-// ============================================================================
-
-'use client';
-
-import React from 'react';
-import {
-  CheckCircle2,
-  Clock,
-  Circle,
-  AlertCircle,
-  ChevronRight,
-  TrendingUp
-} from 'lucide-react';
-
-// Types (imported from PART 1 in actual implementation)
-interface ValidationWarning {
+export interface ValidationWarning {
   severity: 'info' | 'warning' | 'critical';
   message: string;
   action?: string;
 }
 
-interface StepProgress {
+export interface StepProgress {
   stepNumber: number;
   stepName: string;
-  status: 'not_started' | 'in_progress' | 'complete' | 'attention_required';
+  status: StepStatus;
   itemsCount: number;
   itemsComplete: number;
   percentComplete: number;
@@ -494,387 +29,780 @@ interface StepProgress {
   lastUpdated: Date | null;
 }
 
-// ============================================================================
-// STEP PROGRESS CARD COMPONENT
-// ============================================================================
-
-interface StepProgressCardProps {
-  step: StepProgress;
-  onNavigate: () => void;
+export interface InvestigationProgress {
+  investigationId: string;
+  steps: StepProgress[];
+  overallProgress: number;
+  lastActivity: Date | null;
 }
 
-const StepProgressCard: React.FC<StepProgressCardProps> = ({ step, onNavigate }) => {
-  const getStatusColour = (status: string) => {
-    switch (status) {
-      case 'complete':
-        return 'bg-green-100 border-green-300';
-      case 'in_progress':
-        return 'bg-amber-100 border-amber-300';
-      case 'attention_required':
-        return 'bg-red-100 border-red-300';
-      default:
-        return 'bg-grey-100 border-grey-300';
-    }
-  };
-
-  const getStatusIcon = (status: string) => {
-    switch (status) {
-      case 'complete':
-        return <CheckCircle2 className="w-5 h-5 text-green-600" />;
-      case 'in_progress':
-        return <Clock className="w-5 h-5 text-amber-600" />;
-      case 'attention_required':
-        return <AlertCircle className="w-5 h-5 text-red-600" />;
-      default:
-        return <Circle className="w-5 h-5 text-grey-400" />;
-    }
-  };
-
-  const getStatusText = (status: string) => {
-    switch (status) {
-      case 'complete':
-        return 'Complete';
-      case 'in_progress':
-        return 'In Progress';
-      case 'attention_required':
-        return 'Needs Attention';
-      default:
-        return 'Not Started';
-    }
-  };
-
-  return (
-    <button
-      onClick={onNavigate}
-      className={`w-full p-4 rounded-lg border-2 transition-all hover:shadow-md group
-                ${getStatusColour(step.status)}`}
-    >
-      <div className="flex items-start gap-3">
-        {/* Step Number Badge */}
-        <div className="flex-shrink-0">
-          <div className="w-8 h-8 rounded-full bg-white border-2 border-grey-300 
-                        flex items-centre justify-centre font-semibold text-sm text-grey-700">
-            {step.stepNumber}
-          </div>
-        </div>
-
-        {/* Step Content */}
-        <div className="flex-1 min-w-0 text-left">
-          {/* Step Name and Status */}
-          <div className="flex items-centre gap-2 mb-2">
-            {getStatusIcon(step.status)}
-            <h3 className="font-semibold text-grey-900">{step.stepName}</h3>
-          </div>
-
-          {/* Status Text and Progress */}
-          <div className="flex items-centre gap-3 mb-2">
-            <span className="text-sm text-grey-700">
-              {getStatusText(step.status)}
-            </span>
-            {step.status !== 'not_started' && (
-              <>
-                <span className="text-xs text-grey-500">•</span>
-                <span className="text-sm text-grey-600">
-                  {step.itemsComplete}/{step.itemsCount} items
-                </span>
-              </>
-            )}
-          </div>
-
-          {/* Progress Bar */}
-          {step.status !== 'not_started' && (
-            <div className="w-full bg-white rounded-full h-2 mb-2">
-              <div
-                className={`h-2 rounded-full transition-all duration-300
-                  ${step.status === 'complete' ? 'bg-green-600' : 
-                    step.status === 'in_progress' ? 'bg-amber-600' : 'bg-red-600'}`}
-                style={{ width: `${step.percentComplete}%` }}
-              ></div>
-            </div>
-          )}
-
-          {/* Warnings */}
-          {step.warnings.length > 0 && (
-            <div className="mt-2 space-y-1">
-              {step.warnings.slice(0, 2).map((warning, index) => (
-                <div
-                  key={index}
-                  className="text-xs text-grey-700 flex items-start gap-1"
-                >
-                  <AlertCircle className="w-3 h-3 flex-shrink-0 mt-0.5" />
-                  <span>{warning.message}</span>
-                </div>
-              ))}
-              {step.warnings.length > 2 && (
-                <p className="text-xs text-grey-600 ml-4">
-                  +{step.warnings.length - 2} more warning{step.warnings.length - 2 > 1 ? 's' : ''}
-                </p>
-              )}
-            </div>
-          )}
-        </div>
-
-        {/* Navigation Arrow */}
-        <div className="flex-shrink-0 self-centre">
-          <ChevronRight className="w-5 h-5 text-grey-400 group-hover:text-grey-600 transition-colours" />
-        </div>
-      </div>
-    </button>
-  );
-};
-
-// ============================================================================
-// PROGRESS RING COMPONENT
-// Circular progress indicator (alternative visualization)
-// ============================================================================
-
-interface ProgressRingProps {
-  progress: number;
-  size?: number;
-  strokeWidth?: number;
-  colour?: string;
+export interface ActivityLogEntry {
+  id: string;
+  activityType: string;
+  stepNumber: number | null;
+  itemType: string | null;
+  description: string;
+  createdAt: Date;
 }
 
-const ProgressRing: React.FC<ProgressRingProps> = ({
-  progress,
-  size = 120,
-  strokeWidth = 8,
-  colour = '#3b82f6'
-}) => {
-  const radius = (size - strokeWidth) / 2;
-  const circumference = radius * 2 * Math.PI;
-  const offset = circumference - (progress / 100) * circumference;
-
-  return (
-    <div className="relative inline-flex items-centre justify-centre">
-      <svg width={size} height={size} className="transform -rotate-90">
-        {/* Background circle */}
-        <circle
-          cx={size / 2}
-          cy={size / 2}
-          r={radius}
-          stroke="#e5e7eb"
-          strokeWidth={strokeWidth}
-          fill="none"
-        />
-        {/* Progress circle */}
-        <circle
-          cx={size / 2}
-          cy={size / 2}
-          r={radius}
-          stroke={colour}
-          strokeWidth={strokeWidth}
-          fill="none"
-          strokeDasharray={circumference}
-          strokeDashoffset={offset}
-          strokeLinecap="round"
-          className="transition-all duration-500"
-        />
-      </svg>
-      <div className="absolute inset-0 flex items-centre justify-centre">
-        <span className="text-2xl font-bold text-grey-900">{progress}%</span>
-      </div>
-    </div>
-  );
-};
-
-// ============================================================================
-// STATUS BADGE COMPONENT
-// Reusable status indicator badge
-// ============================================================================
-
-interface StatusBadgeProps {
-  status: 'not_started' | 'in_progress' | 'complete' | 'attention_required';
-  showIcon?: boolean;
-  size?: 'sm' | 'md' | 'lg';
+export interface OutstandingItem {
+  stepNumber: number;
+  severity: 'info' | 'warning' | 'critical';
+  message: string;
+  action: string;
+  count?: number;
 }
 
-const StatusBadge: React.FC<StatusBadgeProps> = ({ 
-  status, 
-  showIcon = true,
-  size = 'md' 
-}) => {
-  const sizeClasses = {
-    sm: 'px-2 py-0.5 text-xs',
-    md: 'px-2.5 py-1 text-sm',
-    lg: 'px-3 py-1.5 text-base'
-  };
-
-  const iconSizes = {
-    sm: 'w-3 h-3',
-    md: 'w-4 h-4',
-    lg: 'w-5 h-5'
-  };
-
-  const getStatusConfig = () => {
-    switch (status) {
-      case 'complete':
-        return {
-          colour: 'bg-green-100 text-green-800 border-green-200',
-          icon: CheckCircle2,
-          text: 'Complete'
-        };
-      case 'in_progress':
-        return {
-          colour: 'bg-amber-100 text-amber-800 border-amber-200',
-          icon: Clock,
-          text: 'In Progress'
-        };
-      case 'attention_required':
-        return {
-          colour: 'bg-red-100 text-red-800 border-red-200',
-          icon: AlertCircle,
-          text: 'Attention Required'
-        };
-      default:
-        return {
-          colour: 'bg-grey-100 text-grey-800 border-grey-200',
-          icon: Circle,
-          text: 'Not Started'
-        };
-    }
-  };
-
-  const config = getStatusConfig();
-  const Icon = config.icon;
-
-  return (
-    <span className={`inline-flex items-centre gap-1.5 rounded-full border font-medium
-                    ${config.colour} ${sizeClasses[size]}`}>
-      {showIcon && <Icon className={iconSizes[size]} />}
-      {config.text}
-    </span>
-  );
-};
-
 // ============================================================================
-// ACTIVITY TIMELINE COMPONENT
-// Visual timeline for recent activities
+// STEP CONFIGURATION
 // ============================================================================
 
-interface ActivityTimelineProps {
-  activities: Array<{
-    id: string;
-    description: string;
-    createdAt: Date;
-    stepNumber: number | null;
-  }>;
-}
+export const INVESTIGATION_STEPS = [
+  { number: 1, name: 'Investigation Initiation' },
+  { number: 2, name: 'Data Collection & Evidence' },
+  { number: 3, name: 'Timeline Construction' },
+  { number: 4, name: 'Visualisations' },
+  { number: 5, name: 'Causal Factor Analysis' },
+  { number: 6, name: 'Recommendations Development' },
+  { number: 7, name: 'Report Generation' }
+];
 
-const ActivityTimeline: React.FC<ActivityTimelineProps> = ({ activities }) => {
-  const formatRelativeTime = (date: Date): string => {
-    const now = new Date();
-    const diffMs = now.getTime() - date.getTime();
-    const diffMins = Math.floor(diffMs / 60000);
-    const diffHours = Math.floor(diffMs / 3600000);
-    const diffDays = Math.floor(diffMs / 86400000);
+// ============================================================================
+// PROGRESS CALCULATION FUNCTIONS
+// ============================================================================
 
-    if (diffMins < 1) return 'Just now';
-    if (diffMins < 60) return `${diffMins} minute${diffMins > 1 ? 's' : ''} ago`;
-    if (diffHours < 24) return `${diffHours} hour${diffHours > 1 ? 's' : ''} ago`;
-    if (diffDays < 7) return `${diffDays} day${diffDays > 1 ? 's' : ''} ago`;
-    return date.toLocaleDateString('en-GB');
-  };
+/**
+ * Calculate progress for Step 1: Investigation Initiation
+ */
+export async function calculateStep1Progress(investigationId: string): Promise<StepProgress> {
+  const supabase = createClientComponentClient();
+  const warnings: ValidationWarning[] = [];
 
-  if (activities.length === 0) {
-    return (
-      <p className="text-sm text-grey-500 text-centre py-8">
-        No activity yet
-      </p>
-    );
+  const { data: investigation, error } = await supabase
+    .from('investigations')
+    .select('*')
+    .eq('id', investigationId)
+    .single();
+
+  if (error || !investigation) {
+    return {
+      stepNumber: 1,
+      stepName: 'Investigation Initiation',
+      status: 'not_started',
+      itemsCount: 0,
+      itemsComplete: 0,
+      percentComplete: 0,
+      warnings: [],
+      lastUpdated: null
+    };
   }
 
-  return (
-    <div className="space-y-4">
-      {activities.map((activity, index) => (
-        <div key={activity.id} className="flex gap-3">
-          {/* Timeline dot and line */}
-          <div className="flex flex-col items-centre">
-            <div className="w-2 h-2 bg-blue-600 rounded-full"></div>
-            {index < activities.length - 1 && (
-              <div className="w-0.5 h-full bg-grey-200 mt-1"></div>
-            )}
-          </div>
+  const requiredFields = [
+    'incident_date',
+    'location_facility',
+    'incident_type',
+    'incident_description'
+  ];
 
-          {/* Activity content */}
-          <div className="flex-1 pb-4">
-            <p className="text-sm text-grey-900 font-medium">
-              {activity.description}
-            </p>
-            <p className="text-xs text-grey-500 mt-1">
-              {formatRelativeTime(activity.createdAt)}
-              {activity.stepNumber && (
-                <span className="ml-2">• Step {activity.stepNumber}</span>
-              )}
-            </p>
-          </div>
-        </div>
-      ))}
-    </div>
-  );
-};
+  let completedFields = 0;
+  requiredFields.forEach(field => {
+    if (investigation[field]) completedFields++;
+  });
 
-// ============================================================================
-// MINI STATS CARD COMPONENT
-// Small stat display for dashboard metrics
-// ============================================================================
+  let status: StepStatus = 'not_started';
+  if (completedFields === 0) {
+    status = 'not_started';
+  } else if (completedFields < requiredFields.length) {
+    status = 'in_progress';
+    warnings.push({
+      severity: 'warning',
+      message: `${requiredFields.length - completedFields} required fields incomplete`,
+      action: 'Complete all incident details to proceed effectively'
+    });
+  } else {
+    status = 'complete';
+  }
 
-interface MiniStatsCardProps {
-  label: string;
-  value: string | number;
-  icon: React.ReactNode;
-  colour?: string;
-  trend?: {
-    value: number;
-    positive: boolean;
+  if (!investigation.investigation_leader) {
+    warnings.push({
+      severity: 'info',
+      message: 'No lead investigator assigned',
+      action: 'Assign a lead investigator to ensure accountability'
+    });
+  }
+
+  return {
+    stepNumber: 1,
+    stepName: 'Investigation Initiation',
+    status,
+    itemsCount: requiredFields.length,
+    itemsComplete: completedFields,
+    percentComplete: Math.round((completedFields / requiredFields.length) * 100),
+    warnings,
+    lastUpdated: investigation.updated_at ? new Date(investigation.updated_at) : null
   };
 }
 
-const MiniStatsCard: React.FC<MiniStatsCardProps> = ({
-  label,
-  value,
-  icon,
-  colour = 'blue',
-  trend
-}) => {
-  const colourClasses = {
-    blue: 'bg-blue-50 text-blue-600',
-    green: 'bg-green-50 text-green-600',
-    amber: 'bg-amber-50 text-amber-600',
-    red: 'bg-red-50 text-red-600',
-    grey: 'bg-grey-50 text-grey-600'
+/**
+ * Calculate progress for Step 2: Data Collection & Evidence
+ */
+export async function calculateStep2Progress(investigationId: string): Promise<StepProgress> {
+  const supabase = createClientComponentClient();
+  const warnings: ValidationWarning[] = [];
+
+  const { data: evidence } = await supabase
+    .from('evidence')
+    .select('id')
+    .eq('investigation_id', investigationId);
+
+  const { data: interviews } = await supabase
+    .from('interviews')
+    .select('id')
+    .eq('investigation_id', investigationId);
+
+  const evidenceCount = evidence?.length || 0;
+  const interviewCount = interviews?.length || 0;
+  const totalItems = evidenceCount + interviewCount;
+
+  let status: StepStatus = 'not_started';
+  if (totalItems === 0) {
+    status = 'not_started';
+  } else if (evidenceCount === 0 || interviewCount === 0) {
+    status = 'in_progress';
+    if (evidenceCount === 0) {
+      warnings.push({
+        severity: 'warning',
+        message: 'No evidence items collected',
+        action: 'Add evidence documents, photos, or files to support findings'
+      });
+    }
+    if (interviewCount === 0) {
+      warnings.push({
+        severity: 'warning',
+        message: 'No interviews conducted',
+        action: 'Interview witnesses and involved personnel'
+      });
+    }
+  } else {
+    status = 'complete';
+  }
+
+  if (interviewCount > 0 && interviewCount < 2) {
+    warnings.push({
+      severity: 'info',
+      message: 'Limited witness perspectives',
+      action: 'Consider interviewing additional personnel for comprehensive understanding'
+    });
+  }
+
+  return {
+    stepNumber: 2,
+    stepName: 'Data Collection & Evidence',
+    status,
+    itemsCount: totalItems,
+    itemsComplete: totalItems,
+    percentComplete: totalItems > 0 ? 100 : 0,
+    warnings,
+    lastUpdated: new Date()
   };
+}
 
-  return (
-    <div className="bg-white rounded-lg border border-grey-200 p-4">
-      <div className="flex items-centre justify-between">
-        <div className="flex-1">
-          <p className="text-sm text-grey-600 mb-1">{label}</p>
-          <p className="text-2xl font-bold text-grey-900">{value}</p>
-          {trend && (
-            <div className={`flex items-centre gap-1 mt-1 text-xs
-                          ${trend.positive ? 'text-green-600' : 'text-red-600'}`}>
-              <TrendingUp className={`w-3 h-3 ${!trend.positive && 'transform rotate-180'}`} />
-              <span>{Math.abs(trend.value)}%</span>
-            </div>
-          )}
-        </div>
-        <div className={`p-3 rounded-lg ${colourClasses[colour as keyof typeof colourClasses]}`}>
-          {icon}
-        </div>
-      </div>
-    </div>
+/**
+ * Calculate progress for Step 3: Timeline Construction
+ */
+export async function calculateStep3Progress(investigationId: string): Promise<StepProgress> {
+  const supabase = createClientComponentClient();
+  const warnings: ValidationWarning[] = [];
+
+  const { data: events } = await supabase
+    .from('timeline_events')
+    .select('*')
+    .eq('investigation_id', investigationId)
+    .order('event_date', { ascending: true });
+
+  const totalEvents = events?.length || 0;
+  const verifiedEvents = events?.filter(e => e.verification_status === 'verified').length || 0;
+
+  let status: StepStatus = 'not_started';
+  if (totalEvents === 0) {
+    status = 'not_started';
+  } else if (verifiedEvents < totalEvents) {
+    status = 'in_progress';
+    const unverifiedCount = totalEvents - verifiedEvents;
+    warnings.push({
+      severity: 'warning',
+      message: `${unverifiedCount} timeline event${unverifiedCount > 1 ? 's' : ''} remain unverified`,
+      action: 'Verify all events with supporting evidence before proceeding to analysis'
+    });
+  } else if (totalEvents < 3) {
+    status = 'in_progress';
+    warnings.push({
+      severity: 'warning',
+      message: 'Timeline may be incomplete',
+      action: 'Ensure timeline captures key events before, during, and after incident'
+    });
+  } else {
+    status = 'complete';
+  }
+
+  return {
+    stepNumber: 3,
+    stepName: 'Timeline Construction',
+    status,
+    itemsCount: totalEvents,
+    itemsComplete: verifiedEvents,
+    percentComplete: totalEvents > 0 ? Math.round((verifiedEvents / totalEvents) * 100) : 0,
+    warnings,
+    lastUpdated: new Date()
+  };
+}
+
+/**
+ * Calculate progress for Step 4: Visualisations
+ */
+export async function calculateStep4Progress(investigationId: string): Promise<StepProgress> {
+  const supabase = createClientComponentClient();
+  const warnings: ValidationWarning[] = [];
+
+  const { data: causalFactors } = await supabase
+    .from('causal_factors')
+    .select('*')
+    .eq('investigation_id', investigationId);
+
+  const totalFactors = causalFactors?.length || 0;
+
+  let status: StepStatus = 'not_started';
+  if (totalFactors === 0) {
+    status = 'not_started';
+  } else if (totalFactors < 3) {
+    status = 'in_progress';
+    warnings.push({
+      severity: 'info',
+      message: 'Limited causal factors identified',
+      action: 'Consider using 5 Whys or Causal Tree to identify additional factors'
+    });
+  } else {
+    status = 'complete';
+  }
+
+  return {
+    stepNumber: 4,
+    stepName: 'Visualisations',
+    status,
+    itemsCount: totalFactors,
+    itemsComplete: totalFactors,
+    percentComplete: totalFactors > 0 ? 100 : 0,
+    warnings,
+    lastUpdated: new Date()
+  };
+}
+
+/**
+ * Calculate progress for Step 5: Causal Factor Analysis
+ */
+export async function calculateStep5Progress(investigationId: string): Promise<StepProgress> {
+  const supabase = createClientComponentClient();
+  const warnings: ValidationWarning[] = [];
+
+  const { data: causalFactors } = await supabase
+    .from('causal_factors')
+    .select('*')
+    .eq('investigation_id', investigationId);
+
+  const totalFactors = causalFactors?.length || 0;
+
+  if (totalFactors === 0) {
+    return {
+      stepNumber: 5,
+      stepName: 'Causal Factor Analysis',
+      status: 'not_started',
+      itemsCount: 0,
+      itemsComplete: 0,
+      percentComplete: 0,
+      warnings: [{
+        severity: 'warning',
+        message: 'No causal factors identified',
+        action: 'Complete Step 4 visualisations to identify causal factors'
+      }],
+      lastUpdated: null
+    };
+  }
+
+  const { data: hfatAssessments } = await supabase
+    .from('hfat_assessments')
+    .select('causal_factor_id')
+    .eq('investigation_id', investigationId);
+
+  const { data: hopAssessments } = await supabase
+    .from('hop_assessments')
+    .select('causal_factor_id')
+    .eq('investigation_id', investigationId);
+
+  const assessedFactors = new Set([
+    ...(hfatAssessments?.map(a => a.causal_factor_id) || []),
+    ...(hopAssessments?.map(a => a.causal_factor_id) || [])
+  ]);
+
+  const assessedCount = assessedFactors.size;
+
+  let status: StepStatus = 'in_progress';
+  if (assessedCount === 0) {
+    warnings.push({
+      severity: 'warning',
+      message: 'No causal factors have been assessed with HFAT or HOP',
+      action: 'Apply HFAT or HOP analysis to understand underlying factors'
+    });
+  } else if (assessedCount < totalFactors) {
+    warnings.push({
+      severity: 'info',
+      message: `${totalFactors - assessedCount} causal factor${totalFactors - assessedCount > 1 ? 's' : ''} not yet assessed`,
+      action: 'Consider assessing all significant causal factors'
+    });
+  } else {
+    status = 'complete';
+  }
+
+  return {
+    stepNumber: 5,
+    stepName: 'Causal Factor Analysis',
+    status,
+    itemsCount: totalFactors,
+    itemsComplete: assessedCount,
+    percentComplete: totalFactors > 0 ? Math.round((assessedCount / totalFactors) * 100) : 0,
+    warnings,
+    lastUpdated: new Date()
+  };
+}
+
+/**
+ * Calculate progress for Step 6: Recommendations Development
+ */
+export async function calculateStep6Progress(investigationId: string): Promise<StepProgress> {
+  const supabase = createClientComponentClient();
+  const warnings: ValidationWarning[] = [];
+
+  const { data: causalFactors } = await supabase
+    .from('causal_factors')
+    .select('id')
+    .eq('investigation_id', investigationId);
+
+  const totalFactors = causalFactors?.length || 0;
+
+  const { data: recommendations } = await supabase
+    .from('recommendations')
+    .select('*')
+    .eq('investigation_id', investigationId);
+
+  const totalRecommendations = recommendations?.length || 0;
+
+  const completeRecommendations = recommendations?.filter(
+    r => r.responsibility && r.target_date
+  ).length || 0;
+
+  let status: StepStatus = 'not_started';
+  if (totalRecommendations === 0) {
+    status = 'not_started';
+    if (totalFactors > 0) {
+      warnings.push({
+        severity: 'warning',
+        message: 'No recommendations developed',
+        action: 'Create SMART recommendations to address identified causal factors'
+      });
+    }
+  } else if (completeRecommendations < totalRecommendations) {
+    status = 'in_progress';
+    const incompleteCount = totalRecommendations - completeRecommendations;
+    warnings.push({
+      severity: 'warning',
+      message: `${incompleteCount} recommendation${incompleteCount > 1 ? 's' : ''} lack owner or due date`,
+      action: 'Assign owners and target dates to ensure accountability'
+    });
+  } else {
+    status = 'complete';
+  }
+
+  return {
+    stepNumber: 6,
+    stepName: 'Recommendations Development',
+    status,
+    itemsCount: totalRecommendations,
+    itemsComplete: completeRecommendations,
+    percentComplete: totalRecommendations > 0 ? Math.round((completeRecommendations / totalRecommendations) * 100) : 0,
+    warnings,
+    lastUpdated: new Date()
+  };
+}
+
+/**
+ * Calculate progress for Step 7: Report Generation
+ */
+export async function calculateStep7Progress(investigationId: string): Promise<StepProgress> {
+  const supabase = createClientComponentClient();
+  const warnings: ValidationWarning[] = [];
+
+  const { data: investigation } = await supabase
+    .from('investigations')
+    .select('status, completion_date')
+    .eq('id', investigationId)
+    .single();
+
+  let status: StepStatus = 'not_started';
+  
+  if (!investigation?.completion_date) {
+    status = 'not_started';
+    warnings.push({
+      severity: 'info',
+      message: 'Report not yet generated',
+      action: 'Generate formal investigation report when analysis is complete'
+    });
+  } else if (investigation.status !== 'closed') {
+    status = 'in_progress';
+    warnings.push({
+      severity: 'info',
+      message: 'Report generated but investigation not finalised',
+      action: 'Review and mark investigation as closed when complete'
+    });
+  } else {
+    status = 'complete';
+  }
+
+  return {
+    stepNumber: 7,
+    stepName: 'Report Generation',
+    status,
+    itemsCount: 1,
+    itemsComplete: investigation?.completion_date ? 1 : 0,
+    percentComplete: investigation?.completion_date ? 100 : 0,
+    warnings,
+    lastUpdated: investigation?.completion_date ? new Date(investigation.completion_date) : null
+  };
+}
+
+// ============================================================================
+// MASTER PROGRESS CALCULATION
+// ============================================================================
+
+export async function calculateInvestigationProgress(
+  investigationId: string
+): Promise<InvestigationProgress> {
+  const stepPromises = [
+    calculateStep1Progress(investigationId),
+    calculateStep2Progress(investigationId),
+    calculateStep3Progress(investigationId),
+    calculateStep4Progress(investigationId),
+    calculateStep5Progress(investigationId),
+    calculateStep6Progress(investigationId),
+    calculateStep7Progress(investigationId)
+  ];
+
+  const steps = await Promise.all(stepPromises);
+
+  const overallProgress = Math.round(
+    steps.reduce((sum, step) => sum + step.percentComplete, 0) / steps.length
   );
-};
+
+  const lastActivity = steps
+    .map(s => s.lastUpdated)
+    .filter((date): date is Date => date !== null)
+    .sort((a, b) => b.getTime() - a.getTime())[0] || null;
+
+  return {
+    investigationId,
+    steps,
+    overallProgress,
+    lastActivity
+  };
+}
+
+export async function updateInvestigationProgress(
+  investigationId: string
+): Promise<InvestigationProgress> {
+  const supabase = createClientComponentClient();
+  
+  const progress = await calculateInvestigationProgress(investigationId);
+
+  for (const step of progress.steps) {
+    await supabase
+      .from('investigation_progress')
+      .upsert({
+        investigation_id: investigationId,
+        step_number: step.stepNumber,
+        status: step.status,
+        items_count: step.itemsCount,
+        items_complete: step.itemsComplete,
+        validation_warnings: step.warnings,
+        last_updated: new Date().toISOString()
+      }, {
+        onConflict: 'investigation_id,step_number'
+      });
+  }
+
+  return progress;
+}
+
+export async function fetchCachedProgress(
+  investigationId: string
+): Promise<InvestigationProgress | null> {
+  const supabase = createClientComponentClient();
+
+  const { data, error } = await supabase
+    .from('investigation_progress')
+    .select('*')
+    .eq('investigation_id', investigationId)
+    .order('step_number');
+
+  if (error || !data || data.length === 0) {
+    return null;
+  }
+
+  const stepNames = [
+    'Investigation Initiation',
+    'Data Collection & Evidence',
+    'Timeline Construction',
+    'Visualisations',
+    'Causal Factor Analysis',
+    'Recommendations Development',
+    'Report Generation'
+  ];
+
+  const steps: StepProgress[] = data.map(row => ({
+    stepNumber: row.step_number,
+    stepName: stepNames[row.step_number - 1],
+    status: row.status as StepStatus,
+    itemsCount: row.items_count,
+    itemsComplete: row.items_complete,
+    percentComplete: row.items_count > 0 
+      ? Math.round((row.items_complete / row.items_count) * 100) 
+      : 0,
+    warnings: row.validation_warnings as ValidationWarning[],
+    lastUpdated: row.last_updated ? new Date(row.last_updated) : null
+  }));
+
+  const overallProgress = Math.round(
+    steps.reduce((sum, step) => sum + step.percentComplete, 0) / steps.length
+  );
+
+  const lastActivity = steps
+    .map(s => s.lastUpdated)
+    .filter((date): date is Date => date !== null)
+    .sort((a, b) => b.getTime() - a.getTime())[0] || null;
+
+  return {
+    investigationId,
+    steps,
+    overallProgress,
+    lastActivity
+  };
+}
 
 // ============================================================================
-// EXPORTS
+// ACTIVITY LOGGING
 // ============================================================================
 
-export default StepProgressCard;
-export {
-  ProgressRing,
-  StatusBadge,
-  ActivityTimeline,
-  MiniStatsCard
-};
+export async function logActivity(
+  investigationId: string,
+  activityType: string,
+  stepNumber: number | null,
+  itemType: string | null,
+  itemId: string | null,
+  description: string
+): Promise<void> {
+  const supabase = createClientComponentClient();
+
+  await supabase.from('investigation_activity').insert({
+    investigation_id: investigationId,
+    activity_type: activityType,
+    step_number: stepNumber,
+    item_type: itemType,
+    item_id: itemId,
+    description: description
+  });
+}
+
+export async function fetchRecentActivity(
+  investigationId: string,
+  limit: number = 10
+): Promise<ActivityLogEntry[]> {
+  const supabase = createClientComponentClient();
+
+  const { data, error } = await supabase
+    .from('investigation_activity')
+    .select('*')
+    .eq('investigation_id', investigationId)
+    .order('created_at', { ascending: false })
+    .limit(limit);
+
+  if (error || !data) {
+    return [];
+  }
+
+  return data.map(row => ({
+    id: row.id,
+    activityType: row.activity_type,
+    stepNumber: row.step_number,
+    itemType: row.item_type,
+    description: row.description,
+    createdAt: new Date(row.created_at)
+  }));
+}
+
+// ============================================================================
+// RELATIONSHIP MANAGEMENT
+// ============================================================================
+
+export async function createRelationship(
+  investigationId: string,
+  sourceType: string,
+  sourceId: string,
+  targetType: string,
+  targetId: string,
+  relationshipType: string,
+  notes?: string
+): Promise<void> {
+  const supabase = createClientComponentClient();
+
+  await supabase.from('item_relationships').insert({
+    investigation_id: investigationId,
+    source_type: sourceType,
+    source_id: sourceId,
+    target_type: targetType,
+    target_id: targetId,
+    relationship_type: relationshipType,
+    notes
+  });
+}
+
+export async function fetchRelationships(
+  itemType: string,
+  itemId: string
+): Promise<any[]> {
+  const supabase = createClientComponentClient();
+
+  const { data: asSource } = await supabase
+    .from('item_relationships')
+    .select('*')
+    .eq('source_type', itemType)
+    .eq('source_id', itemId);
+
+  const { data: asTarget } = await supabase
+    .from('item_relationships')
+    .select('*')
+    .eq('target_type', itemType)
+    .eq('target_id', itemId);
+
+  return [...(asSource || []), ...(asTarget || [])];
+}
+
+export async function deleteRelationship(relationshipId: string): Promise<void> {
+  const supabase = createClientComponentClient();
+
+  await supabase
+    .from('item_relationships')
+    .delete()
+    .eq('id', relationshipId);
+}
+
+// ============================================================================
+// OUTSTANDING ITEMS DETECTION
+// ============================================================================
+
+export async function fetchOutstandingItems(
+  investigationId: string
+): Promise<OutstandingItem[]> {
+  const progress = await calculateInvestigationProgress(investigationId);
+  const outstanding: OutstandingItem[] = [];
+
+  progress.steps.forEach(step => {
+    step.warnings.forEach(warning => {
+      outstanding.push({
+        stepNumber: step.stepNumber,
+        severity: warning.severity,
+        message: warning.message,
+        action: warning.action || ''
+      });
+    });
+  });
+
+  const severityOrder = { critical: 0, warning: 1, info: 2 };
+  outstanding.sort((a, b) => severityOrder[a.severity] - severityOrder[b.severity]);
+
+  return outstanding;
+}
+
+// ============================================================================
+// INITIALIZATION
+// ============================================================================
+
+export async function initializeProgressTracking(investigationId: string): Promise<void> {
+  const supabase = createClientComponentClient();
+
+  await supabase.rpc('initialize_investigation_progress', {
+    inv_id: investigationId
+  });
+
+  await logActivity(
+    investigationId,
+    'investigation_created',
+    1,
+    'investigation',
+    investigationId,
+    'Investigation created and progress tracking initialized'
+  );
+}
+
+// ============================================================================
+// UTILITY FUNCTIONS
+// ============================================================================
+
+export function getStepName(stepNumber: number): string {
+  const names = [
+    'Investigation Initiation',
+    'Data Collection & Evidence',
+    'Timeline Construction',
+    'Visualisations',
+    'Causal Factor Analysis',
+    'Recommendations Development',
+    'Report Generation'
+  ];
+  return names[stepNumber - 1] || 'Unknown Step';
+}
+
+export function getStatusColour(status: StepStatus): string {
+  switch (status) {
+    case 'complete':
+      return 'bg-green-500';
+    case 'in_progress':
+      return 'bg-amber-500';
+    case 'attention_required':
+      return 'bg-red-500';
+    default:
+      return 'bg-grey-400';
+  }
+}
+
+export function getStatusTextColour(status: StepStatus): string {
+  switch (status) {
+    case 'complete':
+      return 'text-green-700';
+    case 'in_progress':
+      return 'text-amber-700';
+    case 'attention_required':
+      return 'text-red-700';
+    default:
+      return 'text-grey-700';
+  }
+}
+
+export function formatRelativeTime(date: Date): string {
+  const now = new Date();
+  const diffMs = now.getTime() - date.getTime();
+  const diffMins = Math.floor(diffMs / 60000);
+  const diffHours = Math.floor(diffMs / 3600000);
+  const diffDays = Math.floor(diffMs / 86400000);
+
+  if (diffMins < 1) return 'Just now';
+  if (diffMins < 60) return `${diffMins} minute${diffMins > 1 ? 's' : ''} ago`;
+  if (diffHours < 24) return `${diffHours} hour${diffHours > 1 ? 's' : ''} ago`;
+  if (diffDays < 7) return `${diffDays} day${diffDays > 1 ? 's' : ''} ago`;
+  return date.toLocaleDateString();
+}
