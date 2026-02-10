@@ -593,7 +593,7 @@ export default function CausalAnalysis() {
           </div>
         )}
 
-        {/* Investigation Principles */}
+        {/* Investigation Principles - FIXED BULLET POINTS */}
         <div className="bg-blue-50 border-2 border-blue-300 rounded-lg p-6 mt-6">
           <div className="flex items-start gap-3">
             <Lightbulb className="w-6 h-6 text-blue-600 flex-shrink-0 mt-1" />
@@ -601,19 +601,19 @@ export default function CausalAnalysis() {
               <h3 className="font-bold text-blue-900 mb-3 text-lg">Key Investigation Principles:</h3>
               <ul className="space-y-2 text-sm text-blue-900">
                 <li className="flex items-start gap-2">
-                  <span className="font-bold mt-0.5">\u2022</span>
+                  <span className="font-bold mt-0.5">•</span>
                   <span><strong>Local Rationality:</strong> People's actions made sense to them at the time given their knowledge, training, and context</span>
                 </li>
                 <li className="flex items-start gap-2">
-                  <span className="font-bold mt-0.5">\u2022</span>
+                  <span className="font-bold mt-0.5">•</span>
                   <span><strong>Multiple Theories:</strong> Generate at least 2-3 possible explanations before reaching conclusions</span>
                 </li>
                 <li className="flex items-start gap-2">
-                  <span className="font-bold mt-0.5">\u2022</span>
+                  <span className="font-bold mt-0.5">•</span>
                   <span><strong>System Focus:</strong> Even when human action is involved, understand what system factors made the error likely</span>
                 </li>
                 <li className="flex items-start gap-2">
-                  <span className="font-bold mt-0.5">\u2022</span>
+                  <span className="font-bold mt-0.5">•</span>
                   <span><strong>Don't Stop at "Human Error":</strong> That's a starting point, not a conclusion. Ask WHY the error was made</span>
                 </li>
               </ul>
