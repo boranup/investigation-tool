@@ -38,7 +38,7 @@ import {
   type ActivityLogEntry,
   type OutstandingItem,
   type StepStatus
-} from '@/utils/progressUtils';
+} from '@/app/utils/progressUtils'
 
 import { supabase } from '@/lib/supabase';
 
