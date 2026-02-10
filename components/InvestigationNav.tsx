@@ -26,7 +26,7 @@ import {
   Menu,
   X
 } from 'lucide-react';
-import { fetchCachedProgress, type StepProgress, type StepStatus } from '@/utils/progressUtils';
+import { fetchCachedProgress, type StepProgress, type StepStatus } from '@/app/utils/progressUtils';
 
 // ============================================================================
 // NAVIGATION CONFIGURATION
