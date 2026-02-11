@@ -162,13 +162,19 @@ export default function InvestigationNav({ investigationId }: InvestigationNavPr
     return pathname?.includes(`/${href}`);
   };
 
-  const handleNavigation = (href: string) => {
-    router.push(`/investigation/${investigationId}/${href}`);
+  const handleNavigation = (href: string, stepNumber: number) => {
+    if (stepNumber === 0) {
+      // Dashboard
+      router.push(`/investigation/${investigationId}/dashboard`);
+    } else {
+      // Existing step pages
+      router.push(`/step${stepNumber}?investigationId=${investigationId}`);
+    }
     setMobileMenuOpen(false);
   };
 
   const handleBackToList = () => {
-    router.push('/investigations');
+    router.push('/');
   };
 
   // ============================================================================
@@ -240,7 +246,7 @@ export default function InvestigationNav({ investigationId }: InvestigationNavPr
                 return (
                   <button
                     key={item.href}
-                    onClick={() => handleNavigation(item.href)}
+                    onClick={() => handleNavigation(item.href, item.stepNumber)}
                     className={`w-full px-3 py-3 rounded-lg flex items-start gap-3 group
                               transition-all hover:bg-grey-50
                               ${isActive ? 'bg-blue-50 border border-blue-200' : 'border border-transparent'}`}
