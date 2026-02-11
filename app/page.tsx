@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { Plus, Search, Filter, Calendar, MapPin, AlertCircle, Clock, CheckCircle, FileText, ChevronRight } from 'lucide-react';
+import { Plus, Search, Filter, Calendar, MapPin, AlertCircle, Clock, CheckCircle, FileText, ChevronRight, LayoutDashboard } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 
 export default function InvestigationDashboard() {
@@ -180,8 +180,7 @@ export default function InvestigationDashboard() {
               return (
                 <div
                   key={investigation.id}
-                  onClick={() => router.push(`/step1?investigationId=${investigation.id}`)}
-                  className="bg-white rounded-lg shadow-sm border border-slate-200 p-5 hover:shadow-md hover:border-blue-300 transition-all cursor-pointer group"
+                  className="bg-white rounded-lg shadow-sm border border-slate-200 p-5 hover:shadow-md hover:border-blue-300 transition-all group"
                 >
                   <div className="flex items-start gap-6">
                     {/* Left: Investigation Number and Status */}
@@ -201,7 +200,7 @@ export default function InvestigationDashboard() {
                         <h3 className="font-semibold text-slate-900 line-clamp-1">
                           {investigation.incident_description}
                         </h3>
-                        {investigation.incident_type === 'High Potential Near Miss' && (
+                        {investigation.high_potential && (
                           <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-amber-100 text-amber-800 rounded-full text-xs font-semibold whitespace-nowrap">
                             <AlertCircle className="w-3 h-3" />
                             HIGH POTENTIAL
@@ -230,8 +229,8 @@ export default function InvestigationDashboard() {
                       </div>
                     </div>
 
-                    {/* Right: Severity and Arrow */}
-                    <div className="flex items-center gap-4">
+                    {/* Right: Actions and Severity */}
+                    <div className="flex items-center gap-3">
                       {investigation.actual_severity && (
                         <div className="text-right">
                           <div className="text-xs text-slate-500 mb-1">Severity</div>
@@ -240,7 +239,27 @@ export default function InvestigationDashboard() {
                           </span>
                         </div>
                       )}
-                      <ChevronRight className="w-5 h-5 text-slate-400 group-hover:text-blue-600 transition-colors" />
+                      
+                      {/* Dashboard Button */}
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          router.push(`/investigation/${investigation.id}/dashboard`);
+                        }}
+                        className="px-3 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 
+                                 transition-colors text-sm font-medium flex items-center gap-2"
+                      >
+                        <LayoutDashboard className="w-4 h-4" />
+                        Dashboard
+                      </button>
+                      
+                      {/* Navigate to Step 1 */}
+                      <button
+                        onClick={() => router.push(`/step1?investigationId=${investigation.id}`)}
+                        className="p-2 hover:bg-slate-100 rounded-lg transition-colors"
+                      >
+                        <ChevronRight className="w-5 h-5 text-slate-400 group-hover:text-blue-600 transition-colors" />
+                      </button>
                     </div>
                   </div>
                 </div>
