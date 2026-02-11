@@ -59,6 +59,8 @@ export default function InvestigationDashboard() {
   const [refreshing, setRefreshing] = useState(false);
 
   useEffect(() => {
+    console.log('Dashboard params:', params);
+    console.log('Investigation ID:', investigationId);
     if (investigationId) {
       loadDashboardData();
     }
@@ -117,15 +119,15 @@ export default function InvestigationDashboard() {
 
   const navigateToStep = (stepNumber: number) => {
     const stepRoutes = [
-      'initiation',
-      'evidence',
-      'timeline',
-      'visualisations',
-      'analysis',
-      'recommendations',
-      'report'
+      `/step1?investigationId=${investigationId}`,
+      `/step2?investigationId=${investigationId}`,
+      `/step3?investigationId=${investigationId}`,
+      `/step4?investigationId=${investigationId}`,
+      `/step5?investigationId=${investigationId}`,
+      `/step6?investigationId=${investigationId}`,
+      `/step7?investigationId=${investigationId}`
     ];
-    router.push(`/investigation/${investigationId}/${stepRoutes[stepNumber - 1]}`);
+    router.push(stepRoutes[stepNumber - 1]);
   };
 
   const getStatusIcon = (status: StepStatus) => {
@@ -391,7 +393,7 @@ export default function InvestigationDashboard() {
 
               <div className="space-y-2">
                 <button
-                  onClick={() => router.push(`/investigation/${investigationId}/evidence`)}
+                  onClick={() => router.push(`/step2?investigationId=${investigationId}`)}
                   className="w-full px-4 py-3 bg-grey-50 hover:bg-grey-100 rounded-lg 
                            text-left flex items-center justify-between group"
                 >
@@ -400,7 +402,7 @@ export default function InvestigationDashboard() {
                 </button>
 
                 <button
-                  onClick={() => router.push(`/investigation/${investigationId}/timeline`)}
+                  onClick={() => router.push(`/step3?investigationId=${investigationId}`)}
                   className="w-full px-4 py-3 bg-grey-50 hover:bg-grey-100 rounded-lg 
                            text-left flex items-center justify-between group"
                 >
@@ -409,7 +411,7 @@ export default function InvestigationDashboard() {
                 </button>
 
                 <button
-                  onClick={() => router.push(`/investigation/${investigationId}/report`)}
+                  onClick={() => router.push(`/step7?investigationId=${investigationId}`)}
                   className="w-full px-4 py-3 bg-grey-50 hover:bg-grey-100 rounded-lg 
                            text-left flex items-center justify-between group"
                 >
