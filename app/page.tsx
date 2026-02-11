@@ -180,7 +180,8 @@ export default function InvestigationDashboard() {
               return (
                 <div
                   key={investigation.id}
-                  className="bg-white rounded-lg shadow-sm border border-slate-200 p-5 hover:shadow-md hover:border-blue-300 transition-all group"
+                  onClick={() => router.push(`/step1?investigationId=${investigation.id}`)}
+                  className="bg-white rounded-lg shadow-sm border border-slate-200 p-5 hover:shadow-md hover:border-blue-300 transition-all cursor-pointer group"
                 >
                   <div className="flex items-start gap-6">
                     {/* Left: Investigation Number and Status */}
@@ -240,7 +241,7 @@ export default function InvestigationDashboard() {
                         </div>
                       )}
                       
-                      {/* Dashboard Button */}
+                      {/* Dashboard Button - stops card click propagating */}
                       <button
                         onClick={(e) => {
                           e.stopPropagation();
@@ -252,14 +253,8 @@ export default function InvestigationDashboard() {
                         <LayoutDashboard className="w-4 h-4" />
                         Dashboard
                       </button>
-                      
-                      {/* Navigate to Step 1 */}
-                      <button
-                        onClick={() => router.push(`/step1?investigationId=${investigation.id}`)}
-                        className="p-2 hover:bg-slate-100 rounded-lg transition-colors"
-                      >
-                        <ChevronRight className="w-5 h-5 text-slate-400 group-hover:text-blue-600 transition-colors" />
-                      </button>
+
+                      <ChevronRight className="w-5 h-5 text-slate-400 group-hover:text-blue-600 transition-colors" />
                     </div>
                   </div>
                 </div>
