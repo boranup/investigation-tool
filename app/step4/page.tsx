@@ -653,6 +653,15 @@ export default function Visualisations() {
               <option value="absent">Absent</option>
             </select>
           </div>
+          {editBarrier.barrierType && (
+            <div className="px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-xs text-slate-600">
+              {editBarrier.barrierType === 'physical' && '🔩 Physical barriers are tangible safeguards — guards, interlocks, pressure relief valves, hard hats, blast walls.'}
+              {editBarrier.barrierType === 'administrative' && '📋 Administrative barriers are policy or procedure based — permits to work, checklists, procedures, sign-offs.'}
+              {editBarrier.barrierType === 'detection' && '🔍 Detection barriers identify a hazardous condition before it escalates — alarms, gas detectors, inspections, monitoring systems.'}
+              {editBarrier.barrierType === 'communication' && '📢 Communication barriers rely on information transfer to prevent harm — toolbox talks, handovers, warning signs, radio check-ins.'}
+              {editBarrier.barrierType === 'recovery' && '🚑 Recovery barriers limit consequences after an event — emergency response plans, muster stations, first aid, spill containment.'}
+            </div>
+          )}
           {['present_failed', 'present_partial', 'absent'].includes(editBarrier.status) && (
             <textarea value={editBarrier.failureReason} onChange={(e) => setEditBarrier({ ...editBarrier, failureReason: e.target.value })} className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm" rows={2} placeholder="Why did this barrier fail or not exist?" />
           )}
@@ -1243,6 +1252,16 @@ export default function Visualisations() {
                               <option value="communication">Communication</option>
                               <option value="recovery">Recovery</option>
                             </select>
+                            {/* Barrier type tooltip */}
+                            {newBarrier.barrierType && (
+                              <div className="mt-2 px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-xs text-slate-600">
+                                {newBarrier.barrierType === 'physical' && '🔩 Physical barriers are tangible safeguards — guards, interlocks, pressure relief valves, hard hats, blast walls.'}
+                                {newBarrier.barrierType === 'administrative' && '📋 Administrative barriers are policy or procedure based — permits to work, checklists, procedures, sign-offs.'}
+                                {newBarrier.barrierType === 'detection' && '🔍 Detection barriers identify a hazardous condition before it escalates — alarms, gas detectors, inspections, monitoring systems.'}
+                                {newBarrier.barrierType === 'communication' && '📢 Communication barriers rely on information transfer to prevent harm — toolbox talks, handovers, warning signs, radio check-ins.'}
+                                {newBarrier.barrierType === 'recovery' && '🚑 Recovery barriers limit consequences after an event — emergency response plans, muster stations, first aid, spill containment.'}
+                              </div>
+                            )}
                           </div>
                           <div>
                             <label className="block text-sm font-medium text-slate-700 mb-2">Side</label>
@@ -1250,6 +1269,12 @@ export default function Visualisations() {
                               <option value="prevention">Prevention</option>
                               <option value="mitigation">Mitigation</option>
                             </select>
+                            {newBarrier.side && (
+                              <div className="mt-2 px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-xs text-slate-600">
+                                {newBarrier.side === 'prevention' && '🛡️ Prevention barriers stop the hazardous event from occurring in the first place.'}
+                                {newBarrier.side === 'mitigation' && '⚡ Mitigation barriers reduce the severity of consequences after the event has occurred.'}
+                              </div>
+                            )}
                           </div>
                         </div>
                         <div>
