@@ -237,6 +237,62 @@ export default function CausalAnalysis() {
     }
   ];
 
+  // ── Reusable assessment guidance block ───────────────────────────────────
+  function AssessmentGuidance({
+    hfatChecked,
+    hopChecked,
+    onHfatChange,
+    onHopChange,
+  }: {
+    hfatChecked: boolean;
+    hopChecked: boolean;
+    onHfatChange: (v: boolean) => void;
+    onHopChange: (v: boolean) => void;
+  }) {
+    return (
+      <div className="space-y-3 mt-4 p-4 bg-gray-50 rounded-lg">
+        <p className="text-sm font-medium text-gray-700">Required Assessments:</p>
+
+        {/* HFAT */}
+        <label className="flex items-start gap-3 cursor-pointer">
+          <input
+            type="checkbox"
+            checked={hfatChecked}
+            onChange={(e) => onHfatChange(e.target.checked)}
+            className="w-4 h-4 mt-0.5 flex-shrink-0"
+          />
+          <span className="flex flex-col gap-0.5">
+            <span className="text-sm font-medium text-gray-800">HFAT Assessment</span>
+            <span className="text-xs text-gray-500">
+              Does this causal factor involve a human action, decision, or behaviour? If yes, consider HFAT to classify the human factors involved.
+            </span>
+          </span>
+        </label>
+
+        {/* HOP */}
+        <label className="flex items-start gap-3 cursor-pointer">
+          <input
+            type="checkbox"
+            checked={hopChecked}
+            onChange={(e) => onHopChange(e.target.checked)}
+            className="w-4 h-4 mt-0.5 flex-shrink-0"
+          />
+          <span className="flex flex-col gap-0.5">
+            <span className="text-sm font-medium text-gray-800">HOP Assessment</span>
+            <span className="text-xs text-gray-500">
+              Do you want to understand why the action made sense in context — the conditions, pressures, and system factors that shaped it? If yes, consider HOP to explore local rationality and performance influencers.
+            </span>
+          </span>
+        </label>
+
+        {/* Combined note */}
+        <p className="text-xs text-gray-400 italic pt-2 border-t border-gray-200">
+          Both can be applied to the same causal factor — HFAT gives you the structured classification, HOP gives you the contextual narrative. Together they may produce a more complete picture.
+        </p>
+      </div>
+    );
+  }
+
   const filteredFactors = causalFactors.filter(f => {
     if (filterType !== 'all' && f.factor_type !== filterType) return false;
     if (filterStatus !== 'all' && f.analysis_status !== filterStatus) return false;
@@ -396,27 +452,12 @@ export default function CausalAnalysis() {
                       </div>
                     </div>
 
-                    <div className="space-y-3 mt-4 p-4 bg-gray-50 rounded-lg">
-                      <p className="text-sm font-medium text-gray-700">Required Assessments:</p>
-                      <label className="flex items-center gap-2 cursor-pointer">
-                        <input
-                          type="checkbox"
-                          checked={editingFactor.requires_hfat || false}
-                          onChange={(e) => setEditingFactor({...editingFactor, requires_hfat: e.target.checked})}
-                          className="w-4 h-4"
-                        />
-                        <span className="text-sm">HFAT Assessment Required</span>
-                      </label>
-                      <label className="flex items-center gap-2 cursor-pointer">
-                        <input
-                          type="checkbox"
-                          checked={editingFactor.requires_hop || false}
-                          onChange={(e) => setEditingFactor({...editingFactor, requires_hop: e.target.checked})}
-                          className="w-4 h-4"
-                        />
-                        <span className="text-sm">HOP Assessment Required</span>
-                      </label>
-                    </div>
+                    <AssessmentGuidance
+                      hfatChecked={editingFactor.requires_hfat || false}
+                      hopChecked={editingFactor.requires_hop || false}
+                      onHfatChange={(v) => setEditingFactor({...editingFactor, requires_hfat: v})}
+                      onHopChange={(v) => setEditingFactor({...editingFactor, requires_hop: v})}
+                    />
 
                     <div className="flex gap-2 justify-end">
                       <button
@@ -593,7 +634,7 @@ export default function CausalAnalysis() {
           </div>
         )}
 
-        {/* Investigation Principles - FIXED BULLET POINTS */}
+        {/* Investigation Principles */}
         <div className="bg-blue-50 border-2 border-blue-300 rounded-lg p-6 mt-6">
           <div className="flex items-start gap-3">
             <Lightbulb className="w-6 h-6 text-blue-600 flex-shrink-0 mt-1" />
@@ -678,27 +719,12 @@ export default function CausalAnalysis() {
                   </div>
                 </div>
 
-                <div className="space-y-3 mt-4 p-4 bg-gray-50 rounded-lg">
-                  <p className="text-sm font-medium text-gray-700">Required Assessments:</p>
-                  <label className="flex items-center gap-2 cursor-pointer">
-                    <input
-                      type="checkbox"
-                      checked={newFactor.requiresHFAT}
-                      onChange={(e) => setNewFactor({...newFactor, requiresHFAT: e.target.checked})}
-                      className="w-4 h-4"
-                    />
-                    <span className="text-sm">HFAT Assessment Required</span>
-                  </label>
-                  <label className="flex items-center gap-2 cursor-pointer">
-                    <input
-                      type="checkbox"
-                      checked={newFactor.requiresHOP}
-                      onChange={(e) => setNewFactor({...newFactor, requiresHOP: e.target.checked})}
-                      className="w-4 h-4"
-                    />
-                    <span className="text-sm">HOP Assessment Required</span>
-                  </label>
-                </div>
+                <AssessmentGuidance
+                  hfatChecked={newFactor.requiresHFAT}
+                  hopChecked={newFactor.requiresHOP}
+                  onHfatChange={(v) => setNewFactor({...newFactor, requiresHFAT: v})}
+                  onHopChange={(v) => setNewFactor({...newFactor, requiresHOP: v})}
+                />
               </div>
 
               <div className="flex gap-4 mt-6">
