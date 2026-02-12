@@ -21,18 +21,11 @@ const iogpReports = [
     colour: 'blue',
     reports: [
       {
-        ref: 'IOGP 621',
-        title: 'Demystifying Human Factors: Building Confidence in Human Factors Investigation',
+        ref: 'IOGP 459',
+        title: 'Life-Saving Rules',
         year: '2018',
-        relevance: 'Primary backbone of the tool. Provides the HFAT category structure (Individual Factors 4.2.1, Task & Work Factors 4.2.2, Organisational Factors 4.2.3), the HOP assessment framework, and the overarching approach to human factors in investigations.',
-        steps: ['Step 5 — Causal Factor Analysis', 'Step 2 — Evidence & Interviews', 'Step 3 — Timeline'],
-      },
-      {
-        ref: 'IOGP 552',
-        title: 'Components of Organisational Learning from Events',
-        year: '2016',
-        relevance: 'Describes the components an organisation needs to learn from operating experience and prevent incident recurrence. Informs the recommendations and report stages of the workflow.',
-        steps: ['Step 6 — Recommendations', 'Step 7 — Investigation Report'],
+        relevance: 'Derived from analysis of 1,484 fatal incidents. Provides the industry-standard framework for linking incident causation to Life-Saving Rule breaches and informing the Just Culture assessment.',
+        steps: ['Step 1 — Incident Overview', 'Step 5 — Just Culture Assessment'],
       },
       {
         ref: 'IOGP 517',
@@ -42,11 +35,18 @@ const iogpReports = [
         steps: ['Step 1 — Incident Overview'],
       },
       {
-        ref: 'IOGP 459',
-        title: 'Life-Saving Rules',
+        ref: 'IOGP 552',
+        title: 'Components of Organisational Learning from Events',
+        year: '2016',
+        relevance: 'Describes the components an organisation needs to learn from operating experience and prevent incident recurrence. Informs the recommendations and report stages of the workflow.',
+        steps: ['Step 6 — Recommendations', 'Step 7 — Investigation Report'],
+      },
+      {
+        ref: 'IOGP 621',
+        title: 'Demystifying Human Factors: Building Confidence in Human Factors Investigation',
         year: '2018',
-        relevance: 'Derived from analysis of 1,484 fatal incidents. Provides the industry-standard framework for linking incident causation to Life-Saving Rule breaches and informing the Just Culture assessment.',
-        steps: ['Step 1 — Incident Overview', 'Step 5 — Just Culture Assessment'],
+        relevance: 'Primary backbone of the tool. Provides the HFAT category structure (Individual Factors 4.2.1, Task & Work Factors 4.2.2, Organisational Factors 4.2.3), the HOP assessment framework, and the overarching approach to human factors in investigations.',
+        steps: ['Step 5 — Causal Factor Analysis', 'Step 2 — Evidence & Interviews', 'Step 3 — Timeline'],
       },
       {
         ref: 'IOGP 642',
@@ -63,13 +63,6 @@ const iogpReports = [
     colour: 'amber',
     reports: [
       {
-        ref: 'IOGP 544',
-        title: 'Standardisation of Barrier Definitions',
-        year: '2016',
-        relevance: 'Standardises the types and categories of process safety barriers. Directly underpins the tool\'s barrier analysis bow-tie model, barrier type classifications, and Swiss Cheese diagram. Defines hardware, human, and management system barrier categories.',
-        steps: ['Step 4 — Barrier Analysis', 'Step 4 — Swiss Cheese Diagram'],
-      },
-      {
         ref: 'IOGP 415',
         title: 'Asset Integrity — The Key to Managing Major Incident Risks',
         year: '2008',
@@ -82,6 +75,13 @@ const iogpReports = [
         year: '2023 (3rd ed.)',
         relevance: 'Enables companies to establish leading and lagging indicators that assess the health of barriers. Informs Tier 1/Tier 2 Process Safety Event classification and barrier-focused corrective action recommendations. Incorporates API RP 754.',
         steps: ['Step 1 — Severity Classification', 'Step 6 — Recommendations'],
+      },
+      {
+        ref: 'IOGP 544',
+        title: 'Standardisation of Barrier Definitions',
+        year: '2016',
+        relevance: 'Standardises the types and categories of process safety barriers. Directly underpins the tool\'s barrier analysis bow-tie model, barrier type classifications, and Swiss Cheese diagram. Defines hardware, human, and management system barrier categories.',
+        steps: ['Step 4 — Barrier Analysis', 'Step 4 — Swiss Cheese Diagram'],
       },
       {
         ref: 'IOGP 638',
@@ -119,6 +119,13 @@ const iogpReports = [
     colour: 'green',
     reports: [
       {
+        ref: 'IOGP 423',
+        title: 'HSE Management — Guidelines for Working Together in a Contract Environment',
+        year: '2017',
+        relevance: 'Provides the framework for client and contractor HSE management. Informs causal factor analysis where contractor management, capability, or oversight is identified as a contributing factor.',
+        steps: ['Step 5 — Organisational Factors (HFAT 4.2.3)'],
+      },
+      {
         ref: 'IOGP 510',
         title: 'Operating Management System (OMS) Framework',
         year: '',
@@ -130,13 +137,6 @@ const iogpReports = [
         title: 'OMS in Practice — Supplement to Report 510',
         year: '',
         relevance: 'Describes the ten Management System Elements in detail. Supports precise identification of which element of the management system contributed to the incident.',
-        steps: ['Step 5 — Organisational Factors (HFAT 4.2.3)'],
-      },
-      {
-        ref: 'IOGP 423',
-        title: 'HSE Management — Guidelines for Working Together in a Contract Environment',
-        year: '2017',
-        relevance: 'Provides the framework for client and contractor HSE management. Informs causal factor analysis where contractor management, capability, or oversight is identified as a contributing factor.',
         steps: ['Step 5 — Organisational Factors (HFAT 4.2.3)'],
       },
     ],
@@ -494,7 +494,7 @@ export default function StandardsPage() {
         <div className="flex gap-1 bg-white border border-slate-200 rounded-xl p-1 mb-6">
           {[
             { key: 'iogp',     label: 'IOGP Reports' },
-            { key: 'external', label: 'External Standards' },
+            { key: 'external', label: 'Industry & Regulatory Standards' },
             { key: 'mapping',  label: 'Step-by-Step Mapping' },
           ].map(tab => (
             <button
@@ -538,7 +538,7 @@ export default function StandardsPage() {
         {activeTab === 'external' && (
           <div>
             <p className="text-sm text-slate-500 mb-5">
-              These external standards and publications complement the IOGP framework and provide additional depth in specific areas of the investigation workflow.
+              These standards and publications complement the IOGP framework and provide additional depth in specific areas of the investigation workflow.
             </p>
             {externalStandards.map((group) => (
               <GroupSection
@@ -579,16 +579,6 @@ export default function StandardsPage() {
             </div>
           </div>
         )}
-
-        {/* Footer */}
-        <div className="mt-10 pt-6 border-t border-slate-200">
-          <p className="text-xs text-slate-400 text-center leading-relaxed">
-            This tool is designed in alignment with IOGP publications including Reports 621, 552, 544, 517, 459, 415, 456, 638, 642, 452, 453, 510, 511 and the IOGP Safety Data Reporting User Guide.
-            Additional alignment with ISO 45001:2018, API RP 754, UK HSE guidance, the Energy Institute Learning from Incidents framework,
-            and the Norsk Industri guide Safety, Leadership and Learning — HOP in Practice (2024).
-            NOPSEMA Investigation Guidelines inform the Australian offshore regulatory context.
-          </p>
-        </div>
 
       </div>
     </div>
