@@ -388,9 +388,8 @@ export default function Visualisations() {
   function SwissCheeseVisual() {
     const preventionBarriers = barriers.filter(b => b.barrier_side === 'prevention');
     const mitigationBarriers = barriers.filter(b => b.barrier_side === 'mitigation');
-    const allBarriers = [...preventionBarriers, ...mitigationBarriers];
 
-    if (allBarriers.length === 0) {
+    if (preventionBarriers.length === 0 && mitigationBarriers.length === 0) {
       return (
         <div className="text-center py-12 bg-slate-50 rounded-lg border-2 border-dashed border-slate-200">
           <Shield className="w-12 h-12 text-slate-300 mx-auto mb-3" />
@@ -400,184 +399,172 @@ export default function Visualisations() {
       );
     }
 
-    const sliceWidth = 120;
-    const sliceGap = 24;
-    const svgHeight = 320;
-    const svgWidth = allBarriers.length * (sliceWidth + sliceGap) + 160;
-    const sliceTop = 60;
-    const sliceBottom = 260;
+    // Layout constants
+    const sliceWidth = 110;
+    const sliceGap = 20;
+    const svgHeight = 340;
+    const sliceTop = 70;
+    const sliceBottom = 270;
     const sliceHeight = sliceBottom - sliceTop;
+    const midY = svgHeight / 2;
+
+    // Zones: hazard anchor | prevention slices | top event node | mitigation slices | consequence anchor
+    const hazardZone = 70;
+    const topEventWidth = 100;
+    const topEventGap = 28;
+    const consequenceZone = 70;
+
+    const preventionWidth = preventionBarriers.length * (sliceWidth + sliceGap);
+    const mitigationWidth = mitigationBarriers.length * (sliceWidth + sliceGap);
+
+    const svgWidth = hazardZone + preventionWidth + topEventGap + topEventWidth + topEventGap + mitigationWidth + consequenceZone + 20;
+
+    // X positions
+    const prevStartX = hazardZone;
+    const topEventX = hazardZone + preventionWidth + topEventGap;
+    const topEventCx = topEventX + topEventWidth / 2;
+    const mitStartX = topEventX + topEventWidth + topEventGap;
+    const consequenceCx = mitStartX + mitigationWidth + 30;
 
     function getSliceColour(status: string) {
       switch (status) {
         case 'present_performed': return { fill: '#dcfce7', stroke: '#16a34a', text: '#15803d' };
-        case 'present_partial': return { fill: '#fef3c7', stroke: '#d97706', text: '#b45309' };
-        case 'present_failed': return { fill: '#fee2e2', stroke: '#dc2626', text: '#b91c1c' };
-        case 'absent': return { fill: '#f1f5f9', stroke: '#94a3b8', text: '#64748b' };
-        default: return { fill: '#f1f5f9', stroke: '#94a3b8', text: '#64748b' };
+        case 'present_partial':   return { fill: '#fef3c7', stroke: '#d97706', text: '#b45309' };
+        case 'present_failed':    return { fill: '#fee2e2', stroke: '#dc2626', text: '#b91c1c' };
+        case 'absent':            return { fill: '#f1f5f9', stroke: '#94a3b8', text: '#64748b' };
+        default:                  return { fill: '#f1f5f9', stroke: '#94a3b8', text: '#64748b' };
       }
     }
 
     function getHoles(status: string): { cx: number, cy: number, r: number }[] {
       switch (status) {
         case 'present_performed': return [];
-        case 'present_partial': return [
-          { cx: sliceWidth / 2, cy: sliceHeight * 0.35, r: 18 }
+        case 'present_partial':   return [{ cx: sliceWidth / 2, cy: sliceHeight * 0.38, r: 16 }];
+        case 'present_failed':    return [
+          { cx: sliceWidth / 2 - 14, cy: sliceHeight * 0.28, r: 14 },
+          { cx: sliceWidth / 2 + 12, cy: sliceHeight * 0.52, r: 18 },
+          { cx: sliceWidth / 2 - 6,  cy: sliceHeight * 0.70, r: 11 }
         ];
-        case 'present_failed': return [
-          { cx: sliceWidth / 2 - 16, cy: sliceHeight * 0.3, r: 16 },
-          { cx: sliceWidth / 2 + 14, cy: sliceHeight * 0.55, r: 20 },
-          { cx: sliceWidth / 2 - 8, cy: sliceHeight * 0.72, r: 12 }
-        ];
-        case 'absent': return [
-          { cx: sliceWidth / 2, cy: sliceHeight * 0.5, r: 40 }
-        ];
+        case 'absent':            return [{ cx: sliceWidth / 2, cy: sliceHeight * 0.5, r: 38 }];
         default: return [];
       }
+    }
+
+    function renderSlice(barrier: any, x: number) {
+      const colours = getSliceColour(barrier.status);
+      const holes = getHoles(barrier.status);
+      const linkedFactor = causalFactors.find(f => f.id === barrier.causal_factor_id);
+      return (
+        <g key={barrier.id}>
+          <defs>
+            <clipPath id={`clip-${barrier.id}`}>
+              <rect x={x} y={sliceTop} width={sliceWidth} height={sliceHeight} rx="6" />
+            </clipPath>
+          </defs>
+          <rect x={x} y={sliceTop} width={sliceWidth} height={sliceHeight} rx="6" fill={colours.fill} stroke={colours.stroke} strokeWidth="2" />
+          {holes.map((hole, hIdx) => (
+            <circle key={hIdx} cx={x + hole.cx} cy={sliceTop + hole.cy} r={hole.r}
+              fill="white" stroke={colours.stroke} strokeWidth="1" strokeDasharray="3,2"
+              clipPath={`url(#clip-${barrier.id})`} />
+          ))}
+          <foreignObject x={x + 4} y={sliceTop + 6} width={sliceWidth - 8} height={60}>
+            <div style={{ fontSize: '10px', fontWeight: '600', color: colours.text, textAlign: 'center', lineHeight: '1.3', wordBreak: 'break-word' }}>
+              {barrier.barrier_name}
+            </div>
+          </foreignObject>
+          <foreignObject x={x + 4} y={sliceBottom - 44} width={sliceWidth - 8} height={40}>
+            <div style={{ fontSize: '9px', color: colours.text, textAlign: 'center' }}>
+              <div style={{ background: 'white', borderRadius: '4px', padding: '2px 4px', marginBottom: '2px', opacity: 0.9 }}>
+                {getBarrierTypeLabel(barrier.barrier_type)}
+              </div>
+              {linkedFactor && (
+                <div style={{ background: 'white', borderRadius: '4px', padding: '2px 4px', opacity: 0.9, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                  🔗 {linkedFactor.causal_factor_title.substring(0, 14)}{linkedFactor.causal_factor_title.length > 14 ? '…' : ''}
+                </div>
+              )}
+            </div>
+          </foreignObject>
+        </g>
+      );
     }
 
     return (
       <div className="bg-white border border-slate-200 rounded-lg p-6">
         {/* Legend */}
         <div className="flex flex-wrap gap-4 mb-6 text-xs">
-          <div className="flex items-center gap-2">
-            <div className="w-4 h-4 rounded bg-green-100 border border-green-500"></div>
-            <span className="text-slate-600">Present & Performed (no holes)</span>
-          </div>
-          <div className="flex items-center gap-2">
-            <div className="w-4 h-4 rounded bg-amber-100 border border-amber-500"></div>
-            <span className="text-slate-600">Present & Partial (small hole)</span>
-          </div>
-          <div className="flex items-center gap-2">
-            <div className="w-4 h-4 rounded bg-red-100 border border-red-500"></div>
-            <span className="text-slate-600">Present & Failed (large holes)</span>
-          </div>
-          <div className="flex items-center gap-2">
-            <div className="w-4 h-4 rounded bg-slate-100 border border-slate-400"></div>
-            <span className="text-slate-600">Absent (missing slice)</span>
-          </div>
+          <div className="flex items-center gap-2"><div className="w-4 h-4 rounded bg-green-100 border border-green-500"></div><span className="text-slate-600">Present & Performed (no holes)</span></div>
+          <div className="flex items-center gap-2"><div className="w-4 h-4 rounded bg-amber-100 border border-amber-500"></div><span className="text-slate-600">Present & Partial (small hole)</span></div>
+          <div className="flex items-center gap-2"><div className="w-4 h-4 rounded bg-red-100 border border-red-500"></div><span className="text-slate-600">Present & Failed (large holes)</span></div>
+          <div className="flex items-center gap-2"><div className="w-4 h-4 rounded bg-slate-100 border border-slate-400"></div><span className="text-slate-600">Absent (missing slice)</span></div>
         </div>
 
         <div className="overflow-x-auto">
-          <svg width={svgWidth} height={svgHeight} className="mx-auto">
-            {/* Hazard arrow on left */}
+          <svg width={svgWidth} height={svgHeight}>
             <defs>
-              <marker id="arrowhead" markerWidth="10" markerHeight="7" refX="10" refY="3.5" orient="auto">
+              <marker id="arrow-red" markerWidth="10" markerHeight="7" refX="10" refY="3.5" orient="auto">
                 <polygon points="0 0, 10 3.5, 0 7" fill="#ef4444" />
               </marker>
+              <marker id="arrow-orange" markerWidth="10" markerHeight="7" refX="10" refY="3.5" orient="auto">
+                <polygon points="0 0, 10 3.5, 0 7" fill="#f97316" />
+              </marker>
             </defs>
-            <line x1="10" y1={svgHeight / 2} x2="60" y2={svgHeight / 2} stroke="#ef4444" strokeWidth="2.5" markerEnd="url(#arrowhead)" />
-            <text x="6" y={(svgHeight / 2) - 10} fontSize="10" fill="#ef4444" fontWeight="600">HAZARD</text>
 
-            {/* Incident target on right */}
-            <circle cx={svgWidth - 30} cy={svgHeight / 2} r="22" fill="#fee2e2" stroke="#dc2626" strokeWidth="2" />
-            <circle cx={svgWidth - 30} cy={svgHeight / 2} r="12" fill="#fca5a5" stroke="#dc2626" strokeWidth="1.5" />
-            <circle cx={svgWidth - 30} cy={svgHeight / 2} r="4" fill="#dc2626" />
-            <text x={svgWidth - 30} y={(svgHeight / 2) + 34} fontSize="9" fill="#dc2626" fontWeight="600" textAnchor="middle">INCIDENT</text>
+            {/* ── Horizontal spine ── */}
+            {/* Hazard → first prevention slice */}
+            <line x1="10" y1={midY} x2={prevStartX} y2={midY} stroke="#ef4444" strokeWidth="2.5" markerEnd="url(#arrow-red)" />
+            {/* Last prevention slice → top event */}
+            <line x1={prevStartX + preventionWidth} y1={midY} x2={topEventX} y2={midY} stroke="#ef4444" strokeWidth="2.5" markerEnd="url(#arrow-red)" />
+            {/* Top event → first mitigation slice */}
+            <line x1={topEventX + topEventWidth} y1={midY} x2={mitStartX} y2={midY} stroke="#f97316" strokeWidth="2.5" markerEnd="url(#arrow-orange)" />
+            {/* Last mitigation slice → consequence */}
+            {mitigationBarriers.length > 0 && (
+              <line x1={mitStartX + mitigationWidth} y1={midY} x2={consequenceCx - 28} y2={midY} stroke="#f97316" strokeWidth="2.5" markerEnd="url(#arrow-orange)" />
+            )}
 
-            {/* Section labels */}
+            {/* ── HAZARD label ── */}
+            <text x="8" y={midY - 12} fontSize="10" fill="#ef4444" fontWeight="700">HAZARD</text>
+
+            {/* ── PREVENTION section label ── */}
             {preventionBarriers.length > 0 && (
               <text
-                x={80 + (preventionBarriers.length * (sliceWidth + sliceGap)) / 2 - sliceGap}
-                y={sliceTop - 10}
-                fontSize="11"
-                fill="#1e40af"
-                fontWeight="700"
-                textAnchor="middle"
-              >
-                ── PREVENTION ──
-              </text>
+                x={prevStartX + preventionWidth / 2 - (sliceGap / 2)}
+                y={sliceTop - 12}
+                fontSize="11" fill="#1d4ed8" fontWeight="700" textAnchor="middle"
+              >── PREVENTION ──</text>
             )}
+
+            {/* ── Prevention barrier slices ── */}
+            {preventionBarriers.map((barrier, idx) => renderSlice(barrier, prevStartX + idx * (sliceWidth + sliceGap)))}
+
+            {/* ── TOP EVENT node (centre) ── */}
+            <rect x={topEventX} y={midY - 36} width={topEventWidth} height={72} rx="8"
+              fill="#fef3c7" stroke="#f59e0b" strokeWidth="2.5" />
+            <text x={topEventCx} y={midY - 10} fontSize="10" fill="#92400e" fontWeight="700" textAnchor="middle">💥 TOP</text>
+            <text x={topEventCx} y={midY + 6}  fontSize="10" fill="#92400e" fontWeight="700" textAnchor="middle">EVENT</text>
+            <foreignObject x={topEventX + 4} y={midY + 14} width={topEventWidth - 8} height={22}>
+              <div style={{ fontSize: '8px', color: '#b45309', textAlign: 'center', lineHeight: '1.2', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                {investigation?.incident_description || ''}
+              </div>
+            </foreignObject>
+
+            {/* ── MITIGATION section label ── */}
             {mitigationBarriers.length > 0 && (
               <text
-                x={80 + preventionBarriers.length * (sliceWidth + sliceGap) + (mitigationBarriers.length * (sliceWidth + sliceGap)) / 2 - sliceGap}
-                y={sliceTop - 10}
-                fontSize="11"
-                fill="#7c3aed"
-                fontWeight="700"
-                textAnchor="middle"
-              >
-                ── MITIGATION ──
-              </text>
+                x={mitStartX + mitigationWidth / 2 - (sliceGap / 2)}
+                y={sliceTop - 12}
+                fontSize="11" fill="#7c3aed" fontWeight="700" textAnchor="middle"
+              >── MITIGATION ──</text>
             )}
 
-            {/* Divider line between prevention and mitigation */}
-            {preventionBarriers.length > 0 && mitigationBarriers.length > 0 && (
-              <line
-                x1={80 + preventionBarriers.length * (sliceWidth + sliceGap) - 4}
-                y1={sliceTop - 20}
-                x2={80 + preventionBarriers.length * (sliceWidth + sliceGap) - 4}
-                y2={sliceBottom + 20}
-                stroke="#e2e8f0"
-                strokeWidth="2"
-                strokeDasharray="4,4"
-              />
-            )}
+            {/* ── Mitigation barrier slices ── */}
+            {mitigationBarriers.map((barrier, idx) => renderSlice(barrier, mitStartX + idx * (sliceWidth + sliceGap)))}
 
-            {/* Barrier slices */}
-            {allBarriers.map((barrier, index) => {
-              const x = 80 + index * (sliceWidth + sliceGap);
-              const colours = getSliceColour(barrier.status);
-              const holes = getHoles(barrier.status);
-              const linkedFactor = causalFactors.find(f => f.id === barrier.causal_factor_id);
+            {/* ── CONSEQUENCE target ── */}
+            <circle cx={consequenceCx} cy={midY} r="26" fill="#fff7ed" stroke="#f97316" strokeWidth="2.5" />
+            <circle cx={consequenceCx} cy={midY} r="15" fill="#fed7aa" stroke="#f97316" strokeWidth="1.5" />
+            <circle cx={consequenceCx} cy={midY} r="5"  fill="#f97316" />
+            <text x={consequenceCx} y={midY + 40} fontSize="9" fill="#c2410c" fontWeight="700" textAnchor="middle">CONSEQUENCE</text>
 
-              return (
-                <g key={barrier.id}>
-                  {/* Slice rectangle with clip for holes */}
-                  <defs>
-                    <clipPath id={`clip-${barrier.id}`}>
-                      <rect x={x} y={sliceTop} width={sliceWidth} height={sliceHeight} rx="6" />
-                    </clipPath>
-                  </defs>
-
-                  {/* Base slice */}
-                  <rect
-                    x={x} y={sliceTop}
-                    width={sliceWidth} height={sliceHeight}
-                    rx="6"
-                    fill={colours.fill}
-                    stroke={colours.stroke}
-                    strokeWidth="2"
-                  />
-
-                  {/* Holes (rendered as white circles over the slice) */}
-                  {holes.map((hole, hIdx) => (
-                    <circle
-                      key={hIdx}
-                      cx={x + hole.cx}
-                      cy={sliceTop + hole.cy}
-                      r={hole.r}
-                      fill="white"
-                      stroke={colours.stroke}
-                      strokeWidth="1"
-                      strokeDasharray="3,2"
-                      clipPath={`url(#clip-${barrier.id})`}
-                    />
-                  ))}
-
-                  {/* Barrier name */}
-                  <foreignObject x={x + 4} y={sliceTop + 6} width={sliceWidth - 8} height={60}>
-                    <div style={{ fontSize: '10px', fontWeight: '600', color: colours.text, textAlign: 'center', lineHeight: '1.3', wordBreak: 'break-word' }}>
-                      {barrier.barrier_name}
-                    </div>
-                  </foreignObject>
-
-                  {/* Type badge at bottom */}
-                  <foreignObject x={x + 4} y={sliceBottom - 42} width={sliceWidth - 8} height={38}>
-                    <div style={{ fontSize: '9px', color: colours.text, textAlign: 'center' }}>
-                      <div style={{ background: 'white', borderRadius: '4px', padding: '2px 4px', marginBottom: '2px', opacity: 0.9 }}>
-                        {getBarrierTypeLabel(barrier.barrier_type)}
-                      </div>
-                      {linkedFactor && (
-                        <div style={{ background: 'white', borderRadius: '4px', padding: '2px 4px', opacity: 0.9, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                          🔗 {linkedFactor.causal_factor_title.substring(0, 16)}{linkedFactor.causal_factor_title.length > 16 ? '…' : ''}
-                        </div>
-                      )}
-                    </div>
-                  </foreignObject>
-                </g>
-              );
-            })}
           </svg>
         </div>
 
@@ -585,9 +572,9 @@ export default function Visualisations() {
         <div className="mt-6 grid grid-cols-4 gap-3">
           {[
             { label: 'Performed', status: 'present_performed', colour: 'bg-green-50 border-green-200 text-green-700' },
-            { label: 'Partial', status: 'present_partial', colour: 'bg-amber-50 border-amber-200 text-amber-700' },
-            { label: 'Failed', status: 'present_failed', colour: 'bg-red-50 border-red-200 text-red-700' },
-            { label: 'Absent', status: 'absent', colour: 'bg-slate-50 border-slate-200 text-slate-600' }
+            { label: 'Partial',   status: 'present_partial',   colour: 'bg-amber-50 border-amber-200 text-amber-700' },
+            { label: 'Failed',    status: 'present_failed',    colour: 'bg-red-50 border-red-200 text-red-700' },
+            { label: 'Absent',    status: 'absent',            colour: 'bg-slate-50 border-slate-200 text-slate-600' }
           ].map(item => (
             <div key={item.status} className={`border rounded-lg p-3 text-center ${item.colour}`}>
               <div className="text-2xl font-bold">{barriers.filter(b => b.status === item.status).length}</div>
