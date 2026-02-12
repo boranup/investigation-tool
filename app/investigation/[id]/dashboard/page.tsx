@@ -38,7 +38,7 @@ import {
   type ActivityLogEntry,
   type OutstandingItem,
   type StepStatus
-} from '@/utils/progressUtils';
+} from '@/app/utils/progressUtils'
 
 import { supabase } from '@/lib/supabase';
 
@@ -59,8 +59,6 @@ export default function InvestigationDashboard() {
   const [refreshing, setRefreshing] = useState(false);
 
   useEffect(() => {
-    console.log('Dashboard params:', params);
-    console.log('Investigation ID:', investigationId);
     if (investigationId) {
       loadDashboardData();
     }
@@ -125,7 +123,7 @@ export default function InvestigationDashboard() {
       `/step4?investigationId=${investigationId}`,
       `/step5?investigationId=${investigationId}`,
       `/step6?investigationId=${investigationId}`,
-      `/step7?investigationId=${investigationId}`
+      `/report?investigationId=${investigationId}`
     ];
     router.push(stepRoutes[stepNumber - 1]);
   };
@@ -205,24 +203,36 @@ export default function InvestigationDashboard() {
                 )}
               </p>
             </div>
-            <button
-              onClick={handleRefreshProgress}
-              disabled={refreshing}
-              className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 
-                       disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
-            >
-              {refreshing ? (
-                <>
-                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
-                  Refreshing...
-                </>
-              ) : (
-                <>
-                  <TrendingUp className="w-4 h-4" />
-                  Refresh Progress
-                </>
-              )}
-            </button>
+            <div className="flex items-center gap-3">
+              <button
+                onClick={() => router.push('/')}
+                className="px-4 py-2 bg-white border border-slate-300 text-slate-700 rounded-lg 
+                         hover:bg-slate-50 flex items-center gap-2"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" viewBox="0 0 20 20" fill="currentColor">
+                  <path d="M10.707 2.293a1 1 0 00-1.414 0l-7 7a1 1 0 001.414 1.414L4 10.414V17a1 1 0 001 1h2a1 1 0 001-1v-2a1 1 0 011-1h2a1 1 0 011 1v2a1 1 0 001 1h2a1 1 0 001-1v-6.586l.293.293a1 1 0 001.414-1.414l-7-7z" />
+                </svg>
+                All Investigations
+              </button>
+              <button
+                onClick={handleRefreshProgress}
+                disabled={refreshing}
+                className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 
+                         disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+              >
+                {refreshing ? (
+                  <>
+                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                    Refreshing...
+                  </>
+                ) : (
+                  <>
+                    <TrendingUp className="w-4 h-4" />
+                    Refresh Progress
+                  </>
+                )}
+              </button>
+            </div>
           </div>
 
           <div className="mt-6">
@@ -411,7 +421,7 @@ export default function InvestigationDashboard() {
                 </button>
 
                 <button
-                  onClick={() => router.push(`/step7?investigationId=${investigationId}`)}
+                  onClick={() => router.push(`/report?investigationId=${investigationId}`)}
                   className="w-full px-4 py-3 bg-grey-50 hover:bg-grey-100 rounded-lg 
                            text-left flex items-center justify-between group"
                 >
