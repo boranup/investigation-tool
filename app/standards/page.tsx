@@ -485,7 +485,7 @@ export default function StandardsPage() {
           <div className="mt-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
             <p className="text-xs text-blue-700 leading-relaxed">
               <span className="font-semibold">Framework alignment: </span>
-              IOGP Reports 621, 552, 544, 517, 459, 415, 456, 638, 642, 452, 453, 510, 511 and the IOGP Safety Data Reporting User Guide &bull; ISO 45001:2018 &bull; API RP 754 &bull; UK HSE HSG48 / HSG65 &bull; Energy Institute Learning from Incidents (2016) &bull; Norsk Industri — Safety, Leadership and Learning: HOP in Practice (2024) &bull; NOPSEMA Investigation Guidelines
+              IOGP Reports 415, 423, 452, 453, 456, 459, 510, 511, 517, 544, 552, 621, 638, 642 and the IOGP Safety Data Reporting User Guide &bull; ISO 45001:2018 &bull; API RP 754 &bull; UK HSE HSG48 / HSG65 &bull; Energy Institute Learning from Incidents (2016) &bull; Norsk Industri — Safety, Leadership and Learning: HOP in Practice (2024) &bull; NOPSEMA Investigation Guidelines
             </p>
           </div>
         </div>
