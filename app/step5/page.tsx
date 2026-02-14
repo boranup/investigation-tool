@@ -2,9 +2,55 @@
 
 import React, { useState, useEffect } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { GitBranch, Plus, Edit2, Trash2, AlertTriangle, Lock, Unlock, ArrowRight, CheckCircle, Lightbulb , X } from 'lucide-react';
+import { GitBranch, Plus, Edit2, Trash2, AlertCircle, Unlock, CheckCircle,
+         Filter, Flag, ChevronDown, ChevronRight, Info, X } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import StepNavigation from '@/components/StepNavigation';
+
+// ─────────────────────────────────────────────────────────────────────────────
+// CONSTANTS
+// ─────────────────────────────────────────────────────────────────────────────
+
+const factorTypes = [
+  { value: 'immediate',     label: 'Immediate Cause',    colour: 'red'    },
+  { value: 'contributing',  label: 'Contributing Factor', colour: 'orange' },
+  { value: 'root',          label: 'Root Cause',          colour: 'purple' },
+  { value: 'latent',        label: 'Latent Condition',    colour: 'blue'   },
+];
+
+const factorCategories = [
+  { value: 'human_performance', label: 'Human Performance' },
+  { value: 'equipment',         label: 'Equipment / Plant' },
+  { value: 'procedure',         label: 'Procedure / Process' },
+  { value: 'environment',       label: 'Work Environment' },
+  { value: 'management',        label: 'Management / Organisational' },
+  { value: 'external',          label: 'External Factor' },
+];
+
+const statusLabels: Record<string, { label: string; colour: string }> = {
+  identified:           { label: 'Identified',       colour: 'slate'  },
+  analysis_required:    { label: 'Analysis Required', colour: 'amber'  },
+  analysis_in_progress: { label: 'In Progress',       colour: 'blue'   },
+  analysis_complete:    { label: 'Complete',           colour: 'green'  },
+};
+
+const TYPE_COLOURS: Record<string, string> = {
+  immediate:    'bg-red-100 text-red-700 border-red-300',
+  contributing: 'bg-orange-100 text-orange-700 border-orange-300',
+  root:         'bg-purple-100 text-purple-700 border-purple-300',
+  latent:       'bg-blue-100 text-blue-700 border-blue-300',
+};
+
+const VISUALISATION_CAUSAL_TYPES = [
+  { value: 'immediate',    label: 'Immediate Cause',     colour: 'red'    },
+  { value: 'contributing', label: 'Contributing Factor',  colour: 'orange' },
+  { value: 'root',         label: 'Root Cause',           colour: 'purple' },
+  { value: 'latent',       label: 'Latent Condition',     colour: 'blue'   },
+];
+
+// ─────────────────────────────────────────────────────────────────────────────
+// COMPONENT
+// ─────────────────────────────────────────────────────────────────────────────
 
 export default function CausalAnalysis() {
   const router = useRouter();
@@ -14,284 +60,220 @@ export default function CausalAnalysis() {
   const [loading, setLoading] = useState(true);
   const [investigation, setInvestigation] = useState<any>(null);
   const [causalFactors, setFactors] = useState<any[]>([]);
-  const [hopAssessments, setHopAssessments] = useState<any>({});
-  const [hfatAssessments, setHfatAssessments] = useState<any>({});
-  
+  const [hopAssessments, setHopAssessments] = useState<Record<string, any[]>>({});
+  const [hfatAssessments, setHfatAssessments] = useState<Record<string, any[]>>({});
+
   const [showAddFactor, setShowAddFactor] = useState(false);
-  const [showCauseTypeModal, setShowCauseTypeModal] = useState(false);
   const [editingFactor, setEditingFactor] = useState<any>(null);
   const [filterType, setFilterType] = useState('all');
   const [filterStatus, setFilterStatus] = useState('all');
 
+  // Add mode: manual entry or expand from Step 4 visualisations
+  const [addMode, setAddMode] = useState<'manual' | 'fromVisualisation'>('manual');
+  const [flaggedItems, setFlaggedItems] = useState<any[]>([]);
+  const [loadingFlagged, setLoadingFlagged] = useState(false);
+  const [selectedFlaggedId, setSelectedFlaggedId] = useState<string | null>(null);
+
   const [newFactor, setNewFactor] = useState({
     title: '',
     description: '',
-    factorType: 'immediate',
+    factorType: 'contributing',
     factorCategory: 'equipment',
-    parentFactorId: null,
+    parentFactorId: null as string | null,
     requiresHFAT: false,
-    requiresHOP: false
+    requiresHOP: false,
   });
+
+  // ─────────────────────────────────────────────────────────────────────────────
+  // LOAD
+  // ─────────────────────────────────────────────────────────────────────────────
 
   useEffect(() => {
     if (investigationId) {
-      loadInvestigation();
-      loadCausalFactors();
-      loadAssessments();
+      loadAll();
     }
   }, [investigationId]);
 
-  async function loadInvestigation() {
-    try {
-      const { data, error } = await supabase
-        .from('investigations')
-        .select('*')
-        .eq('id', investigationId)
-        .single();
+  async function loadAll() {
+    setLoading(true);
+    await Promise.all([loadInvestigation(), loadCausalFactors(), loadAssessments()]);
+    setLoading(false);
+  }
 
-      if (error) throw error;
-      setInvestigation(data);
-    } catch (error) {
-      console.error('Error loading investigation:', error);
-    }
+  async function loadInvestigation() {
+    const { data } = await supabase
+      .from('investigations')
+      .select('*')
+      .eq('id', investigationId)
+      .single();
+    if (data) setInvestigation(data);
   }
 
   async function loadCausalFactors() {
-    try {
-      const { data, error } = await supabase
-        .from('causal_factors')
-        .select('*')
-        .eq('investigation_id', investigationId)
-        .order('created_at', { ascending: true });
-
-      if (error) throw error;
-      setFactors(data || []);
-    } catch (error) {
-      console.error('Error loading causal factors:', error);
-    } finally {
-      setLoading(false);
-    }
+    const { data } = await supabase
+      .from('causal_factors')
+      .select('*')
+      .eq('investigation_id', investigationId)
+      .order('created_at', { ascending: true });
+    if (data) setFactors(data);
   }
 
   async function loadAssessments() {
-    try {
-      const { data: factors } = await supabase
-        .from('causal_factors')
-        .select('id')
-        .eq('investigation_id', investigationId);
+    const [hopRes, hfatRes] = await Promise.all([
+      supabase.from('hop_assessments').select('*').eq('investigation_id', investigationId),
+      supabase.from('hfat_assessments').select('*').eq('investigation_id', investigationId),
+    ]);
 
-      if (!factors) return;
-
-      const factorIds = factors.map(f => f.id);
-
-      const { data: hopData } = await supabase
-        .from('hop_assessments')
-        .select('*')
-        .in('causal_factor_id', factorIds);
-
-      const { data: hfatData } = await supabase
-        .from('hfat_assessments')
-        .select('*')
-        .in('causal_factor_id', factorIds);
-
-      const hopMap: any = {};
-      hopData?.forEach((assessment: any) => {
-        if (!hopMap[assessment.causal_factor_id]) {
-          hopMap[assessment.causal_factor_id] = [];
-        }
-        hopMap[assessment.causal_factor_id].push(assessment);
+    if (hopRes.data) {
+      const grouped: Record<string, any[]> = {};
+      hopRes.data.forEach(a => {
+        if (!grouped[a.causal_factor_id]) grouped[a.causal_factor_id] = [];
+        grouped[a.causal_factor_id].push(a);
       });
+      setHopAssessments(grouped);
+    }
 
-      const hfatMap: any = {};
-      hfatData?.forEach((assessment: any) => {
-        if (!hfatMap[assessment.causal_factor_id]) {
-          hfatMap[assessment.causal_factor_id] = [];
-        }
-        hfatMap[assessment.causal_factor_id].push(assessment);
+    if (hfatRes.data) {
+      const grouped: Record<string, any[]> = {};
+      hfatRes.data.forEach(a => {
+        if (!grouped[a.causal_factor_id]) grouped[a.causal_factor_id] = [];
+        grouped[a.causal_factor_id].push(a);
       });
-
-      setHopAssessments(hopMap);
-      setHfatAssessments(hfatMap);
-    } catch (error) {
-      console.error('Error loading assessments:', error);
+      setHfatAssessments(grouped);
     }
   }
 
-  async function addCausalFactor() {
+  // ─────────────────────────────────────────────────────────────────────────────
+  // LOAD FLAGGED ITEMS FROM STEP 4
+  // ─────────────────────────────────────────────────────────────────────────────
+
+  async function loadFlaggedVisualisationItems() {
+    setLoadingFlagged(true);
+    const [fishboneRes, whyRes, treeRes] = await Promise.all([
+      supabase.from('fishbone_causes').select('*').eq('investigation_id', investigationId).eq('is_causal_factor', true),
+      supabase.from('why_chain').select('*').eq('investigation_id', investigationId).eq('is_causal_factor', true),
+      supabase.from('causal_tree_nodes').select('*').eq('investigation_id', investigationId).eq('is_causal_factor', true),
+    ]);
+
+    const items: any[] = [];
+
+    (fishboneRes.data || []).forEach(item => items.push({
+      id: `fishbone-${item.id}`,
+      source: 'Fishbone',
+      sourceIcon: '🐟',
+      text: item.cause_text,
+      causalFactorType: item.causal_factor_type || 'contributing',
+    }));
+
+    (whyRes.data || []).forEach(item => items.push({
+      id: `why-${item.id}`,
+      source: '5 Whys',
+      sourceIcon: '❓',
+      text: item.answer,
+      causalFactorType: item.causal_factor_type || 'contributing',
+    }));
+
+    (treeRes.data || []).forEach(item => items.push({
+      id: `tree-${item.id}`,
+      source: 'Causal Tree',
+      sourceIcon: '🌿',
+      text: item.text,
+      causalFactorType: item.causal_factor_type || 'contributing',
+    }));
+
+    setFlaggedItems(items);
+    setLoadingFlagged(false);
+  }
+
+  function applyFlaggedItem(itemId: string) {
+    const item = flaggedItems.find(i => i.id === itemId);
+    if (!item) return;
+    setNewFactor(prev => ({
+      ...prev,
+      title: item.text,
+      description: `Identified via ${item.source} analysis in Step 4.`,
+      factorType: item.causalFactorType || 'contributing',
+    }));
+    setSelectedFlaggedId(itemId);
+  }
+
+  // ─────────────────────────────────────────────────────────────────────────────
+  // CRUD
+  // ─────────────────────────────────────────────────────────────────────────────
+
+  async function handleAddFactor() {
+    if (!newFactor.title.trim()) return;
     try {
-      const factorData = {
+      const { error } = await supabase.from('causal_factors').insert([{
         investigation_id: investigationId,
-        causal_factor_title: newFactor.title,
-        causal_factor_description: newFactor.description,
+        causal_factor_title: newFactor.title.trim(),
+        causal_factor_description: newFactor.description.trim(),
         factor_type: newFactor.factorType,
         factor_category: newFactor.factorCategory,
-        parent_causal_factor_id: newFactor.parentFactorId,
+        parent_factor_id: newFactor.parentFactorId,
         requires_hfat: newFactor.requiresHFAT,
         requires_hop: newFactor.requiresHOP,
-        analysis_status: 'identified'
-      };
+        analysis_status: (newFactor.requiresHFAT || newFactor.requiresHOP) ? 'analysis_required' : 'identified',
+      }]);
+      if (error) throw error;
+      resetAddForm();
+      loadCausalFactors();
+    } catch (error: any) {
+      console.error('Error saving causal factor:', error);
+      alert(`Error saving causal factor: ${error.message}`);
+    }
+  }
 
-      const { data, error } = await supabase
-        .from('causal_factors')
-        .insert([factorData])
-        .select();
+  function resetAddForm() {
+    setNewFactor({ title: '', description: '', factorType: 'contributing', factorCategory: 'equipment', parentFactorId: null, requiresHFAT: false, requiresHOP: false });
+    setShowAddFactor(false);
+    setAddMode('manual');
+    setSelectedFlaggedId(null);
+    setFlaggedItems([]);
+  }
 
-      if (error) {
-        console.error('Supabase error:', error);
-        throw error;
-      }
-
-      setNewFactor({
-        title: '',
-        description: '',
-        factorType: 'immediate',
-        factorCategory: 'equipment',
-        parentFactorId: null,
-        requiresHFAT: false,
-        requiresHOP: false
-      });
-      setShowAddFactor(false);
+  async function handleUpdateFactor() {
+    if (!editingFactor) return;
+    try {
+      const { error } = await supabase.from('causal_factors').update({
+        causal_factor_title: editingFactor.causal_factor_title,
+        causal_factor_description: editingFactor.causal_factor_description,
+        factor_type: editingFactor.factor_type,
+        factor_category: editingFactor.factor_category,
+        parent_factor_id: editingFactor.parent_factor_id || null,
+        requires_hfat: editingFactor.requires_hfat,
+        requires_hop: editingFactor.requires_hop,
+        analysis_status: (editingFactor.requires_hfat || editingFactor.requires_hop) ? 'analysis_required' : 'identified',
+      }).eq('id', editingFactor.id);
+      if (error) throw error;
+      setEditingFactor(null);
       loadCausalFactors();
       loadAssessments();
     } catch (error: any) {
-      console.error('Error adding causal factor:', error);
-      alert(`Error adding causal factor: ${error.message}`);
-    }
-  }
-
-  async function updateCausalFactor() {
-    if (!editingFactor) return;
-
-    try {
-      const { error } = await supabase
-        .from('causal_factors')
-        .update({
-          causal_factor_title: editingFactor.causal_factor_title,
-          causal_factor_description: editingFactor.causal_factor_description,
-          factor_type: editingFactor.factor_type,
-          factor_category: editingFactor.factor_category,
-          parent_causal_factor_id: editingFactor.parent_causal_factor_id,
-          requires_hfat: editingFactor.requires_hfat,
-          requires_hop: editingFactor.requires_hop,
-          updated_at: new Date().toISOString()
-        })
-        .eq('id', editingFactor.id);
-
-      if (error) throw error;
-
-      setEditingFactor(null);
-      loadCausalFactors();
-    } catch (error) {
       console.error('Error updating causal factor:', error);
-      alert('Error updating causal factor');
+      alert(`Error updating causal factor: ${error.message}`);
     }
   }
 
-  async function deleteCausalFactor(id: string) {
-    if (!confirm('Are you sure you want to delete this causal factor?')) return;
-
+  async function handleDeleteFactor(id: string) {
+    if (!confirm('Delete this causal factor? Any associated HFAT/HOP assessments will also be removed.')) return;
     try {
-      const { error } = await supabase
-        .from('causal_factors')
-        .delete()
-        .eq('id', id);
-
-      if (error) throw error;
+      await Promise.all([
+        supabase.from('hfat_assessments').delete().eq('causal_factor_id', id),
+        supabase.from('hop_assessments').delete().eq('causal_factor_id', id),
+      ]);
+      await supabase.from('causal_factors').delete().eq('id', id);
       loadCausalFactors();
       loadAssessments();
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error deleting causal factor:', error);
-      alert('Error deleting causal factor');
+      alert(`Error: ${error.message}`);
     }
   }
 
-  const factorTypes = [
-    { value: 'immediate', label: 'Immediate Cause', color: 'red' },
-    { value: 'contributing', label: 'Contributing Factor', color: 'amber' },
-    { value: 'root', label: 'Root Cause', color: 'purple' }
-  ];
-
-  const factorCategories = [
-    { value: 'equipment', label: 'Equipment/Hardware' },
-    { value: 'human_performance', label: 'Human Performance' },
-    { value: 'procedure', label: 'Procedure/Process' },
-    { value: 'organizational', label: 'Organisational' },
-    { value: 'external', label: 'External Factor' }
-  ];
-
-  const causeTypeDefinitions = [
-    {
-      label: 'Immediate Cause',
-      definition: 'What directly led to the incident at the point it occurred. The final unsafe act or condition that triggered the event.',
-      guidance: 'Immediate causes explain what happened — but not why it was allowed to happen.'
-    },
-    {
-      label: 'Contributing Factor',
-      definition: 'Conditions or influences that increased the likelihood or severity of the incident but did not directly trigger it alone.',
-      guidance: 'Contributing factors create the environment where the immediate cause could occur.'
-    },
-    {
-      label: 'Root Cause',
-      definition: 'The most fundamental underlying system or organisational failure that, if corrected, would prevent recurrence or significantly reduce likelihood.',
-      guidance: 'Root causes explain why the causal and immediate causes existed in the first place.'
-    }
-  ];
-
-  // ── Reusable assessment guidance block ───────────────────────────────────
-  function AssessmentGuidance({
-    hfatChecked,
-    hopChecked,
-    onHfatChange,
-    onHopChange,
-  }: {
-    hfatChecked: boolean;
-    hopChecked: boolean;
-    onHfatChange: (v: boolean) => void;
-    onHopChange: (v: boolean) => void;
-  }) {
-    return (
-      <div className="space-y-3 mt-4 p-4 bg-gray-50 rounded-lg">
-        <p className="text-sm font-medium text-gray-700">Required Assessments:</p>
-
-        {/* HFAT */}
-        <label className="flex items-start gap-3 cursor-pointer">
-          <input
-            type="checkbox"
-            checked={hfatChecked}
-            onChange={(e) => onHfatChange(e.target.checked)}
-            className="w-4 h-4 mt-0.5 flex-shrink-0"
-          />
-          <span className="flex flex-col gap-0.5">
-            <span className="text-sm font-medium text-gray-800">HFAT Assessment</span>
-            <span className="text-xs text-gray-500">
-              Does this causal factor involve a human action, decision, or behaviour? If yes, consider HFAT to classify the human factors involved.
-            </span>
-          </span>
-        </label>
-
-        {/* HOP */}
-        <label className="flex items-start gap-3 cursor-pointer">
-          <input
-            type="checkbox"
-            checked={hopChecked}
-            onChange={(e) => onHopChange(e.target.checked)}
-            className="w-4 h-4 mt-0.5 flex-shrink-0"
-          />
-          <span className="flex flex-col gap-0.5">
-            <span className="text-sm font-medium text-gray-800">HOP Assessment</span>
-            <span className="text-xs text-gray-500">
-              Do you want to understand why the action made sense in context — the conditions, pressures, and system factors that shaped it? If yes, consider HOP to explore local rationality and performance influencers.
-            </span>
-          </span>
-        </label>
-
-        {/* Combined note */}
-        <p className="text-xs text-gray-400 italic pt-2 border-t border-gray-200">
-          Both can be applied to the same causal factor — HFAT gives you the structured classification, HOP gives you the contextual narrative. Together they may produce a more complete picture.
-        </p>
-      </div>
-    );
-  }
+  // ─────────────────────────────────────────────────────────────────────────────
+  // DERIVED STATE
+  // ─────────────────────────────────────────────────────────────────────────────
 
   const filteredFactors = causalFactors.filter(f => {
     if (filterType !== 'all' && f.factor_type !== filterType) return false;
@@ -299,477 +281,619 @@ export default function CausalAnalysis() {
     return true;
   });
 
+  const requiresAnalysisCount = causalFactors.filter(f =>
+    f.analysis_status === 'analysis_required' || f.analysis_status === 'analysis_in_progress'
+  ).length;
+
+  const allAnalysisComplete = causalFactors.length > 0 && requiresAnalysisCount === 0;
+
+  // ─────────────────────────────────────────────────────────────────────────────
+  // RENDER GUARDS
+  // ─────────────────────────────────────────────────────────────────────────────
+
   if (loading) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+      <div className="min-h-screen bg-slate-50 flex items-center justify-center">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
-          <p className="mt-4 text-gray-600">Loading Causal Analysis...</p>
+          <div className="w-8 h-8 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto mb-3"></div>
+          <p className="text-slate-600">Loading causal analysis…</p>
         </div>
       </div>
     );
   }
 
+  if (!investigation) {
+    return (
+      <div className="min-h-screen bg-slate-50 flex items-center justify-center">
+        <div className="text-center">
+          <AlertCircle className="w-12 h-12 text-red-500 mx-auto mb-3" />
+          <p className="text-slate-700 font-medium">Investigation not found.</p>
+        </div>
+      </div>
+    );
+  }
+
+  // ─────────────────────────────────────────────────────────────────────────────
+  // MAIN RENDER
+  // ─────────────────────────────────────────────────────────────────────────────
+
   return (
-    <div className="min-h-screen bg-gray-50">
-      {/* Step Navigation */}
-      <StepNavigation 
-        investigationId={investigationId || ''} 
+    <>
+      <StepNavigation
+        investigationId={investigationId!}
         currentStep={5}
-        investigationNumber={investigation?.investigation_number}
+        investigationNumber={investigation.investigation_number}
       />
-      
-      <div className="py-8">
-      <div className="max-w-6xl mx-auto px-4">
-        {/* Header */}
-        <div className="bg-white rounded-lg shadow-sm p-6 mb-6">
-          <div className="flex items-center justify-between mb-4">
-            <div>
-              <h1 className="text-2xl font-bold text-gray-900">
-                Step 5: Causal Factor Analysis
-              </h1>
-              <p className="text-gray-600 mt-1">
-                Investigation: {investigation?.investigation_number} - {investigation?.incident_description}
-              </p>
-            </div>
-            <button
-              onClick={() => setShowAddFactor(true)}
-              className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
-            >
-              <Plus size={20} />
-              Add Causal Factor
-            </button>
-          </div>
 
-          {/* Progress Indicator */}
-          <div className="flex items-center gap-4 p-4 bg-blue-50 rounded-lg">
-            <GitBranch className="text-blue-600" size={24} />
-            <div className="flex-1">
-              <div className="flex items-center justify-between mb-2">
-                <span className="text-sm font-medium text-blue-900">
-                  Analysis Progress
-                </span>
-                <span className="text-sm text-blue-700">
-                  {causalFactors.filter(f => f.analysis_status === 'validated').length} / {causalFactors.length} Validated
-                </span>
-              </div>
-              <div className="w-full bg-blue-200 rounded-full h-2">
-                <div
-                  className="bg-blue-600 h-2 rounded-full transition-all"
-                  style={{
-                    width: `${causalFactors.length > 0 
-                      ? (causalFactors.filter(f => f.analysis_status === 'validated').length / causalFactors.length) * 100 
-                      : 0}%`
-                  }}
-                ></div>
-              </div>
-            </div>
-          </div>
-        </div>
+      <div className="min-h-screen bg-slate-50 p-6">
+        <div className="max-w-5xl mx-auto">
 
-        {/* Filters */}
-        <div className="bg-white rounded-lg shadow-sm p-4 mb-6">
-          <div className="flex gap-4">
-            <div className="flex-1">
-              <label className="block text-sm font-medium mb-2">Filter by Type</label>
-              <select
-                value={filterType}
-                onChange={(e) => setFilterType(e.target.value)}
-                className="w-full border rounded-lg px-3 py-2"
+          {/* Header */}
+          <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-6 mb-6">
+            <div className="flex items-start justify-between flex-wrap gap-4">
+              <div>
+                <h1 className="text-2xl font-bold text-slate-900">Step 5: Causal Factor Analysis</h1>
+                <p className="text-slate-500 mt-1">
+                  Document and analyse each causal factor. Run HFAT and/or HOP assessments where applicable.
+                </p>
+              </div>
+              <button
+                onClick={() => { setShowAddFactor(true); setAddMode('manual'); }}
+                className="flex items-center gap-2 px-4 py-2.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm font-medium"
               >
-                <option value="all">All Types</option>
-                {factorTypes.map(type => (
-                  <option key={type.value} value={type.value}>{type.label}</option>
-                ))}
-              </select>
-            </div>
-            <div className="flex-1">
-              <label className="block text-sm font-medium mb-2">Filter by Status</label>
-              <select
-                value={filterStatus}
-                onChange={(e) => setFilterStatus(e.target.value)}
-                className="w-full border rounded-lg px-3 py-2"
-              >
-                <option value="all">All Statuses</option>
-                <option value="identified">Identified</option>
-                <option value="analysis_required">Analysis Required</option>
-                <option value="under_analysis">Under Analysis</option>
-                <option value="validated">Validated</option>
-              </select>
-            </div>
-          </div>
-        </div>
-
-        {/* Causal Factors List */}
-        <div className="space-y-4">
-          {filteredFactors.map(factor => {
-            const typeInfo = factorTypes.find(t => t.value === factor.factor_type);
-            const categoryInfo = factorCategories.find(c => c.value === factor.factor_category);
-
-            return (
-              <div key={factor.id} className="bg-white rounded-lg shadow-sm border-2 border-gray-200 p-6">
-                {editingFactor?.id === factor.id ? (
-                  /* Edit Mode */
-                  <div className="space-y-4">
-                    <input
-                      type="text"
-                      value={editingFactor.causal_factor_title}
-                      onChange={(e) => setEditingFactor({...editingFactor, causal_factor_title: e.target.value})}
-                      className="w-full border rounded-lg px-3 py-2 font-medium"
-                      placeholder="Causal factor title..."
-                    />
-                    <textarea
-                      value={editingFactor.causal_factor_description}
-                      onChange={(e) => setEditingFactor({...editingFactor, causal_factor_description: e.target.value})}
-                      className="w-full border rounded-lg px-3 py-2"
-                      rows={3}
-                      placeholder="Description..."
-                    />
-                    <div className="grid grid-cols-2 gap-4">
-                      <div>
-                        <label className="block text-sm font-medium mb-2 flex items-center">Type<button type="button" onClick={() => setShowCauseTypeModal(true)} className="ml-1.5 text-slate-400 hover:text-blue-600 transition-colors" aria-label="Cause type definitions"><svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-3a1 1 0 11-2 0 1 1 0 012 0zM9 5a1 1 0 100 2h2a1 1 0 100-2H9zm0 4a1 1 0 00-1 1v2a1 1 0 100 2h2a1 1 0 100-2v-2a1 1 0 00-1-1H9z" clipRule="evenodd" /></svg></button></label>
-                        <select
-                          value={editingFactor.factor_type}
-                          onChange={(e) => setEditingFactor({...editingFactor, factor_type: e.target.value})}
-                          className="w-full border rounded-lg px-3 py-2"
-                        >
-                          {factorTypes.map(type => (
-                            <option key={type.value} value={type.value}>{type.label}</option>
-                          ))}
-                        </select>
-                      </div>
-                      <div>
-                        <label className="block text-sm font-medium mb-2">Category</label>
-                        <select
-                          value={editingFactor.factor_category}
-                          onChange={(e) => setEditingFactor({...editingFactor, factor_category: e.target.value})}
-                          className="w-full border rounded-lg px-3 py-2"
-                        >
-                          {factorCategories.map(cat => (
-                            <option key={cat.value} value={cat.value}>{cat.label}</option>
-                          ))}
-                        </select>
-                      </div>
-                    </div>
-
-                    <AssessmentGuidance
-                      hfatChecked={editingFactor.requires_hfat || false}
-                      hopChecked={editingFactor.requires_hop || false}
-                      onHfatChange={(v) => setEditingFactor({...editingFactor, requires_hfat: v})}
-                      onHopChange={(v) => setEditingFactor({...editingFactor, requires_hop: v})}
-                    />
-
-                    <div className="flex gap-2 justify-end">
-                      <button
-                        onClick={() => setEditingFactor(null)}
-                        className="px-4 py-2 border rounded-lg hover:bg-gray-50"
-                      >
-                        Cancel
-                      </button>
-                      <button
-                        onClick={updateCausalFactor}
-                        className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
-                      >
-                        Save Changes
-                      </button>
-                    </div>
-                  </div>
-                ) : (
-                  /* View Mode */
-                  <div>
-                    <div className="flex items-start justify-between mb-3">
-                      <div className="flex-1">
-                        <div className="flex items-center gap-3 mb-2">
-                          <h3 className="text-lg font-semibold text-gray-900">
-                            {factor.causal_factor_title}
-                          </h3>
-                          <span className={`px-3 py-1 rounded-full text-xs font-medium ${
-                            factor.factor_type === 'immediate' ? 'bg-red-100 text-red-700' :
-                            factor.factor_type === 'contributing' ? 'bg-amber-100 text-amber-700' :
-                            'bg-purple-100 text-purple-700'
-                          }`}>
-                            {typeInfo?.label}
-                          </span>
-                          <span className="px-3 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-700">
-                            {categoryInfo?.label}
-                          </span>
-                        </div>
-                        <p className="text-gray-600 text-sm">
-                          {factor.causal_factor_description}
-                        </p>
-                      </div>
-                      <div className="flex gap-2">
-                        <button
-                          onClick={() => setEditingFactor(factor)}
-                          className="p-2 hover:bg-gray-100 rounded"
-                        >
-                          <Edit2 size={16} className="text-gray-600" />
-                        </button>
-                        <button
-                          onClick={() => deleteCausalFactor(factor.id)}
-                          className="p-2 hover:bg-gray-100 rounded"
-                        >
-                          <Trash2 size={16} className="text-red-600" />
-                        </button>
-                      </div>
-                    </div>
-
-                    {/* Status Badge */}
-                    <div className="mb-4">
-                      {factor.analysis_status === 'validated' && (
-                        <div className="inline-flex items-center gap-2 px-3 py-1 bg-green-100 text-green-700 rounded-full text-sm">
-                          <CheckCircle size={16} />
-                          Validated
-                        </div>
-                      )}
-                      {factor.analysis_status === 'analysis_required' && (
-                        <div className="inline-flex items-center gap-2 px-3 py-1 bg-amber-100 text-amber-700 rounded-full text-sm">
-                          <AlertTriangle size={16} />
-                          Analysis Required
-                        </div>
-                      )}
-                      {factor.analysis_status === 'identified' && (
-                        <div className="inline-flex items-center gap-2 px-3 py-1 bg-gray-100 text-gray-700 rounded-full text-sm">
-                          Identified
-                        </div>
-                      )}
-                    </div>
-
-                    {/* HOP Assessment Section */}
-                    {factor.requires_hop && (
-                      <div className="mt-4 pt-4 border-t">
-                        <h4 className="font-medium text-sm mb-3">HOP Assessment</h4>
-
-                        {hopAssessments[factor.id]?.[0] ? (
-                          <div className="p-3 bg-green-50 rounded border border-green-200">
-                            <div className="flex items-center justify-between">
-                              <div className="flex-1">
-                                <div className="flex items-center gap-2 mb-2">
-                                  <span className="text-xs font-medium text-gray-700">Classification:</span>
-                                  <span className="text-xs font-semibold text-green-800">
-                                    {hopAssessments[factor.id][0].action_type === 'error' ? 'Error Analysis' : 'Violation Analysis'}
-                                    {hopAssessments[factor.id][0].violation_type && ` - ${hopAssessments[factor.id][0].violation_type.charAt(0).toUpperCase() + hopAssessments[factor.id][0].violation_type.slice(1)}`}
-                                  </span>
-                                </div>
-                                <p className="text-xs text-gray-600 italic">
-                                  {hopAssessments[factor.id][0].action_type === 'error' 
-                                    ? 'Person did not intend this outcome; made a mistake, forgot, misperceived'
-                                    : 'Person knowingly deviated from procedure/rule (but did not intend harm)'
-                                  }
-                                </p>
-                                {hopAssessments[factor.id][0].status === 'complete' && (
-                                  <div className="flex items-center gap-1 text-xs text-green-700 font-medium mt-2">
-                                    <CheckCircle className="w-3 h-3" />
-                                    Complete
-                                  </div>
-                                )}
-                              </div>
-                              <button
-                                onClick={() => router.push(`/hop-new?investigationId=${investigationId}&causalFactorId=${factor.id}&assessmentId=${hopAssessments[factor.id][0].id}`)}
-                                className="text-xs px-3 py-1.5 bg-green-600 text-white rounded hover:bg-green-700 ml-3 flex-shrink-0"
-                              >
-                                View/Edit
-                              </button>
-                            </div>
-                          </div>
-                        ) : (
-                          <button
-                            onClick={() => router.push(`/hop-new?investigationId=${investigationId}&causalFactorId=${factor.id}`)}
-                            className="w-full flex items-center justify-center gap-2 px-3 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 text-sm"
-                          >
-                            <Plus className="w-4 h-4" />
-                            Launch HOP Assessment
-                          </button>
-                        )}
-                      </div>
-                    )}
-
-                    {/* HFAT Assessment Section */}
-                    {factor.requires_hfat && (
-                      <div className="mt-4 pt-4 border-t">
-                        <h4 className="font-medium text-sm mb-3">HFAT Assessment</h4>
-
-                        {hfatAssessments[factor.id]?.[0] ? (
-                          <div className="p-3 bg-purple-50 rounded border border-purple-200">
-                            <div className="flex items-center justify-between">
-                              <div className="flex-1">
-                                <p className="text-xs font-medium text-gray-700 mb-1">HFAT Analysis</p>
-                                {hfatAssessments[factor.id][0].status === 'complete' && (
-                                  <div className="flex items-center gap-1 text-xs text-purple-700 font-medium">
-                                    <CheckCircle className="w-3 h-3" />
-                                    Complete
-                                  </div>
-                                )}
-                              </div>
-                              <button
-                                onClick={() => router.push(`/hfat-new?investigationId=${investigationId}&causalFactorId=${factor.id}&assessmentId=${hfatAssessments[factor.id][0].id}`)}
-                                className="text-xs px-3 py-1.5 bg-purple-600 text-white rounded hover:bg-purple-700 flex-shrink-0"
-                              >
-                                View/Edit
-                              </button>
-                            </div>
-                          </div>
-                        ) : (
-                          <button
-                            onClick={() => router.push(`/hfat-new?investigationId=${investigationId}&causalFactorId=${factor.id}`)}
-                            className="w-full flex items-center justify-center gap-2 px-3 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 text-sm"
-                          >
-                            <Plus className="w-4 h-4" />
-                            Launch HFAT Assessment
-                          </button>
-                        )}
-                      </div>
-                    )}
-                  </div>
-                )}
-              </div>
-            );
-          })}
-        </div>
-
-        {filteredFactors.length === 0 && (
-          <div className="bg-white rounded-lg shadow-sm p-12 text-center">
-            <GitBranch className="w-16 h-16 text-gray-300 mx-auto mb-4" />
-            <p className="text-gray-600">No causal factors match your filters</p>
-          </div>
-        )}
-
-        {/* Investigation Principles */}
-        <div className="bg-blue-50 border-2 border-blue-300 rounded-lg p-6 mt-6">
-          <div className="flex items-start gap-3">
-            <Lightbulb className="w-6 h-6 text-blue-600 flex-shrink-0 mt-1" />
-            <div>
-              <h3 className="font-bold text-blue-900 mb-3 text-lg">Key Investigation Principles:</h3>
-              <ul className="space-y-2 text-sm text-blue-900">
-                <li className="flex items-start gap-2">
-                  <span className="font-bold mt-0.5">•</span>
-                  <span><strong>Local Rationality:</strong> People's actions made sense to them at the time given their knowledge, training, and context</span>
-                </li>
-                <li className="flex items-start gap-2">
-                  <span className="font-bold mt-0.5">•</span>
-                  <span><strong>Multiple Theories:</strong> Generate at least 2-3 possible explanations before reaching conclusions</span>
-                </li>
-                <li className="flex items-start gap-2">
-                  <span className="font-bold mt-0.5">•</span>
-                  <span><strong>System Focus:</strong> Even when human action is involved, understand what system factors made the error likely</span>
-                </li>
-                <li className="flex items-start gap-2">
-                  <span className="font-bold mt-0.5">•</span>
-                  <span><strong>Don't Stop at "Human Error":</strong> That's a starting point, not a conclusion. Ask WHY the error was made</span>
-                </li>
-              </ul>
-            </div>
-          </div>
-        </div>
-
-        {/* Add Causal Factor Modal */}
-        {showAddFactor && (
-          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-            <div className="bg-white rounded-lg max-w-2xl w-full p-6">
-              <h2 className="text-xl font-bold mb-4">Add Causal Factor</h2>
-              
-              <div className="space-y-4">
-                <div>
-                  <label className="block text-sm font-medium mb-2">Title *</label>
-                  <input
-                    type="text"
-                    value={newFactor.title}
-                    onChange={(e) => setNewFactor({...newFactor, title: e.target.value})}
-                    className="w-full border rounded-lg px-3 py-2"
-                    placeholder="Brief description of the causal factor..."
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium mb-2">Description *</label>
-                  <textarea
-                    value={newFactor.description}
-                    onChange={(e) => setNewFactor({...newFactor, description: e.target.value})}
-                    className="w-full border rounded-lg px-3 py-2"
-                    rows={4}
-                    placeholder="Detailed explanation of this causal factor..."
-                  />
-                </div>
-
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-sm font-medium mb-2 flex items-center">Type *<button type="button" onClick={() => setShowCauseTypeModal(true)} className="ml-1.5 text-slate-400 hover:text-blue-600 transition-colors" aria-label="Cause type definitions"><svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-3a1 1 0 11-2 0 1 1 0 012 0zM9 5a1 1 0 100 2h2a1 1 0 100-2H9zm0 4a1 1 0 00-1 1v2a1 1 0 100 2h2a1 1 0 100-2v-2a1 1 0 00-1-1H9z" clipRule="evenodd" /></svg></button></label>
-                    <select
-                      value={newFactor.factorType}
-                      onChange={(e) => setNewFactor({...newFactor, factorType: e.target.value})}
-                      className="w-full border rounded-lg px-3 py-2"
-                    >
-                      {factorTypes.map(type => (
-                        <option key={type.value} value={type.value}>{type.label}</option>
-                      ))}
-                    </select>
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-medium mb-2">Category *</label>
-                    <select
-                      value={newFactor.factorCategory}
-                      onChange={(e) => setNewFactor({...newFactor, factorCategory: e.target.value})}
-                      className="w-full border rounded-lg px-3 py-2"
-                    >
-                      {factorCategories.map(cat => (
-                        <option key={cat.value} value={cat.value}>{cat.label}</option>
-                      ))}
-                    </select>
-                  </div>
-                </div>
-
-                <AssessmentGuidance
-                  hfatChecked={newFactor.requiresHFAT}
-                  hopChecked={newFactor.requiresHOP}
-                  onHfatChange={(v) => setNewFactor({...newFactor, requiresHFAT: v})}
-                  onHopChange={(v) => setNewFactor({...newFactor, requiresHOP: v})}
-                />
-              </div>
-
-              <div className="flex gap-4 mt-6">
-                <button
-                  onClick={() => setShowAddFactor(false)}
-                  className="flex-1 px-4 py-2 border rounded-lg hover:bg-gray-50"
-                >
-                  Cancel
-                </button>
-                <button
-                  onClick={addCausalFactor}
-                  disabled={!newFactor.title || !newFactor.description}
-                  className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:bg-gray-300"
-                >
-                  Add Causal Factor
-                </button>
-              </div>
-            </div>
-          </div>
-        )}
-      </div>
-      </div>
-
-      {/* Cause Type Definitions Modal */}
-      {showCauseTypeModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-lg shadow-xl border border-slate-200 max-w-md w-full p-6">
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="text-sm font-semibold text-slate-800">Cause Type Definitions</h3>
-              <button onClick={() => setShowCauseTypeModal(false)} className="text-slate-400 hover:text-slate-600">
-                <X className="w-4 h-4" />
+                <Plus className="w-4 h-4" />Add Causal Factor
               </button>
             </div>
-            <div className="space-y-4">
-              {causeTypeDefinitions.map((def, i) => (
-                <div key={i} className="border-b border-slate-100 last:border-0 pb-3 last:pb-0">
-                  <p className="text-sm font-semibold text-slate-800">{def.label}</p>
-                  <p className="text-sm text-slate-600 mt-1">{def.definition}</p>
-                  <p className="text-sm text-blue-600 italic mt-1">👉 {def.guidance}</p>
+          </div>
+
+          {/* Status banners */}
+          {requiresAnalysisCount > 0 && (
+            <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 mb-6 flex items-start gap-3">
+              <AlertCircle className="w-5 h-5 text-amber-600 mt-0.5 flex-shrink-0" />
+              <div>
+                <p className="text-sm font-semibold text-amber-900">
+                  {requiresAnalysisCount} causal factor{requiresAnalysisCount !== 1 ? 's' : ''} require{requiresAnalysisCount === 1 ? 's' : ''} further analysis
+                </p>
+                <p className="text-xs text-amber-700 mt-0.5">
+                  Complete HFAT and/or HOP assessments for each factor marked as requiring analysis before proceeding to Step 6.
+                </p>
+              </div>
+            </div>
+          )}
+
+          {allAnalysisComplete && (
+            <div className="bg-green-50 border border-green-200 rounded-xl p-4 mb-6 flex items-start gap-3">
+              <Unlock className="w-5 h-5 text-green-600 mt-0.5 flex-shrink-0" />
+              <div>
+                <p className="text-sm font-semibold text-green-900">Analysis complete</p>
+                <p className="text-xs text-green-700 mt-0.5">All causal factors have been analysed. Proceed to Step 6: Recommendations.</p>
+              </div>
+            </div>
+          )}
+
+          {/* Add Causal Factor panel */}
+          {showAddFactor && (
+            <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-6 mb-6">
+              <div className="flex items-center justify-between mb-4">
+                <h2 className="text-lg font-semibold text-slate-900">Add Causal Factor</h2>
+                <button onClick={resetAddForm} className="text-slate-400 hover:text-slate-600">
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+
+              {/* Mode toggle */}
+              <div className="flex gap-1 mb-5 p-1 bg-slate-100 rounded-lg">
+                <button
+                  onClick={() => { setAddMode('manual'); setSelectedFlaggedId(null); }}
+                  className={`flex-1 py-2 px-3 rounded-md text-sm font-medium transition-colors ${addMode === 'manual' ? 'bg-white shadow-sm text-slate-900' : 'text-slate-500 hover:text-slate-700'}`}
+                >
+                  ✏️ Enter Manually
+                </button>
+                <button
+                  onClick={() => { setAddMode('fromVisualisation'); loadFlaggedVisualisationItems(); }}
+                  className={`flex-1 py-2 px-3 rounded-md text-sm font-medium transition-colors ${addMode === 'fromVisualisation' ? 'bg-white shadow-sm text-slate-900' : 'text-slate-500 hover:text-slate-700'}`}
+                >
+                  🚩 Expand from Step 4 Visualisations
+                </button>
+              </div>
+
+              {/* Visualisation picker */}
+              {addMode === 'fromVisualisation' && (
+                <div className="mb-5">
+                  <p className="text-sm text-slate-600 mb-3">
+                    Select a cause flagged in Step 4 to pre-populate the form below. You can then add detail, adjust the type, and configure HFAT/HOP.
+                  </p>
+                  {loadingFlagged ? (
+                    <div className="flex items-center justify-center py-8 text-slate-400">
+                      <div className="w-5 h-5 border-2 border-blue-400 border-t-transparent rounded-full animate-spin mr-2"></div>
+                      <span className="text-sm">Loading flagged items…</span>
+                    </div>
+                  ) : flaggedItems.length === 0 ? (
+                    <div className="text-center py-8 border border-dashed border-slate-200 rounded-xl">
+                      <Flag className="w-8 h-8 text-slate-300 mx-auto mb-2" />
+                      <p className="text-sm text-slate-500">No items have been flagged as causal factors in Step 4 yet.</p>
+                      <p className="text-xs text-slate-400 mt-1">
+                        Go to Step 4 and use the flag toggle on any Fishbone cause, 5 Whys answer, or Causal Tree node.
+                      </p>
+                    </div>
+                  ) : (
+                    <div className="space-y-2 max-h-64 overflow-y-auto">
+                      {flaggedItems.map(item => (
+                        <button
+                          key={item.id}
+                          onClick={() => applyFlaggedItem(item.id)}
+                          className={`w-full text-left p-3 rounded-lg border transition-colors ${
+                            selectedFlaggedId === item.id
+                              ? 'border-blue-500 bg-blue-50'
+                              : 'border-slate-200 hover:border-slate-300 hover:bg-slate-50'
+                          }`}
+                        >
+                          <div className="flex items-start gap-3">
+                            <span className="text-lg flex-shrink-0">{item.sourceIcon}</span>
+                            <div className="flex-1 min-w-0">
+                              <div className="flex flex-wrap gap-1.5 mb-1">
+                                <span className="text-xs px-2 py-0.5 bg-slate-100 text-slate-600 rounded-full">{item.source}</span>
+                                <span className={`text-xs px-2 py-0.5 rounded-full border ${TYPE_COLOURS[item.causalFactorType] || 'bg-slate-100 text-slate-600 border-slate-300'}`}>
+                                  {VISUALISATION_CAUSAL_TYPES.find(t => t.value === item.causalFactorType)?.label || item.causalFactorType}
+                                </span>
+                              </div>
+                              <p className="text-sm text-slate-800 truncate">{item.text}</p>
+                            </div>
+                            {selectedFlaggedId === item.id && (
+                              <CheckCircle className="w-5 h-5 text-blue-600 flex-shrink-0 mt-0.5" />
+                            )}
+                          </div>
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                  {selectedFlaggedId && (
+                    <p className="text-xs text-blue-600 mt-2 flex items-center gap-1">
+                      <CheckCircle className="w-3 h-3" />
+                      Item selected — review and complete the form below, then save.
+                    </p>
+                  )}
                 </div>
-              ))}
+              )}
+
+              {/* Form — always visible in manual mode; greyed out in visualisation mode until an item is selected */}
+              <div className={addMode === 'fromVisualisation' && !selectedFlaggedId ? 'opacity-40 pointer-events-none' : ''}>
+                {addMode === 'fromVisualisation' && selectedFlaggedId && (
+                  <div className="mb-3 p-2.5 bg-blue-50 border border-blue-200 rounded-lg">
+                    <p className="text-xs text-blue-700">Pre-populated from Step 4. Expand the description and adjust settings before saving.</p>
+                  </div>
+                )}
+
+                <div className="space-y-4">
+                  <div>
+                    <label className="block text-sm font-medium text-slate-700 mb-1">
+                      Title <span className="text-red-500">*</span>
+                    </label>
+                    <input
+                      type="text"
+                      value={newFactor.title}
+                      onChange={e => setNewFactor({ ...newFactor, title: e.target.value })}
+                      placeholder="Concise, factual title for this causal factor…"
+                      className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-slate-700 mb-1">Description</label>
+                    <textarea
+                      value={newFactor.description}
+                      onChange={e => setNewFactor({ ...newFactor, description: e.target.value })}
+                      placeholder="Describe what happened, the context, and conditions at the time…"
+                      rows={3}
+                      className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500"
+                    />
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-sm font-medium text-slate-700 mb-1">Type</label>
+                      <select
+                        value={newFactor.factorType}
+                        onChange={e => setNewFactor({ ...newFactor, factorType: e.target.value })}
+                        className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500"
+                      >
+                        {factorTypes.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}
+                      </select>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-slate-700 mb-1">Category</label>
+                      <select
+                        value={newFactor.factorCategory}
+                        onChange={e => setNewFactor({ ...newFactor, factorCategory: e.target.value })}
+                        className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500"
+                      >
+                        {factorCategories.map(c => <option key={c.value} value={c.value}>{c.label}</option>)}
+                      </select>
+                    </div>
+                  </div>
+
+                  {causalFactors.length > 0 && (
+                    <div>
+                      <label className="block text-sm font-medium text-slate-700 mb-1">Parent Factor (optional)</label>
+                      <select
+                        value={newFactor.parentFactorId || ''}
+                        onChange={e => setNewFactor({ ...newFactor, parentFactorId: e.target.value || null })}
+                        className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500"
+                      >
+                        <option value="">None</option>
+                        {causalFactors.map(f => <option key={f.id} value={f.id}>{f.causal_factor_title}</option>)}
+                      </select>
+                    </div>
+                  )}
+
+                  {/* HFAT / HOP checkboxes */}
+                  <div className="p-4 bg-slate-50 border border-slate-200 rounded-xl space-y-3">
+                    <p className="text-xs font-semibold text-slate-600 uppercase tracking-wide">Assessment Tools</p>
+
+                    <label className="flex items-start gap-3 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={newFactor.requiresHFAT}
+                        onChange={e => setNewFactor({ ...newFactor, requiresHFAT: e.target.checked })}
+                        className="w-4 h-4 mt-0.5 accent-purple-600"
+                      />
+                      <div>
+                        <p className="text-sm font-medium text-slate-800">Run HFAT Assessment</p>
+                        <p className="text-xs text-slate-500">Does this causal factor involve a human action, decision, or behaviour? If yes, consider HFAT to classify the human factors involved.</p>
+                      </div>
+                    </label>
+
+                    <label className="flex items-start gap-3 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={newFactor.requiresHOP}
+                        onChange={e => setNewFactor({ ...newFactor, requiresHOP: e.target.checked })}
+                        className="w-4 h-4 mt-0.5 accent-green-600"
+                      />
+                      <div>
+                        <p className="text-sm font-medium text-slate-800">Run HOP Assessment</p>
+                        <p className="text-xs text-slate-500">Do you want to understand why the action made sense in context — the conditions, pressures, and system factors that shaped it? If yes, consider HOP to explore local rationality and performance influencers.</p>
+                      </div>
+                    </label>
+
+                    <p className="text-xs text-slate-400 italic">
+                      Both can be applied to the same causal factor — HFAT gives you the structured classification, HOP gives you the contextual narrative. Together they may produce a more complete picture.
+                    </p>
+                  </div>
+
+                  <div className="flex gap-3">
+                    <button
+                      onClick={handleAddFactor}
+                      className="px-5 py-2.5 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 transition-colors"
+                    >
+                      Save Causal Factor
+                    </button>
+                    <button
+                      onClick={resetAddForm}
+                      className="px-5 py-2.5 border border-slate-300 rounded-lg text-sm hover:bg-slate-50"
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Filters */}
+          <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-4 mb-6">
+            <div className="flex items-center gap-4 flex-wrap">
+              <div className="flex items-center gap-2">
+                <Filter className="w-4 h-4 text-slate-500" />
+                <label className="text-sm font-medium text-slate-700">Type:</label>
+                <select
+                  value={filterType}
+                  onChange={e => setFilterType(e.target.value)}
+                  className="border border-slate-300 rounded-lg px-3 py-1.5 text-sm focus:ring-2 focus:ring-blue-500"
+                >
+                  <option value="all">All Types</option>
+                  {factorTypes.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}
+                </select>
+              </div>
+              <div className="flex items-center gap-2">
+                <label className="text-sm font-medium text-slate-700">Status:</label>
+                <select
+                  value={filterStatus}
+                  onChange={e => setFilterStatus(e.target.value)}
+                  className="border border-slate-300 rounded-lg px-3 py-1.5 text-sm focus:ring-2 focus:ring-blue-500"
+                >
+                  <option value="all">All Status</option>
+                  <option value="identified">Identified</option>
+                  <option value="analysis_required">Analysis Required</option>
+                  <option value="analysis_in_progress">In Progress</option>
+                  <option value="analysis_complete">Complete</option>
+                </select>
+              </div>
+              <div className="ml-auto text-sm text-slate-500">
+                {filteredFactors.length} factor{filteredFactors.length !== 1 ? 's' : ''}
+              </div>
             </div>
           </div>
+          {/* Causal Factor Cards */}
+          {filteredFactors.length === 0 ? (
+            <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-12 text-center">
+              <GitBranch className="w-12 h-12 text-slate-300 mx-auto mb-4" />
+              <p className="text-slate-600 font-medium">No causal factors recorded yet</p>
+              <p className="text-slate-400 text-sm mt-1">
+                Add causal factors manually, or expand items flagged in Step 4 Visualisations.
+              </p>
+              <button
+                onClick={() => { setShowAddFactor(true); setAddMode('manual'); }}
+                className="mt-4 px-4 py-2 bg-blue-600 text-white rounded-lg text-sm hover:bg-blue-700"
+              >
+                Add First Causal Factor
+              </button>
+            </div>
+          ) : (
+            <div className="space-y-4">
+              {filteredFactors.map(factor => {
+                const typeInfo = factorTypes.find(t => t.value === factor.factor_type);
+                const catInfo = factorCategories.find(c => c.value === factor.factor_category);
+                const statusInfo = statusLabels[factor.analysis_status] || { label: factor.analysis_status, colour: 'slate' };
+                const hasHfat = (hfatAssessments[factor.id] || []).length > 0;
+                const hasHop = (hopAssessments[factor.id] || []).length > 0;
+
+                return (
+                  <div key={factor.id} className="bg-white rounded-xl shadow-sm border border-slate-200">
+                    {editingFactor?.id === factor.id ? (
+                      /* ── EDIT MODE ── */
+                      <div className="p-6">
+                        <h3 className="font-semibold text-slate-900 mb-4">Edit Causal Factor</h3>
+                        <div className="space-y-4">
+                          <div>
+                            <label className="block text-sm font-medium text-slate-700 mb-1">Title</label>
+                            <input
+                              type="text"
+                              value={editingFactor.causal_factor_title}
+                              onChange={e => setEditingFactor({ ...editingFactor, causal_factor_title: e.target.value })}
+                              className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500"
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-sm font-medium text-slate-700 mb-1">Description</label>
+                            <textarea
+                              value={editingFactor.causal_factor_description || ''}
+                              onChange={e => setEditingFactor({ ...editingFactor, causal_factor_description: e.target.value })}
+                              rows={3}
+                              className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500"
+                            />
+                          </div>
+                          <div className="grid grid-cols-2 gap-4">
+                            <div>
+                              <label className="block text-sm font-medium text-slate-700 mb-1">Type</label>
+                              <select
+                                value={editingFactor.factor_type}
+                                onChange={e => setEditingFactor({ ...editingFactor, factor_type: e.target.value })}
+                                className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500"
+                              >
+                                {factorTypes.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}
+                              </select>
+                            </div>
+                            <div>
+                              <label className="block text-sm font-medium text-slate-700 mb-1">Category</label>
+                              <select
+                                value={editingFactor.factor_category}
+                                onChange={e => setEditingFactor({ ...editingFactor, factor_category: e.target.value })}
+                                className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500"
+                              >
+                                {factorCategories.map(c => <option key={c.value} value={c.value}>{c.label}</option>)}
+                              </select>
+                            </div>
+                          </div>
+                          {causalFactors.filter(f => f.id !== factor.id).length > 0 && (
+                            <div>
+                              <label className="block text-sm font-medium text-slate-700 mb-1">Parent Factor</label>
+                              <select
+                                value={editingFactor.parent_factor_id || ''}
+                                onChange={e => setEditingFactor({ ...editingFactor, parent_factor_id: e.target.value || null })}
+                                className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500"
+                              >
+                                <option value="">None</option>
+                                {causalFactors.filter(f => f.id !== factor.id).map(f => (
+                                  <option key={f.id} value={f.id}>{f.causal_factor_title}</option>
+                                ))}
+                              </select>
+                            </div>
+                          )}
+                          <div className="p-4 bg-slate-50 border border-slate-200 rounded-xl space-y-3">
+                            <p className="text-xs font-semibold text-slate-600 uppercase tracking-wide">Assessment Tools</p>
+                            <label className="flex items-start gap-3 cursor-pointer">
+                              <input
+                                type="checkbox"
+                                checked={editingFactor.requires_hfat}
+                                onChange={e => setEditingFactor({ ...editingFactor, requires_hfat: e.target.checked })}
+                                className="w-4 h-4 mt-0.5 accent-purple-600"
+                              />
+                              <div>
+                                <p className="text-sm font-medium text-slate-800">Run HFAT Assessment</p>
+                                <p className="text-xs text-slate-500">Does this causal factor involve a human action, decision, or behaviour? If yes, consider HFAT to classify the human factors involved.</p>
+                              </div>
+                            </label>
+                            <label className="flex items-start gap-3 cursor-pointer">
+                              <input
+                                type="checkbox"
+                                checked={editingFactor.requires_hop}
+                                onChange={e => setEditingFactor({ ...editingFactor, requires_hop: e.target.checked })}
+                                className="w-4 h-4 mt-0.5 accent-green-600"
+                              />
+                              <div>
+                                <p className="text-sm font-medium text-slate-800">Run HOP Assessment</p>
+                                <p className="text-xs text-slate-500">Do you want to understand why the action made sense in context — the conditions, pressures, and system factors that shaped it? If yes, consider HOP to explore local rationality and performance influencers.</p>
+                              </div>
+                            </label>
+                            <p className="text-xs text-slate-400 italic">
+                              Both can be applied to the same causal factor — HFAT gives you the structured classification, HOP gives you the contextual narrative.
+                            </p>
+                          </div>
+                          <div className="flex gap-3">
+                            <button onClick={handleUpdateFactor} className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm hover:bg-blue-700">Save Changes</button>
+                            <button onClick={() => setEditingFactor(null)} className="px-4 py-2 border border-slate-300 rounded-lg text-sm hover:bg-slate-50">Cancel</button>
+                          </div>
+                        </div>
+                      </div>
+                    ) : (
+                      /* ── VIEW MODE ── */
+                      <div className="p-6">
+                        {/* Factor header */}
+                        <div className="flex items-start justify-between gap-3 mb-3">
+                          <div className="flex-1">
+                            <div className="flex flex-wrap gap-2 mb-2">
+                              <span className={`text-xs px-2.5 py-1 rounded-full border font-medium ${TYPE_COLOURS[factor.factor_type]}`}>
+                                {typeInfo?.label || factor.factor_type}
+                              </span>
+                              <span className="text-xs px-2.5 py-1 rounded-full bg-slate-100 text-slate-600 border border-slate-200">
+                                {catInfo?.label || factor.factor_category}
+                              </span>
+                              <span className={`text-xs px-2.5 py-1 rounded-full ${
+                                statusInfo.colour === 'amber'  ? 'bg-amber-100 text-amber-700 border border-amber-200' :
+                                statusInfo.colour === 'green'  ? 'bg-green-100 text-green-700 border border-green-200' :
+                                statusInfo.colour === 'blue'   ? 'bg-blue-100 text-blue-700 border border-blue-200' :
+                                'bg-slate-100 text-slate-600 border border-slate-200'
+                              }`}>
+                                {statusInfo.label}
+                              </span>
+                            </div>
+                            <h3 className="font-semibold text-slate-900">{factor.causal_factor_title}</h3>
+                            {factor.causal_factor_description && (
+                              <p className="text-sm text-slate-600 mt-1">{factor.causal_factor_description}</p>
+                            )}
+                          </div>
+                          <div className="flex gap-1 flex-shrink-0">
+                            <button
+                              onClick={() => setEditingFactor({ ...factor })}
+                              className="p-2 text-slate-400 hover:text-blue-600 rounded-lg hover:bg-blue-50 transition-colors"
+                              title="Edit"
+                            >
+                              <Edit2 className="w-4 h-4" />
+                            </button>
+                            <button
+                              onClick={() => handleDeleteFactor(factor.id)}
+                              className="p-2 text-slate-400 hover:text-red-600 rounded-lg hover:bg-red-50 transition-colors"
+                              title="Delete"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </button>
+                          </div>
+                        </div>
+
+                        {/* HFAT Section */}
+                        {factor.requires_hfat && (
+                          <div className="mt-4 pt-4 border-t border-slate-100">
+                            <div className="flex items-center justify-between mb-2">
+                              <div className="flex items-center gap-2">
+                                <span className="text-xs font-semibold text-purple-700 uppercase tracking-wide">HFAT Assessment</span>
+                                {hasHfat && <CheckCircle className="w-3.5 h-3.5 text-green-500" />}
+                              </div>
+                            </div>
+
+                            {(hfatAssessments[factor.id] || []).map((assessment: any) => (
+                              <div key={assessment.id} className="mb-2 p-3 bg-purple-50 rounded-lg border border-purple-200">
+                                <div className="flex items-center justify-between">
+                                  <div className="text-xs">
+                                    <span className="font-medium text-purple-800">HFAT Analysis</span>
+                                    <span className="text-purple-600 ml-2">
+                                      {assessment.status === 'complete' ? '✓ Complete' : 'Draft'} — {new Date(assessment.updated_at).toLocaleDateString('en-AU')}
+                                    </span>
+                                  </div>
+                                  <button
+                                    onClick={() => router.push(`/hfat-new?investigationId=${investigationId}&causalFactorId=${factor.id}&assessmentId=${assessment.id}`)}
+                                    className="text-xs px-2.5 py-1 bg-purple-600 text-white rounded hover:bg-purple-700"
+                                  >
+                                    View/Edit
+                                  </button>
+                                </div>
+                              </div>
+                            ))}
+
+                            <button
+                              onClick={() => router.push(`/hfat-new?investigationId=${investigationId}&causalFactorId=${factor.id}`)}
+                              className="w-full flex items-center justify-center gap-2 px-3 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 text-sm transition-colors"
+                            >
+                              <Plus className="w-4 h-4" />
+                              {hasHfat ? 'Add Another HFAT Assessment' : 'Launch HFAT Assessment'}
+                            </button>
+                          </div>
+                        )}
+
+                        {/* HOP Section */}
+                        {factor.requires_hop && (
+                          <div className="mt-4 pt-4 border-t border-slate-100">
+                            <div className="flex items-center justify-between mb-2">
+                              <div className="flex items-center gap-2">
+                                <span className="text-xs font-semibold text-green-700 uppercase tracking-wide">HOP Assessment</span>
+                                {hasHop && <CheckCircle className="w-3.5 h-3.5 text-green-500" />}
+                              </div>
+                            </div>
+
+                            {(hopAssessments[factor.id] || []).map((assessment: any) => (
+                              <div key={assessment.id} className="mb-2 p-3 bg-green-50 rounded-lg border border-green-200">
+                                <div className="flex items-center justify-between">
+                                  <div className="text-xs">
+                                    <span className="font-medium text-green-800">
+                                      {assessment.action_type === 'error' ? 'Error Analysis' : 'Violation Analysis'}
+                                    </span>
+                                    <span className="text-green-600 ml-2">
+                                      {assessment.status === 'complete' ? '✓ Complete' : 'Draft'} — {new Date(assessment.updated_at).toLocaleDateString('en-AU')}
+                                    </span>
+                                  </div>
+                                  <button
+                                    onClick={() => router.push(`/hop-new?investigationId=${investigationId}&causalFactorId=${factor.id}&assessmentId=${assessment.id}`)}
+                                    className="text-xs px-2.5 py-1 bg-green-600 text-white rounded hover:bg-green-700"
+                                  >
+                                    View/Edit
+                                  </button>
+                                </div>
+                              </div>
+                            ))}
+
+                            <button
+                              onClick={() => router.push(`/hop-new?investigationId=${investigationId}&causalFactorId=${factor.id}`)}
+                              className="w-full flex items-center justify-center gap-2 px-3 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 text-sm transition-colors"
+                            >
+                              <Plus className="w-4 h-4" />
+                              {hasHop ? 'Add Another HOP Assessment' : 'Launch HOP Assessment'}
+                            </button>
+                          </div>
+                        )}
+
+                        {/* Neither HFAT nor HOP required — show soft prompt */}
+                        {!factor.requires_hfat && !factor.requires_hop && (
+                          <div className="mt-3 pt-3 border-t border-slate-100">
+                            <p className="text-xs text-slate-400 italic">
+                              No assessment tools selected for this factor. Edit to enable HFAT and/or HOP if applicable.
+                            </p>
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          )}
+
+          {/* Bottom info panel */}
+          <div className="mt-6 bg-blue-50 border border-blue-200 rounded-xl p-4">
+            <div className="flex items-start gap-3">
+              <Info className="w-5 h-5 text-blue-600 mt-0.5 flex-shrink-0" />
+              <div>
+                <p className="text-sm font-semibold text-blue-900 mb-1">Causal Analysis Best Practice</p>
+                <p className="text-sm text-blue-800">
+                  Start with immediate causes (what directly triggered the incident), then trace back to contributing factors and root causes.
+                  Use HFAT to classify human factors and HOP to understand why actions made sense to the people involved at the time.
+                  Align your analysis with IOGP 621 categories to ensure regulatory consistency.
+                </p>
+              </div>
+            </div>
+          </div>
+
         </div>
-      )}
-    </div>
+      </div>
+    </>
   );
 }
