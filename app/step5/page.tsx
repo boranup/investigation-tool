@@ -151,8 +151,8 @@ export default function CausalAnalysis() {
     setLoadingFlagged(true);
     const [fishboneRes, whyRes, treeRes] = await Promise.all([
       supabase.from('fishbone_causes').select('*').eq('investigation_id', investigationId).eq('is_causal_factor', true),
-      supabase.from('why_chain').select('*').eq('investigation_id', investigationId).eq('is_causal_factor', true),
-      supabase.from('causal_tree_nodes').select('*').eq('investigation_id', investigationId).eq('is_causal_factor', true),
+      supabase.from('visualization_5whys').select('*').eq('investigation_id', investigationId).eq('is_causal_factor', true),
+      supabase.from('visualization_causal_tree').select('*').eq('investigation_id', investigationId).eq('is_causal_factor', true),
     ]);
 
     const items: any[] = [];
@@ -177,7 +177,7 @@ export default function CausalAnalysis() {
       id: `tree-${item.id}`,
       source: 'Causal Tree',
       sourceIcon: '🌿',
-      text: item.text,
+      text: item.title,
       causalFactorType: item.causal_factor_type || 'contributing',
     }));
 
@@ -896,4 +896,4 @@ export default function CausalAnalysis() {
       </div>
     </>
   );
-}
+}       
