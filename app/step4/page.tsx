@@ -114,7 +114,7 @@ export default function Visualisations() {
 
   async function loadWhyChain() {
     const { data } = await supabase
-      .from('why_chain')
+      .from('visualization_5whys')
       .select('*')
       .eq('investigation_id', investigationId)
       .order('order_index', { ascending: true });
@@ -123,7 +123,7 @@ export default function Visualisations() {
 
   async function loadCausalTree() {
     const { data } = await supabase
-      .from('causal_tree_nodes')
+      .from('visualization_causal_tree')
       .select('*')
       .eq('investigation_id', investigationId)
       .order('created_at', { ascending: true });
@@ -145,7 +145,7 @@ export default function Visualisations() {
 
   async function handleAddWhy() {
     if (!newWhy.answer.trim()) return;
-    const { error } = await supabase.from('why_chain').insert([{
+    const { error } = await supabase.from('visualization_5whys').insert([{
       investigation_id: investigationId,
       answer: newWhy.answer.trim(),
       is_root_cause: newWhy.isRootCause,
@@ -162,7 +162,7 @@ export default function Visualisations() {
   }
 
   async function handleUpdateWhy(id: string) {
-    const { error } = await supabase.from('why_chain').update({
+    const { error } = await supabase.from('visualization_5whys').update({
       answer: editWhy.answer,
       is_root_cause: editWhy.isRootCause,
       factor_type: editWhy.factorType,
@@ -177,7 +177,7 @@ export default function Visualisations() {
 
   async function handleDeleteWhy(id: string) {
     if (!confirm('Delete this Why entry?')) return;
-    await supabase.from('why_chain').delete().eq('id', id);
+    await supabase.from('visualization_5whys').delete().eq('id', id);
     loadWhyChain();
   }
 
@@ -187,11 +187,12 @@ export default function Visualisations() {
 
   async function handleAddNode() {
     if (!newNode.text.trim()) return;
-    const { error } = await supabase.from('causal_tree_nodes').insert([{
+    const { error } = await supabase.from('visualization_causal_tree').insert([{
       investigation_id: investigationId,
-      text: newNode.text.trim(),
-      node_type: newNode.nodeType,
-      parent_id: selectedParentId,
+      title: newNode.text.trim(),
+      node_type: newNode.nodeType || null,
+      factor_category: null,
+      parent_node_id: selectedParentId,
       is_causal_factor: newNode.isCausalFactor,
       causal_factor_type: newNode.isCausalFactor ? newNode.causalFactorType : null,
     }]);
@@ -204,9 +205,9 @@ export default function Visualisations() {
   }
 
   async function handleUpdateNode(id: string) {
-    const { error } = await supabase.from('causal_tree_nodes').update({
-      text: editNode.text,
-      node_type: editNode.nodeType,
+    const { error } = await supabase.from('visualization_causal_tree').update({
+      title: editNode.text,
+      node_type: editNode.nodeType || null,
       is_causal_factor: editNode.isCausalFactor,
       causal_factor_type: editNode.isCausalFactor ? editNode.causalFactorType : null,
     }).eq('id', id);
@@ -220,7 +221,7 @@ export default function Visualisations() {
     if (!confirm('Delete this node and all its children?')) return;
     const children = causalTree.filter(n => n.parent_id === id);
     for (const child of children) await handleDeleteNode(child.id);
-    await supabase.from('causal_tree_nodes').delete().eq('id', id);
+    await supabase.from('visualization_causal_tree').delete().eq('id', id);
     loadCausalTree();
   }
 
@@ -386,20 +387,21 @@ export default function Visualisations() {
   }
 
   // ─────────────────────────────────────────────────────────────────────────────
-  // FISHBONE DIAGRAM (SVG visual)
+  // FISHBONE DIAGRAM (SVG visual — pure SVG, no foreignObject)
   // ─────────────────────────────────────────────────────────────────────────────
 
   function FishboneDiagramVisual() {
     const svgWidth = 1100;
-    const svgHeight = 550;
+    const svgHeight = 580;
     const spineY = svgHeight / 2;
-    const headX = svgWidth - 60;
+    const headX = svgWidth - 80;
     const tailX = 60;
     const spineLen = headX - tailX;
+    const boneLen = 140;
+    const boneSpacingX = spineLen / 4;
 
     const topCats = FISHBONE_CATEGORIES.slice(0, 3);
     const botCats = FISHBONE_CATEGORIES.slice(3, 6);
-    const boneSpacingX = spineLen / 4;
 
     type BonePos = { x: number; side: 'top' | 'bottom'; cat: typeof FISHBONE_CATEGORIES[0] };
     const bonePositions: BonePos[] = [
@@ -411,40 +413,40 @@ export default function Visualisations() {
       { x: tailX + boneSpacingX * 3, side: 'bottom', cat: botCats[2] },
     ];
 
-    const boneLen = 130;
-
-    function truncate(text: string, max: number) {
+    function svgTruncate(text: string, max: number) {
       return text.length > max ? text.slice(0, max - 1) + '…' : text;
     }
+
+    const problemLabel = svgTruncate(fishboneProblemStatement || 'Problem Statement', 18);
 
     return (
       <div className="w-full overflow-x-auto">
         <svg
           viewBox={`0 0 ${svgWidth} ${svgHeight}`}
           className="w-full min-w-[700px]"
-          style={{ fontFamily: 'sans-serif' }}
+          style={{ fontFamily: 'Arial, sans-serif' }}
         >
           {/* Spine */}
-          <line x1={tailX} y1={spineY} x2={headX - 30} y2={spineY} stroke="#1e293b" strokeWidth="3" />
-
-          {/* Arrowhead on spine */}
+          <line x1={tailX} y1={spineY} x2={headX - 10} y2={spineY} stroke="#1e293b" strokeWidth="3" />
+          {/* Arrowhead */}
           <polygon
-            points={`${headX - 30},${spineY - 8} ${headX},${spineY} ${headX - 30},${spineY + 8}`}
+            points={`${headX - 10},${spineY - 9} ${headX + 10},${spineY} ${headX - 10},${spineY + 9}`}
             fill="#1e293b"
           />
 
-          {/* Problem statement box */}
-          <rect x={headX - 28} y={spineY - 28} width={120} height={56} rx={6}
+          {/* Problem statement box (head) */}
+          <rect x={headX + 12} y={spineY - 30} width={60} height={60} rx={5}
             fill="#dc2626" stroke="#991b1b" strokeWidth="1.5" />
-          <foreignObject x={headX - 24} y={spineY - 24} width={112} height={48}>
-            <div xmlns="http://www.w3.org/1999/xhtml"
-              style={{ fontSize: '10px', color: 'white', fontWeight: 600, lineHeight: 1.3,
-                       overflow: 'hidden', wordBreak: 'break-word', height: '48px',
-                       display: 'flex', alignItems: 'center', justifyContent: 'center',
-                       textAlign: 'center' }}>
-              {truncate(fishboneProblemStatement || 'Problem Statement', 55)}
-            </div>
-          </foreignObject>
+          <title>{fishboneProblemStatement || 'Problem Statement'}</title>
+          <text x={headX + 42} y={spineY - 6} textAnchor="middle" fontSize="8" fontWeight="700" fill="white">
+            {svgTruncate(problemLabel.split(' ').slice(0, 3).join(' '), 12)}
+          </text>
+          <text x={headX + 42} y={spineY + 6} textAnchor="middle" fontSize="8" fontWeight="700" fill="white">
+            {svgTruncate(problemLabel.split(' ').slice(3, 6).join(' '), 12)}
+          </text>
+          <text x={headX + 42} y={spineY + 18} textAnchor="middle" fontSize="8" fontWeight="700" fill="white">
+            {svgTruncate(problemLabel.split(' ').slice(6).join(' '), 12)}
+          </text>
 
           {bonePositions.map(({ x, side, cat }) => {
             const dir = side === 'top' ? -1 : 1;
@@ -457,88 +459,60 @@ export default function Visualisations() {
                 <line x1={x} y1={spineY} x2={x} y2={tipY} stroke={cat.colour} strokeWidth="2.5" />
 
                 {/* Category label */}
-                <text
-                  x={x}
-                  y={tipY + dir * 18}
-                  textAnchor="middle"
-                  fontSize="11"
-                  fontWeight="700"
-                  fill={cat.colour}
-                >
+                <text x={x} y={tipY + dir * 16} textAnchor="middle" fontSize="11" fontWeight="700" fill={cat.colour}>
                   {cat.label}
                 </text>
 
-                {/* Causes along bone — up to 4 per bone */}
+                {/* Causes — up to 4 per bone, alternating left/right branches */}
                 {causes.slice(0, 4).map((cause, i) => {
-                  const causeY = spineY + dir * (32 + i * 28);
-                  const branchLen = 70;
+                  const causeY = spineY + dir * (30 + i * 26);
                   const branchDir = i % 2 === 0 ? -1 : 1;
+                  const branchLen = 68;
                   const tipCX = x + branchDir * branchLen;
                   const isCF = cause.is_causal_factor;
                   const subs = fishboneCauses.filter(c => c.parent_cause_id === cause.id);
+                  const labelX = branchDir > 0 ? tipCX + 4 : tipCX - 4;
+                  const labelAnchor = branchDir > 0 ? 'start' : 'end';
+                  const causeLabel = svgTruncate(cause.cause_text, 22);
 
                   return (
                     <g key={cause.id}>
-                      {/* Horizontal branch */}
+                      <title>{cause.cause_text}{isCF ? ` ▶ ${CAUSAL_FACTOR_TYPES.find(t => t.value === cause.causal_factor_type)?.label || 'Causal Factor'}` : ''}
+{subs.length > 0 ? `\n${subs.length} contributing factor(s) — see List View` : ''}</title>
+
+                      {/* Branch line */}
                       <line x1={x} y1={causeY} x2={tipCX} y2={causeY}
-                        stroke={cat.colour} strokeWidth="1.5" strokeDasharray={isCF ? '0' : '4,2'} />
+                        stroke={cat.colour} strokeWidth="1.5"
+                        strokeDasharray={isCF ? '0' : '4,3'} />
 
-                      {/* Cause label box */}
-                      <rect x={branchDir > 0 ? tipCX + 2 : tipCX - 122} y={causeY - 11}
-                        width={120} height={22} rx={3}
-                        fill={isCF ? '#fef3c7' : 'white'}
-                        stroke={isCF ? '#d97706' : '#cbd5e1'}
-                        strokeWidth="1" />
-
+                      {/* CF flag marker */}
                       {isCF && (
-                        <text
-                          x={branchDir > 0 ? tipCX + 5 : tipCX - 120}
-                          y={causeY - 14}
-                          fontSize="7"
-                          fill="#d97706"
-                          fontWeight="600"
-                        >▶ {CAUSAL_FACTOR_TYPES.find(t => t.value === cause.causal_factor_type)?.label || 'CF'}</text>
+                        <circle cx={branchDir > 0 ? tipCX - 4 : tipCX + 4} cy={causeY} r="4" fill="#d97706" />
                       )}
 
-                      <title>{cause.cause_text}{isCF ? ` [${CAUSAL_FACTOR_TYPES.find(t => t.value === cause.causal_factor_type)?.label}]` : ''}{subs.length > 0 ? ` — ${subs.length} contributing factor(s)` : ''}</title>
-
-                      <foreignObject
-                        x={branchDir > 0 ? tipCX + 4 : tipCX - 120}
-                        y={causeY - 9}
-                        width={116}
-                        height={18}
+                      {/* Cause text */}
+                      <text
+                        x={labelX}
+                        y={causeY - 3}
+                        textAnchor={labelAnchor}
+                        fontSize="9"
+                        fill={isCF ? '#92400e' : '#1e293b'}
+                        fontWeight={isCF ? '700' : '400'}
                       >
-                        <div xmlns="http://www.w3.org/1999/xhtml"
-                          style={{ fontSize: '9px', color: '#1e293b', overflow: 'hidden',
-                                   whiteSpace: 'nowrap', textOverflow: 'ellipsis',
-                                   lineHeight: '18px', paddingLeft: '2px', paddingRight: '2px' }}>
-                          {cause.cause_text}
-                        </div>
-                      </foreignObject>
+                        {causeLabel}
+                      </text>
 
-                      {/* Sub-cause indicators */}
-                      {subs.slice(0, 2).map((sub, si) => {
-                        const subX = branchDir > 0 ? tipCX + 60 + si * 50 : tipCX - 60 - si * 50;
-                        const subTipY = causeY + dir * 18;
-                        return (
-                          <g key={sub.id}>
-                            <line x1={tipCX + (branchDir > 0 ? 60 : -60)} y1={causeY}
-                              x2={tipCX + (branchDir > 0 ? 60 : -60)} y2={subTipY}
-                              stroke={cat.colour} strokeWidth="1" strokeDasharray="3,2" opacity="0.6" />
-                            <circle cx={tipCX + (branchDir > 0 ? 60 : -60)} cy={subTipY}
-                              r="4" fill={sub.is_causal_factor ? '#fbbf24' : '#94a3b8'} />
-                            <title>{sub.cause_text}</title>
-                          </g>
-                        );
-                      })}
-                      {subs.length > 2 && (
+                      {/* Sub-cause count badge */}
+                      {subs.length > 0 && (
                         <text
-                          x={branchDir > 0 ? tipCX + 125 : tipCX - 125}
-                          y={causeY + 4}
-                          fontSize="8"
+                          x={labelX}
+                          y={causeY + 9}
+                          textAnchor={labelAnchor}
+                          fontSize="7"
                           fill="#64748b"
-                          textAnchor="middle"
-                        >+{subs.length - 2} more</text>
+                        >
+                          +{subs.length} contributing factor{subs.length !== 1 ? 's' : ''}
+                        </text>
                       )}
                     </g>
                   );
@@ -548,13 +522,13 @@ export default function Visualisations() {
                 {causes.length > 4 && (
                   <text
                     x={x}
-                    y={spineY + dir * (32 + 4 * 28)}
+                    y={spineY + dir * (30 + 4 * 26 + 10)}
                     textAnchor="middle"
-                    fontSize="9"
-                    fill="#64748b"
+                    fontSize="8"
+                    fill="#94a3b8"
                     fontStyle="italic"
                   >
-                    +{causes.length - 4} more — see List View
+                    +{causes.length - 4} more (List View)
                   </text>
                 )}
               </g>
@@ -562,26 +536,19 @@ export default function Visualisations() {
           })}
         </svg>
 
-        <div className="mt-3 flex flex-wrap gap-4 justify-center text-xs text-slate-500">
+        {/* Legend */}
+        <div className="mt-3 flex flex-wrap gap-6 justify-center text-xs text-slate-500">
           <div className="flex items-center gap-1.5">
-            <div className="w-8 h-0.5 bg-slate-400"></div>
-            <span>Solid line = flagged as Causal Factor</span>
+            <span className="inline-block w-3 h-3 rounded-full bg-amber-500"></span>
+            <span>Flagged as Causal Factor (bold, amber dot)</span>
           </div>
           <div className="flex items-center gap-1.5">
-            <div className="w-8 h-0.5 bg-slate-400 border-dashed border-t border-slate-400"></div>
-            <span>Dashed = contributing cause (not yet flagged)</span>
-          </div>
-          <div className="flex items-center gap-1.5">
-            <div className="w-3 h-3 rounded-full bg-amber-400 inline-block"></div>
-            <span>Dot = sub-cause flagged as Causal Factor</span>
-          </div>
-          <div className="flex items-center gap-1.5">
-            <div className="w-3 h-3 rounded-full bg-slate-400 inline-block"></div>
-            <span>Dot = sub-cause (not flagged)</span>
+            <svg width="24" height="6"><line x1="0" y1="3" x2="24" y2="3" stroke="#94a3b8" strokeWidth="1.5" strokeDasharray="4,3" /></svg>
+            <span>Dashed = not yet flagged</span>
           </div>
         </div>
-        <p className="text-center text-xs text-slate-400 mt-2 italic">
-          Hover over any element to see the full text. Switch to List View to add, edit, or flag items.
+        <p className="text-center text-xs text-slate-400 mt-1 italic">
+          Hover over any label to see full text. Switch to List View to add, edit, or flag items.
         </p>
       </div>
     );
@@ -703,7 +670,7 @@ export default function Visualisations() {
             </div>
 
             <div className="p-6">
-              {/* ══════════════════════════════════════════════════════════════
+            {/* ══════════════════════════════════════════════════════════════
                   5 WHYS TAB
               ══════════════════════════════════════════════════════════════ */}
               {activeTab === '5whys' && (
@@ -877,7 +844,7 @@ export default function Visualisations() {
                   {showAddNode && (
                     <div className="mb-4 p-4 bg-blue-50 border border-blue-200 rounded-lg">
                       <h3 className="font-medium text-blue-900 mb-3">
-                        {selectedParentId ? `Add child of: "${causalTree.find(n => n.id === selectedParentId)?.text}"` : 'Add top-level node'}
+                        {selectedParentId ? `Add child of: "${causalTree.find(n => n.id === selectedParentId)?.title}"` : 'Add top-level node'}
                       </h3>
                       <div className="mb-3">
                         <label className="block text-sm font-medium text-slate-700 mb-1">Node Description</label>
@@ -890,12 +857,12 @@ export default function Visualisations() {
                         />
                       </div>
                       <div className="mb-3">
-                        <label className="block text-sm font-medium text-slate-700 mb-1">Node Type</label>
+                        <label className="block text-sm font-medium text-slate-700 mb-1">Node Type (optional)</label>
                         <select value={newNode.nodeType} onChange={e => setNewNode({ ...newNode, nodeType: e.target.value })}
                           className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500">
-                          <option value="incident">Incident / Top Event</option>
-                          <option value="cause">Cause</option>
-                          <option value="condition">Condition</option>
+                          <option value="">Not specified</option>
+                          <option value="immediate">Immediate Cause</option>
+                          <option value="contributing">Contributing Factor</option>
                           <option value="root">Root Cause</option>
                         </select>
                       </div>
@@ -905,7 +872,7 @@ export default function Visualisations() {
                           <select value={selectedParentId || ''} onChange={e => setSelectedParentId(e.target.value || null)}
                             className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500">
                             <option value="">None (top-level)</option>
-                            {causalTree.map(n => <option key={n.id} value={n.id}>{n.text.slice(0, 60)}</option>)}
+                            {causalTree.map(n => <option key={n.id} value={n.id}>{(n.title || '').slice(0, 60)}</option>)}
                           </select>
                         </div>
                       )}
@@ -930,11 +897,11 @@ export default function Visualisations() {
                     </div>
                   ) : (
                     <div className="space-y-2">
-                      {causalTree.filter(n => !n.parent_id).map(node => (
+                      {causalTree.filter(n => !n.parent_node_id).map(node => (
                         <div key={node.id}>
                           {/* Recursive node render */}
                           {(function renderNode(n: any, depth: number): React.ReactNode {
-                            const children = causalTree.filter(c => c.parent_id === n.id);
+                            const children = causalTree.filter(c => c.parent_node_id === n.id);
                             const cfBadge = getCausalFactorBadge(n.is_causal_factor, n.causal_factor_type);
                             return (
                               <div key={n.id} style={{ marginLeft: depth * 24 }}>
@@ -945,9 +912,9 @@ export default function Visualisations() {
                                         rows={2} className="w-full px-3 py-2 border border-slate-300 rounded text-sm mb-2 focus:ring-2 focus:ring-blue-500" />
                                       <select value={editNode.nodeType} onChange={e => setEditNode({ ...editNode, nodeType: e.target.value })}
                                         className="w-full px-3 py-2 border border-slate-300 rounded text-sm mb-2">
-                                        <option value="incident">Incident / Top Event</option>
-                                        <option value="cause">Cause</option>
-                                        <option value="condition">Condition</option>
+                                        <option value="">Not specified</option>
+                                        <option value="immediate">Immediate Cause</option>
+                                        <option value="contributing">Contributing Factor</option>
                                         <option value="root">Root Cause</option>
                                       </select>
                                       <CausalFactorFlagForm
@@ -966,18 +933,18 @@ export default function Visualisations() {
                                       <div className="flex-1">
                                         <div className="flex flex-wrap gap-1.5 mb-1">
                                           <span className={`text-xs px-2 py-0.5 rounded-full ${
-                                            n.node_type === 'incident' ? 'bg-red-100 text-red-700' :
+                                            n.node_type === 'immediate' ? 'bg-red-100 text-red-700' :
                                             n.node_type === 'root' ? 'bg-purple-100 text-purple-700' :
-                                            n.node_type === 'condition' ? 'bg-blue-100 text-blue-700' :
+                                            n.node_type === 'contributing' ? 'bg-orange-100 text-orange-700' :
                                             'bg-slate-100 text-slate-600'
-                                          }`}>{n.node_type}</span>
+                                          }`}>{n.node_type || 'node'}</span>
                                           {cfBadge && (
                                             <span className={`text-xs px-2 py-0.5 rounded-full border flex items-center gap-1 ${CAUSAL_TYPE_COLOURS[cfBadge.value]}`}>
                                               <Flag className="w-2.5 h-2.5" />{cfBadge.label}
                                             </span>
                                           )}
                                         </div>
-                                        <p className="text-sm text-slate-800">{n.text}</p>
+                                        <p className="text-sm text-slate-800">{n.title}</p>
                                       </div>
                                       <div className="flex gap-1 flex-shrink-0">
                                         <button
@@ -988,7 +955,7 @@ export default function Visualisations() {
                                           <Plus className="w-3.5 h-3.5" />
                                         </button>
                                         <button
-                                          onClick={() => { setEditingNodeId(n.id); setEditNode({ text: n.text, nodeType: n.node_type, isCausalFactor: n.is_causal_factor || false, causalFactorType: n.causal_factor_type || 'contributing' }); }}
+                                          onClick={() => { setEditingNodeId(n.id); setEditNode({ text: n.title, nodeType: n.node_type || '', isCausalFactor: n.is_causal_factor || false, causalFactorType: n.causal_factor_type || 'contributing' }); }}
                                           className="p-1.5 text-slate-400 hover:text-blue-600 rounded hover:bg-blue-50"
                                         >
                                           <Edit2 className="w-4 h-4" />
@@ -1359,4 +1326,4 @@ export default function Visualisations() {
       </div>
     </>
   );
-}
+}         
