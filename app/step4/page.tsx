@@ -371,7 +371,8 @@ export default function Visualisations() {
     if (diagErr) console.error('Error saving diagram:', diagErr);
     const { error: delErr } = await supabase.from('fishbone_causes').delete().eq('fishbone_id', fishboneDiagramId);
     if (delErr) console.error('Error deleting old causes:', delErr);
-    for (const [idx, cause] of fishboneCauses.entries()) {
+    for (let idx = 0; idx < fishboneCauses.length; idx++) {
+      const cause = fishboneCauses[idx];
       if (cause.id.toString().startsWith('temp-')) continue;
       const causeData = {
         fishbone_id: fishboneDiagramId,
@@ -388,7 +389,8 @@ export default function Visualisations() {
         .single();
       if (causeErr) { console.error('Error inserting cause:', causeErr); continue; }
       if (cause.subCauses && cause.subCauses.length > 0) {
-        for (const [subIdx, subText] of cause.subCauses.entries()) {
+        for (let subIdx = 0; subIdx < cause.subCauses.length; subIdx++) {
+          const subText = cause.subCauses[subIdx];
           const subData = { cause_id: insertedCause.id, subcause_text: subText, display_order: subIdx };
           const { error: subErr } = await supabase.from('fishbone_subcauses').insert([subData]);
           if (subErr) console.error('Error inserting subcause:', subErr);
@@ -639,7 +641,7 @@ export default function Visualisations() {
                 </button>
               ))}
             </div>
-               {/* ── 5 WHYS TAB ────────────────────────────────────────── */}
+             {/* ── 5 WHYS TAB ────────────────────────────────────────── */}
             {activeTab === '5whys' && (
               <div className="p-6">
                 <div className="flex items-center justify-between mb-4">
@@ -1470,4 +1472,4 @@ function BowTieDiagram({ barriers, investigation }: { barriers: any[]; investiga
       </div>
     </>
   );
-}    
+}      
