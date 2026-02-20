@@ -8,7 +8,7 @@ import { supabase } from '@/lib/supabase';
 import StepNavigation from '@/components/StepNavigation';
 
 // ─────────────────────────────────────────────────────────────────────────────
-// CONSTANTS — original values preserved exactly
+// CONSTANTS
 // ─────────────────────────────────────────────────────────────────────────────
 
 const factorTypes = [
@@ -64,8 +64,127 @@ const BARRIER_STATUSES = [
   { value: 'absent',            label: 'Absent / Not in Place',         colour: 'bg-slate-200 text-slate-700 border-slate-400'  },
 ];
 
+// ─── Guidance definitions — single source of truth ───────────────────────────
+
+const CAUSAL_FACTOR_TYPE_DEFINITIONS = [
+  {
+    value: 'immediate',
+    label: 'Immediate Cause',
+    definition: 'The direct act or condition that triggered the event — what physically happened at the point of incident.',
+    guidance: 'Immediate causes explain what happened, but not why it was allowed to happen.',
+  },
+  {
+    value: 'contributing',
+    label: 'Contributing Factor',
+    definition: 'Conditions or influences that increased the likelihood or severity of the incident, but did not directly cause it alone.',
+    guidance: 'Contributing factors create the environment in which the immediate cause could occur.',
+  },
+  {
+    value: 'root',
+    label: 'Root Cause',
+    definition: 'The most fundamental underlying system or organisational failure that, if corrected, would prevent recurrence or significantly reduce likelihood.',
+    guidance: 'Root causes explain why the contributing and immediate causes existed in the first place.',
+  },
+  {
+    value: 'latent',
+    label: 'Latent Condition',
+    definition: 'A hidden weakness or dormant failure in the system that existed long before the incident and created the pre-conditions for failure.',
+    guidance: 'Latent conditions are often embedded in procedures, designs, or organisational culture — they require active investigation to surface.',
+  },
+];
+
+const NODE_TYPE_DEFINITIONS = [
+  {
+    value: 'immediate',
+    label: 'Immediate Cause',
+    colour: 'bg-red-100 text-red-700 border-red-300',
+    definition: 'The direct event or unsafe act/condition that triggered the incident. The final link in the causal chain.',
+    guidance: 'Typically the most visible cause — what the initial report describes.',
+  },
+  {
+    value: 'contributing',
+    label: 'Contributing Factor',
+    colour: 'bg-amber-100 text-amber-700 border-amber-300',
+    definition: 'A condition, decision, or influence that increased the probability or severity of the incident but did not independently cause it.',
+    guidance: 'These factors are often found in the work environment, task design, or team conditions.',
+  },
+  {
+    value: 'root',
+    label: 'Root Cause',
+    colour: 'bg-green-100 text-green-700 border-green-300',
+    definition: 'The deepest systemic or organisational failure in the causal chain. If addressed, it prevents recurrence rather than just treating the symptom.',
+    guidance: 'Root causes are often found in management systems, resource decisions, or organisational culture.',
+  },
+];
+
+const FACTOR_TYPE_DEFINITIONS = [
+  {
+    value: 'individual',
+    label: 'Individual / Team',
+    definition: 'Actions, decisions, perceptions, or behaviours of personnel directly involved in or contributing to the incident.',
+    examples: 'Fatigue, distraction, skill gaps, communication failures between crew members.',
+  },
+  {
+    value: 'organisational',
+    label: 'Organisational',
+    definition: 'Management systems, policies, planning, resourcing, culture, or leadership decisions that influenced the conditions at the time of the incident.',
+    examples: 'Inadequate staffing, production pressure, absence of a safety management system element.',
+  },
+  {
+    value: 'equipment',
+    label: 'Equipment / Systems',
+    definition: 'Failures or limitations in physical hardware, software, tools, or engineered systems.',
+    examples: 'Equipment malfunction, design deficiency, inadequate maintenance, instrumentation failure.',
+  },
+  {
+    value: 'procedure',
+    label: 'Procedure / Process',
+    definition: 'Deficiencies in work instructions, operating procedures, standards, or process design that contributed to the incident.',
+    examples: 'Absent or unclear procedures, steps that cannot be practically followed, non-compliance with a known standard.',
+  },
+  {
+    value: 'external',
+    label: 'External',
+    definition: 'Factors originating outside the direct control of the organisation — including contractor behaviour, regulatory requirements, or environmental conditions.',
+    examples: 'Extreme weather, third-party service failure, supply chain issues, regulatory change.',
+  },
+];
+
+const BARRIER_TYPE_DEFINITIONS = [
+  {
+    value: 'physical',
+    label: 'Physical Barrier',
+    definition: 'A tangible, engineered safeguard that prevents energy transfer or harmful contact.',
+    examples: 'Guardrails, blast walls, containment bunds, pressure relief valves.',
+  },
+  {
+    value: 'administrative',
+    label: 'Administrative Barrier',
+    definition: 'A procedural or documentary control that governs how work is authorised or carried out.',
+    examples: 'Permit to Work, isolation certificates, Task Risk Assessment, training requirements.',
+  },
+  {
+    value: 'detection',
+    label: 'Detection Barrier',
+    definition: 'A monitoring or sensing system that identifies a developing hazardous condition and provides warning.',
+    examples: 'Gas detectors, fire alarms, pressure sensors, safety-critical inspections.',
+  },
+  {
+    value: 'communication',
+    label: 'Communication Barrier',
+    definition: 'A control that relies on information transfer to prevent or limit incident escalation.',
+    examples: 'Handover protocols, hazard signage, toolbox talks, radio communication procedures.',
+  },
+  {
+    value: 'recovery',
+    label: 'Recovery Barrier',
+    definition: 'A safeguard activated after a loss of control to mitigate the consequences of the incident.',
+    examples: 'Emergency shutdown systems, spill containment, evacuation procedures, muster stations.',
+  },
+];
+
 // ─────────────────────────────────────────────────────────────────────────────
-// HELPER
+// HELPERS
 // ─────────────────────────────────────────────────────────────────────────────
 
 function getCausalFactorBadge(isCF: boolean, cfType: string) {
@@ -74,7 +193,71 @@ function getCausalFactorBadge(isCF: boolean, cfType: string) {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// CAUSAL FACTOR FLAG FORM — reusable across all three tools
+// REUSABLE GUIDANCE COMPONENTS
+// ─────────────────────────────────────────────────────────────────────────────
+
+/**
+ * Small inline ℹ️ icon that reveals a compact tooltip on hover.
+ * Kept deliberately small — single definition only.
+ */
+function InfoTooltip({ definition, guidance }: { definition: string; guidance?: string }) {
+  return (
+    <span className="relative group inline-flex items-center ml-1">
+      <Info className="w-3.5 h-3.5 text-slate-400 hover:text-blue-500 cursor-help" />
+      <span className="absolute left-1/2 -translate-x-1/2 bottom-full mb-2 hidden group-hover:block z-50 w-72 bg-slate-900 text-white text-xs rounded-lg p-3 shadow-xl pointer-events-none">
+        <span className="block">{definition}</span>
+        {guidance && <span className="block mt-1 text-slate-300 italic">{guidance}</span>}
+        <span className="absolute left-1/2 -translate-x-1/2 top-full w-0 h-0 border-x-4 border-x-transparent border-t-4 border-t-slate-900"></span>
+      </span>
+    </span>
+  );
+}
+
+/**
+ * Collapsible definitions panel — used for lists of multiple definitions
+ * where a hover tooltip would be too large.
+ */
+function DefinitionsPanel({
+  title,
+  definitions,
+  open,
+  onToggle,
+}: {
+  title: string;
+  definitions: { label: string; definition: string; guidance?: string; examples?: string; colour?: string }[];
+  open: boolean;
+  onToggle: () => void;
+}) {
+  return (
+    <div className="rounded-lg border border-blue-200 bg-blue-50 mb-4">
+      <button
+        onClick={onToggle}
+        className="w-full flex items-center justify-between px-4 py-2.5 text-left"
+      >
+        <span className="flex items-center gap-2 text-xs font-semibold text-blue-800 uppercase tracking-wide">
+          <BookOpen className="w-3.5 h-3.5" />
+          {title}
+        </span>
+        {open ? <ChevronDown className="w-4 h-4 text-blue-600" /> : <ChevronRight className="w-4 h-4 text-blue-600" />}
+      </button>
+      {open && (
+        <div className="px-4 pb-4 space-y-3 border-t border-blue-200 pt-3">
+          {definitions.map(def => (
+            <div key={def.label} className="text-xs">
+              <p className="font-semibold text-slate-800">{def.label}</p>
+              <p className="text-slate-600 mt-0.5">{def.definition}</p>
+              {def.guidance && <p className="text-slate-500 italic mt-0.5">{def.guidance}</p>}
+              {def.examples && <p className="text-slate-500 mt-0.5"><span className="font-medium">Examples:</span> {def.examples}</p>}
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// CAUSAL FACTOR FLAG FORM — with type definitions
 // ─────────────────────────────────────────────────────────────────────────────
 
 function CausalFactorFlagForm({ isCausalFactor, causalFactorType, onToggle, onTypeChange }: {
@@ -83,6 +266,9 @@ function CausalFactorFlagForm({ isCausalFactor, causalFactorType, onToggle, onTy
   onToggle: () => void;
   onTypeChange: (val: string) => void;
 }) {
+  const [showTypeDefs, setShowTypeDefs] = useState(false);
+  const selectedDef = CAUSAL_FACTOR_TYPE_DEFINITIONS.find(d => d.value === causalFactorType);
+
   return (
     <div className={`rounded-lg border p-3 ${isCausalFactor ? 'bg-amber-50 border-amber-300' : 'bg-slate-50 border-slate-200'}`}>
       <label className="flex items-start gap-3 cursor-pointer">
@@ -93,8 +279,17 @@ function CausalFactorFlagForm({ isCausalFactor, causalFactorType, onToggle, onTy
         </div>
       </label>
       {isCausalFactor && (
-        <div className="mt-3">
-          <label className="block text-xs font-medium text-slate-700 mb-1">Causal Factor Type</label>
+        <div className="mt-3 space-y-2">
+          <div className="flex items-center justify-between">
+            <label className="block text-xs font-medium text-slate-700">Causal Factor Type</label>
+            <button
+              onClick={() => setShowTypeDefs(!showTypeDefs)}
+              className="flex items-center gap-1 text-xs text-blue-600 hover:text-blue-800"
+            >
+              <BookOpen className="w-3 h-3" />
+              {showTypeDefs ? 'Hide guide' : 'Type guide'}
+            </button>
+          </div>
           <select
             value={causalFactorType}
             onChange={e => onTypeChange(e.target.value)}
@@ -102,6 +297,24 @@ function CausalFactorFlagForm({ isCausalFactor, causalFactorType, onToggle, onTy
           >
             {CAUSAL_FACTOR_TYPES.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}
           </select>
+          {/* Inline hint for currently selected type */}
+          {selectedDef && !showTypeDefs && (
+            <p className="text-xs text-slate-500 italic">{selectedDef.definition}</p>
+          )}
+          {/* Expandable full definitions */}
+          {showTypeDefs && (
+            <div className="mt-2 space-y-2 rounded-lg border border-amber-200 bg-white p-3">
+              {CAUSAL_FACTOR_TYPE_DEFINITIONS.map(def => (
+                <div key={def.value} className="text-xs">
+                  <p className={`font-semibold ${causalFactorType === def.value ? 'text-amber-700' : 'text-slate-700'}`}>
+                    {causalFactorType === def.value ? '▸ ' : ''}{def.label}
+                  </p>
+                  <p className="text-slate-500 mt-0.5">{def.definition}</p>
+                  <p className="text-slate-400 italic mt-0.5">{def.guidance}</p>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
       )}
     </div>
@@ -109,7 +322,7 @@ function CausalFactorFlagForm({ isCausalFactor, causalFactorType, onToggle, onTy
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// COMPONENT
+// MAIN COMPONENT
 // ─────────────────────────────────────────────────────────────────────────────
 
 export default function Visualisations() {
@@ -120,6 +333,11 @@ export default function Visualisations() {
   const [loading, setLoading] = useState(true);
   const [investigation, setInvestigation] = useState<any>(null);
   const [activeTab, setActiveTab] = useState<'5whys' | 'causalTree' | 'fishbone' | 'barriers'>('5whys');
+
+  // ── Guidance panel toggles ───────────────────────────────────
+  const [showFactorTypeGuide, setShowFactorTypeGuide] = useState(false);
+  const [showNodeTypeGuide, setShowNodeTypeGuide] = useState(false);
+  const [showBarrierTypeGuide, setShowBarrierTypeGuide] = useState(false);
 
   // ── 5 Whys state ────────────────────────────────────────────
   const [whyChain, setWhyChain] = useState<any[]>([]);
@@ -222,7 +440,7 @@ export default function Visualisations() {
       .from('visualization_barriers')
       .select('*')
       .eq('investigation_id', investigationId)
-      .order('created_at', { ascending: true});
+      .order('created_at', { ascending: true });
     if (data) setBarriers(data);
   }
 
@@ -521,11 +739,18 @@ export default function Visualisations() {
             <div className="space-y-2">
               <textarea value={editNode.text} onChange={e => setEditNode({ ...editNode, text: e.target.value })}
                 rows={2} className="w-full px-3 py-2 border border-slate-300 rounded text-sm focus:ring-2 focus:ring-blue-500" />
-              <select value={editNode.nodeType} onChange={e => setEditNode({ ...editNode, nodeType: e.target.value })}
-                className="w-full px-3 py-2 border border-slate-300 rounded text-sm">
-                <option value="">Type (optional)</option>
-                {nodeTypes.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}
-              </select>
+              <div>
+                <label className="block text-xs font-medium text-slate-700 mb-1">Node Type</label>
+                <select value={editNode.nodeType} onChange={e => setEditNode({ ...editNode, nodeType: e.target.value })}
+                  className="w-full px-3 py-2 border border-slate-300 rounded text-sm">
+                  <option value="">Type (optional)</option>
+                  {nodeTypes.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}
+                </select>
+                {editNode.nodeType && (() => {
+                  const def = NODE_TYPE_DEFINITIONS.find(d => d.value === editNode.nodeType);
+                  return def ? <p className="text-xs text-slate-500 italic mt-1">{def.definition}</p> : null;
+                })()}
+              </div>
               <CausalFactorFlagForm
                 isCausalFactor={editNode.isCausalFactor}
                 causalFactorType={editNode.causalFactorType}
@@ -573,7 +798,7 @@ export default function Visualisations() {
   }
 
   // ─────────────────────────────────────────────────────────────────────────────
-  // RENDER GUARDS
+  // RENDER GUARD
   // ─────────────────────────────────────────────────────────────────────────────
 
   if (loading) {
@@ -588,7 +813,7 @@ export default function Visualisations() {
   }
 
   // ─────────────────────────────────────────────────────────────────────────────
-  // MAIN RENDER
+  // DERIVED DATA
   // ─────────────────────────────────────────────────────────────────────────────
 
   const flaggedCount = [
@@ -596,6 +821,10 @@ export default function Visualisations() {
     ...causalTree.filter(n => n.is_causal_factor),
     ...fishboneCauses.filter(c => c.isCausalFactor),
   ].length;
+
+  // ─────────────────────────────────────────────────────────────────────────────
+  // MAIN RENDER
+  // ─────────────────────────────────────────────────────────────────────────────
 
   return (
     <>
@@ -621,9 +850,9 @@ export default function Visualisations() {
           <div className="bg-white rounded-xl shadow-sm border border-slate-200 mb-6">
             <div className="flex border-b border-slate-200">
               {([
-                { key: '5whys',      icon: <HelpCircle className="w-4 h-4" />, label: '5 Whys',        count: whyChain.length },
-                { key: 'causalTree', icon: <GitBranch  className="w-4 h-4" />, label: 'Causal Tree',   count: causalTree.length },
-                { key: 'fishbone',   icon: <Fish        className="w-4 h-4" />, label: 'Fishbone',      count: fishboneCauses.length },
+                { key: '5whys',      icon: <HelpCircle className="w-4 h-4" />, label: '5 Whys',           count: whyChain.length },
+                { key: 'causalTree', icon: <GitBranch  className="w-4 h-4" />, label: 'Causal Tree',      count: causalTree.length },
+                { key: 'fishbone',   icon: <Fish        className="w-4 h-4" />, label: 'Fishbone',         count: fishboneCauses.length },
                 { key: 'barriers',   icon: <Shield      className="w-4 h-4" />, label: 'Barrier Analysis', count: barriers.length },
               ] as const).map(tab => (
                 <button
@@ -641,18 +870,40 @@ export default function Visualisations() {
                 </button>
               ))}
             </div>
-             {/* ── 5 WHYS TAB ────────────────────────────────────────── */}
+
+            {/* ══════════════════════════════════════════════════════
+                5 WHYS TAB
+            ══════════════════════════════════════════════════════ */}
             {activeTab === '5whys' && (
               <div className="p-6">
                 <div className="flex items-center justify-between mb-4">
                   <div>
                     <h2 className="text-lg font-semibold text-slate-900">5 Whys Analysis</h2>
-                    <p className="text-sm text-slate-500">Start from the incident and ask "Why?" repeatedly to trace causes back to root systemic factors.</p>
+                    <p className="text-sm text-slate-500">Iteratively ask "Why?" to trace causes back to systemic or organisational root causes.</p>
                   </div>
                   {whyChain.length > 0 && (
                     <button onClick={handleClearWhys} className="text-xs px-3 py-1.5 border border-red-300 text-red-600 rounded-lg hover:bg-red-50">Clear All</button>
                   )}
                 </div>
+
+                {/* ── 5 Whys methodology guidance ── */}
+                <div className="mb-4 p-4 bg-blue-50 border border-blue-200 rounded-xl">
+                  <div className="flex items-start gap-3">
+                    <Info className="w-4 h-4 text-blue-600 mt-0.5 flex-shrink-0" />
+                    <div className="text-sm text-blue-900">
+                      <p className="font-semibold mb-1">How to use 5 Whys</p>
+                      <p>Start from the incident and ask "Why did this happen?" at each level. Continue until you reach an organisational or management system failure — typically 3–7 levels deep. Stop when further "Whys" lead outside the organisation's control. Classify each answer by its factor type and flag it as a Causal Factor if it requires formal analysis in Step 5.</p>
+                    </div>
+                  </div>
+                </div>
+
+                {/* ── Factor Classification guide ── */}
+                <DefinitionsPanel
+                  title="Factor Classification Guide"
+                  definitions={FACTOR_TYPE_DEFINITIONS}
+                  open={showFactorTypeGuide}
+                  onToggle={() => setShowFactorTypeGuide(!showFactorTypeGuide)}
+                />
 
                 {/* Incident starting point */}
                 <div className="mb-4 p-3 bg-slate-50 border border-slate-200 rounded-lg">
@@ -672,17 +923,33 @@ export default function Visualisations() {
                           <textarea value={editWhy.answer} onChange={e => setEditWhy({ ...editWhy, answer: e.target.value })}
                             rows={2} className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500" />
                           <div>
-                            <label className="block text-xs font-medium text-slate-700 mb-1">Factor Classification <span className="text-red-500">*</span></label>
+                            <label className="block text-xs font-medium text-slate-700 mb-1">
+                              Factor Classification <span className="text-red-500">*</span>
+                              <InfoTooltip
+                                definition="Classify this cause by the type of factor it represents. This helps identify systemic patterns across the investigation."
+                                guidance="Click 'Factor Classification Guide' above for full definitions."
+                              />
+                            </label>
                             <select value={editWhy.factorType} onChange={e => setEditWhy({ ...editWhy, factorType: e.target.value })}
                               className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500">
                               <option value="">Select classification…</option>
                               {factorTypes.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}
                             </select>
+                            {editWhy.factorType && (() => {
+                              const def = FACTOR_TYPE_DEFINITIONS.find(d => d.value === editWhy.factorType);
+                              return def ? <p className="text-xs text-slate-500 italic mt-1">{def.definition}</p> : null;
+                            })()}
                           </div>
-                          <label className="flex items-center gap-2 cursor-pointer">
-                            <input type="checkbox" checked={editWhy.isRootCause} onChange={e => setEditWhy({ ...editWhy, isRootCause: e.target.checked })} className="w-4 h-4 accent-green-600" />
-                            <span className="text-sm text-slate-700">Mark as Root Cause</span>
-                          </label>
+                          <div className="flex items-center gap-2">
+                            <label className="flex items-center gap-2 cursor-pointer">
+                              <input type="checkbox" checked={editWhy.isRootCause} onChange={e => setEditWhy({ ...editWhy, isRootCause: e.target.checked })} className="w-4 h-4 accent-green-600" />
+                              <span className="text-sm text-slate-700">Mark as Root Cause</span>
+                            </label>
+                            <InfoTooltip
+                              definition="The most fundamental underlying system or organisational failure. If corrected, prevents recurrence rather than just treating the symptom."
+                              guidance="Root causes explain why the contributing and immediate causes existed in the first place."
+                            />
+                          </div>
                           <div className="flex gap-2">
                             <button onClick={handleUpdateWhy} className="px-3 py-1.5 bg-blue-600 text-white rounded-lg text-sm hover:bg-blue-700">Save</button>
                             <button onClick={() => setEditingWhyId(null)} className="px-3 py-1.5 border border-slate-300 rounded-lg text-sm hover:bg-slate-50">Cancel</button>
@@ -709,7 +976,7 @@ export default function Visualisations() {
                           </div>
                         </div>
                       )}
-                      {/* CF flag toggle (view mode) */}
+                      {/* CF flag toggle (view mode only) */}
                       {editingWhyId !== why.id && (
                         <div className="mt-3 pt-3 border-t border-slate-100">
                           <CausalFactorFlagForm
@@ -735,17 +1002,33 @@ export default function Visualisations() {
                       placeholder="Enter the cause…" rows={2}
                       className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500" />
                     <div>
-                      <label className="block text-xs font-medium text-slate-700 mb-1">Factor Classification <span className="text-red-500">*</span></label>
+                      <label className="block text-xs font-medium text-slate-700 mb-1">
+                        Factor Classification <span className="text-red-500">*</span>
+                        <InfoTooltip
+                          definition="Classify this cause by the type of factor it represents."
+                          guidance="Click 'Factor Classification Guide' above for full definitions of each type."
+                        />
+                      </label>
                       <select value={newWhy.factorType} onChange={e => setNewWhy({ ...newWhy, factorType: e.target.value })}
                         className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500">
                         <option value="">Select classification…</option>
                         {factorTypes.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}
                       </select>
+                      {newWhy.factorType && (() => {
+                        const def = FACTOR_TYPE_DEFINITIONS.find(d => d.value === newWhy.factorType);
+                        return def ? <p className="text-xs text-slate-500 italic mt-1">{def.definition}</p> : null;
+                      })()}
                     </div>
-                    <label className="flex items-center gap-2 cursor-pointer">
-                      <input type="checkbox" checked={newWhy.isRootCause} onChange={e => setNewWhy({ ...newWhy, isRootCause: e.target.checked })} className="w-4 h-4 accent-green-600" />
-                      <span className="text-sm text-slate-700">Mark as Root Cause</span>
-                    </label>
+                    <div className="flex items-center gap-2">
+                      <label className="flex items-center gap-2 cursor-pointer">
+                        <input type="checkbox" checked={newWhy.isRootCause} onChange={e => setNewWhy({ ...newWhy, isRootCause: e.target.checked })} className="w-4 h-4 accent-green-600" />
+                        <span className="text-sm text-slate-700">Mark as Root Cause</span>
+                      </label>
+                      <InfoTooltip
+                        definition="The most fundamental underlying system or organisational failure. If corrected, prevents recurrence rather than just treating the symptom."
+                        guidance="Root causes explain why the contributing and immediate causes existed in the first place."
+                      />
+                    </div>
                     <div className="flex gap-2">
                       <button onClick={handleAddWhy} className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm hover:bg-blue-700">Add Why</button>
                       <button onClick={() => { setShowAddWhy(false); setNewWhy({ answer: '', isRootCause: false, factorType: 'individual' }); }}
@@ -761,14 +1044,51 @@ export default function Visualisations() {
               </div>
             )}
 
-            {/* ── CAUSAL TREE TAB ──────────────────────────────────────── */}
+            {/* ══════════════════════════════════════════════════════
+                CAUSAL TREE TAB
+            ══════════════════════════════════════════════════════ */}
             {activeTab === 'causalTree' && (
               <div className="p-6">
                 <div className="flex items-center justify-between mb-4">
                   <div>
                     <h2 className="text-lg font-semibold text-slate-900">Causal Tree</h2>
-                    <p className="text-sm text-slate-500">Build a hierarchical tree showing how immediate causes lead to contributing factors and root causes.</p>
+                    <p className="text-sm text-slate-500">Build a hierarchical tree showing how immediate causes branch back to contributing factors and root causes.</p>
                   </div>
+                </div>
+
+                {/* ── Causal Tree methodology guidance ── */}
+                <div className="mb-4 p-4 bg-blue-50 border border-blue-200 rounded-xl">
+                  <div className="flex items-start gap-3">
+                    <Info className="w-4 h-4 text-blue-600 mt-0.5 flex-shrink-0" />
+                    <div className="text-sm text-blue-900">
+                      <p className="font-semibold mb-1">How to build a Causal Tree</p>
+                      <p>Start with the top event (the incident) and work downward. Each node represents a distinct causal factor. Add child nodes to explore why a parent condition existed. Use the node type classification to distinguish between what happened (Immediate Cause), what allowed it to happen (Contributing Factor), and the deepest systemic failure (Root Cause). Flag nodes as Causal Factors to promote them into Step 5 Analysis.</p>
+                    </div>
+                  </div>
+                </div>
+
+                {/* ── Node Type definitions panel ── */}
+                <DefinitionsPanel
+                  title="Node Type Guide"
+                  definitions={NODE_TYPE_DEFINITIONS}
+                  open={showNodeTypeGuide}
+                  onToggle={() => setShowNodeTypeGuide(!showNodeTypeGuide)}
+                />
+
+                {/* ── Node type legend ── */}
+                <div className="flex flex-wrap gap-2 mb-4">
+                  {NODE_TYPE_DEFINITIONS.map(nt => (
+                    <span
+                      key={nt.value}
+                      className={`text-xs px-2.5 py-1 rounded-full border font-medium ${nt.colour}`}
+                      title={nt.definition}
+                    >
+                      {nt.label}
+                    </span>
+                  ))}
+                  <span className="text-xs px-2.5 py-1 rounded-full border font-medium bg-amber-50 text-amber-700 border-amber-300 flex items-center gap-1">
+                    <Flag className="w-2.5 h-2.5" /> Causal Factor (flagged for Step 5)
+                  </span>
                 </div>
 
                 {causalTree.filter(n => !n.parent_node_id).length === 0 ? (
@@ -778,7 +1098,7 @@ export default function Visualisations() {
                     <p className="text-slate-500 text-sm mt-1">Add a root node to begin mapping causal relationships.</p>
                     <button onClick={() => { setShowAddNode(true); setSelectedParentId(null); }}
                       className="mt-4 px-4 py-2 bg-blue-600 text-white rounded-lg text-sm hover:bg-blue-700">
-                      <Plus className="w-4 h-4 inline mr-1" />Add Root Node
+                      <Plus className="w-4 h-4 inline mr-1" />Add Node
                     </button>
                   </div>
                 ) : (
@@ -786,7 +1106,7 @@ export default function Visualisations() {
                     {causalTree.filter(n => !n.parent_node_id).map(node => renderTreeNode(node))}
                     <button onClick={() => { setShowAddNode(true); setSelectedParentId(null); }}
                       className="w-full mt-3 px-4 py-3 border-2 border-dashed border-slate-300 rounded-xl text-slate-500 hover:border-blue-400 hover:text-blue-600 transition-colors text-sm font-medium">
-                      + Add Another Root Node
+                      + Add Another Node
                     </button>
                   </>
                 )}
@@ -794,7 +1114,7 @@ export default function Visualisations() {
                 {/* Add Node Modal */}
                 {showAddNode && (
                   <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-                    <div className="bg-white rounded-xl shadow-xl max-w-md w-full p-6 space-y-4">
+                    <div className="bg-white rounded-xl shadow-xl max-w-md w-full p-6 space-y-4 max-h-[90vh] overflow-y-auto">
                       <div className="flex items-center justify-between">
                         <h3 className="text-lg font-semibold text-slate-900">Add Node</h3>
                         <button onClick={() => { setShowAddNode(false); setSelectedParentId(null); setNewNode({ text: '', nodeType: 'immediate', isCausalFactor: false, causalFactorType: 'contributing' }); }}
@@ -807,11 +1127,18 @@ export default function Visualisations() {
                           className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500" />
                       </div>
                       <div>
-                        <label className="block text-xs font-medium text-slate-700 mb-1">Node Type</label>
+                        <label className="block text-xs font-medium text-slate-700 mb-1">
+                          Node Type
+                          <InfoTooltip definition="Classify this node's role in the causal chain. See the Node Type Guide above the tree for full definitions." />
+                        </label>
                         <select value={newNode.nodeType} onChange={e => setNewNode({ ...newNode, nodeType: e.target.value })}
                           className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500">
                           {nodeTypes.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}
                         </select>
+                        {newNode.nodeType && (() => {
+                          const def = NODE_TYPE_DEFINITIONS.find(d => d.value === newNode.nodeType);
+                          return def ? <p className="text-xs text-slate-500 italic mt-1">{def.definition}</p> : null;
+                        })()}
                       </div>
                       {selectedParentId && (
                         <div className="p-2 bg-blue-50 border border-blue-200 rounded text-xs text-blue-800">
@@ -835,13 +1162,15 @@ export default function Visualisations() {
               </div>
             )}
 
-            {/* ── FISHBONE TAB ──────────────────────────────────────────── */}
+            {/* ══════════════════════════════════════════════════════
+                FISHBONE TAB
+            ══════════════════════════════════════════════════════ */}
             {activeTab === 'fishbone' && (
               <div className="p-6">
                 <div className="flex items-center justify-between mb-4">
                   <div>
                     <h2 className="text-lg font-semibold text-slate-900">Fishbone Diagram (Ishikawa)</h2>
-                    <p className="text-sm text-slate-500">Categorise contributing factors across six analysis categories.</p>
+                    <p className="text-sm text-slate-500">Systematically categorise contributing factors across six analysis domains to ensure comprehensive coverage.</p>
                   </div>
                   <div className="flex gap-2">
                     {fishboneDiagramId && (
@@ -857,20 +1186,36 @@ export default function Visualisations() {
                       </div>
                     )}
                     <button onClick={() => setShowFishboneGuidance(!showFishboneGuidance)}
-                      className="p-2 text-slate-400 hover:text-slate-600 rounded-lg hover:bg-slate-50">
+                      className={`p-2 rounded-lg hover:bg-slate-50 ${showFishboneGuidance ? 'text-blue-600 bg-blue-50' : 'text-slate-400 hover:text-slate-600'}`}
+                      title="Category guidance">
                       <BookOpen className="w-4 h-4" />
                     </button>
                   </div>
                 </div>
 
+                {/* ── Fishbone methodology guidance ── */}
+                <div className="mb-4 p-4 bg-blue-50 border border-blue-200 rounded-xl">
+                  <div className="flex items-start gap-3">
+                    <Info className="w-4 h-4 text-blue-600 mt-0.5 flex-shrink-0" />
+                    <div className="text-sm text-blue-900">
+                      <p className="font-semibold mb-1">How to use the Fishbone Diagram</p>
+                      <p>The Fishbone (Ishikawa) diagram is a structured brainstorming tool. For each of the six categories, identify contributing factors that played a role in the incident. The diagram ensures investigators examine all domains rather than focusing solely on the most obvious cause. Add sub-causes beneath each main factor to capture additional detail. Flag any factor as a Causal Factor to carry it forward to Step 5.</p>
+                    </div>
+                  </div>
+                </div>
+
+                {/* ── Category guidance panel ── */}
                 {showFishboneGuidance && (
-                  <div className="mb-4 p-4 bg-blue-50 border border-blue-200 rounded-xl text-sm text-blue-900 space-y-2">
-                    <p className="font-semibold">Fishbone Category Guidance</p>
-                    <ul className="space-y-1 text-xs">
+                  <div className="mb-4 p-4 bg-slate-50 border border-slate-200 rounded-xl">
+                    <p className="text-xs font-semibold text-slate-700 uppercase tracking-wide mb-3">Category Definitions</p>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                       {FISHBONE_CATEGORIES.map(cat => (
-                        <li key={cat.id}><span className="font-medium" style={{ color: cat.colour }}>{cat.label}:</span> {cat.description}</li>
+                        <div key={cat.id} className="text-xs">
+                          <p className="font-semibold" style={{ color: cat.colour }}>{cat.label}</p>
+                          <p className="text-slate-600 mt-0.5">{cat.description}</p>
+                        </div>
                       ))}
-                    </ul>
+                    </div>
                   </div>
                 )}
 
@@ -878,7 +1223,7 @@ export default function Visualisations() {
                   <div className="text-center py-12 bg-slate-50 rounded-lg border-2 border-dashed border-slate-200">
                     <Fish className="w-10 h-10 text-slate-300 mx-auto mb-3" />
                     <p className="text-slate-600 font-medium">No fishbone diagram started</p>
-                    <p className="text-slate-500 text-sm mt-1">Create a diagram to begin categorising causes.</p>
+                    <p className="text-slate-500 text-sm mt-1">Create a diagram to begin categorising contributing factors.</p>
                     <button onClick={initializeFishbone}
                       className="mt-4 px-4 py-2 bg-blue-600 text-white rounded-lg text-sm hover:bg-blue-700">
                       <Plus className="w-4 h-4 inline mr-1" />Create Fishbone
@@ -889,7 +1234,7 @@ export default function Visualisations() {
                     <div className="mb-4">
                       <label className="block text-xs font-medium text-slate-700 mb-1">Problem Statement</label>
                       <textarea value={fishboneProblemStatement} onChange={e => setFishboneProblemStatement(e.target.value)}
-                        placeholder="What is the problem being analysed?" rows={2}
+                        placeholder="What is the problem being analysed? State it concisely — this becomes the 'head' of the fishbone." rows={2}
                         className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500" />
                     </div>
 
@@ -901,11 +1246,12 @@ export default function Visualisations() {
                             <div className="flex items-center gap-2">
                               <div className="w-3 h-3 rounded" style={{ backgroundColor: category.colour }}></div>
                               <h3 className="text-sm font-semibold text-slate-800">{category.label}</h3>
-                              <span className="text-xs text-slate-400">{categoryCauses.length}</span>
+                              <span className="text-xs text-slate-400 italic">{category.description}</span>
+                              <span className="text-xs text-slate-400">({categoryCauses.length})</span>
                             </div>
                             <button onClick={() => addFishboneCause(category.id)}
                               className="text-xs px-2 py-1 text-slate-600 hover:text-blue-600 hover:bg-blue-50 rounded">
-                              <Plus className="w-3 h-3 inline mr-1" />Add Cause
+                              <Plus className="w-3 h-3 inline mr-1" />Add Causal Factor
                             </button>
                           </div>
 
@@ -915,6 +1261,7 @@ export default function Visualisations() {
                                 {editingCauseId === cause.id ? (
                                   <div className="space-y-2">
                                     <textarea value={editCause.text} onChange={e => setEditCause({ ...editCause, text: e.target.value })}
+                                      placeholder="Describe this contributing factor…"
                                       rows={2} className="w-full px-3 py-2 border border-slate-300 rounded text-sm focus:ring-2 focus:ring-blue-500" />
                                     <CausalFactorFlagForm
                                       isCausalFactor={editCause.isCausalFactor}
@@ -938,7 +1285,7 @@ export default function Visualisations() {
                                         )}
                                         <p className="text-sm text-slate-800">{cause.text}</p>
                                         {cause.subCauses && cause.subCauses.length > 0 && (
-                                          <p className="text-xs text-slate-500 mt-1">+ {cause.subCauses.length} contributing factor(s)</p>
+                                          <p className="text-xs text-slate-500 mt-1">+ {cause.subCauses.length} sub-factor(s)</p>
                                         )}
                                       </div>
                                       <div className="flex gap-1 flex-shrink-0">
@@ -950,35 +1297,37 @@ export default function Visualisations() {
                                     </div>
 
                                     {/* Subcauses */}
-                                    {editingCauseId !== cause.id && cause.subCauses && cause.subCauses.length > 0 && (
+                                    {cause.subCauses && cause.subCauses.length > 0 && (
                                       <div className="mt-2 space-y-1 pl-3 border-l-2 border-slate-200">
                                         {cause.subCauses.map((sub: string, subIdx: number) => (
                                           <div key={subIdx} className="flex items-center gap-2 group">
                                             <input type="text" value={sub} onChange={e => updateSubCause(cause.id, subIdx, e.target.value)}
-                                              className="flex-1 px-2 py-1 text-xs border border-slate-200 rounded focus:ring-1 focus:ring-blue-400" />
+                                              className="flex-1 px-2 py-1 text-xs border border-slate-200 rounded focus:ring-1 focus:ring-blue-400"
+                                              placeholder="Sub-factor detail…" />
                                             <button onClick={() => deleteSubCause(cause.id, subIdx)}
                                               className="p-1 text-slate-300 group-hover:text-red-500 rounded"><X className="w-3 h-3" /></button>
                                           </div>
                                         ))}
                                       </div>
                                     )}
-
-                                    {editingCauseId !== cause.id && (
-                                      <div className="mt-2 pt-2 border-t border-slate-100">
-                                        <button onClick={() => addSubCause(cause.id)}
-                                          className="text-xs text-slate-500 hover:text-blue-600">+ Add contributing factor</button>
-                                      </div>
-                                    )}
+                                    <div className="mt-2 pt-2 border-t border-slate-100">
+                                      <button onClick={() => addSubCause(cause.id)}
+                                        className="text-xs text-slate-500 hover:text-blue-600">+ Add sub-factor</button>
+                                    </div>
                                   </>
                                 )}
                               </div>
                             ))}
+                            {categoryCauses.length === 0 && (
+                              <p className="text-xs text-slate-400 italic pl-2">No factors recorded for this category.</p>
+                            )}
                           </div>
                         </div>
                       );
                     })}
                   </>
                 ) : (
+                  /* DIAGRAM VIEW */
                   <div className="bg-white border border-slate-200 rounded-xl p-6">
                     <div className="mb-4 p-3 bg-slate-50 rounded-lg">
                       <p className="text-xs font-semibold text-slate-500 uppercase mb-1">Problem Statement</p>
@@ -986,7 +1335,7 @@ export default function Visualisations() {
                     </div>
                     {fishboneCauses.length === 0 ? (
                       <div className="text-center py-12 text-slate-500">
-                        <p className="text-sm">No causes added yet. Switch to List View to add causes.</p>
+                        <p className="text-sm">No factors added yet. Switch to List View to add contributing factors.</p>
                       </div>
                     ) : (
                       <div className="overflow-x-auto">
@@ -1047,7 +1396,7 @@ export default function Visualisations() {
                           {/* Legend */}
                           <g>
                             <circle cx="50" cy="30" r="4" fill="#f59e0b" />
-                            <text x="60" y="33" fontSize="9" fill="#64748b">Causal Factor</text>
+                            <text x="60" y="33" fontSize="9" fill="#64748b">Causal Factor (flagged for Step 5)</text>
                           </g>
                         </svg>
                       </div>
@@ -1057,7 +1406,9 @@ export default function Visualisations() {
               </div>
             )}
 
-            {/* ── BARRIER ANALYSIS TAB ─────────────────────────────────── */}
+            {/* ══════════════════════════════════════════════════════
+                BARRIER ANALYSIS TAB
+            ══════════════════════════════════════════════════════ */}
             {activeTab === 'barriers' && (
               <div className="p-6">
                 <div className="flex items-center justify-between mb-4">
@@ -1086,13 +1437,30 @@ export default function Visualisations() {
                 </div>
 
                 {barrierView === 'bowtie' && barriers.length > 0 ? (
-                  /* BOW-TIE DIAGRAM VIEW */
                   <div className="bg-white border border-slate-200 rounded-xl p-6">
                     <BowTieDiagram barriers={barriers} investigation={investigation} />
                   </div>
                 ) : (
-                  /* LIST VIEW */
                   <>
+                    {/* ── Barrier methodology guidance ── */}
+                    <div className="mb-4 p-4 bg-blue-50 border border-blue-200 rounded-xl">
+                      <div className="flex items-start gap-3">
+                        <Info className="w-4 h-4 text-blue-600 mt-0.5 flex-shrink-0" />
+                        <div className="text-sm text-blue-900">
+                          <p className="font-semibold mb-1">How to use Barrier Analysis</p>
+                          <p>Identify and assess the safeguards and controls that were in place — or should have been in place — at the time of the incident. Classify each barrier by its position in the bow-tie model: <strong>Prevention</strong> barriers stop the incident occurring; <strong>Recovery</strong> barriers limit the consequences once an incident is underway. For any barrier that failed or was absent, the reason for failure often reveals a causal factor that warrants formal analysis in Step 5. This method aligns with the bow-tie barrier model referenced in IOGP 544.</p>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* ── Barrier Type definitions panel ── */}
+                    <DefinitionsPanel
+                      title="Barrier Type Guide"
+                      definitions={BARRIER_TYPE_DEFINITIONS}
+                      open={showBarrierTypeGuide}
+                      onToggle={() => setShowBarrierTypeGuide(!showBarrierTypeGuide)}
+                    />
+
                     {/* Status summary */}
                     {barriers.length > 0 && (
                       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-5">
@@ -1120,14 +1488,27 @@ export default function Visualisations() {
                         </div>
                         <div className="grid grid-cols-2 gap-3">
                           <div>
-                            <label className="block text-xs font-medium text-slate-700 mb-1">Barrier Type</label>
+                            <label className="block text-xs font-medium text-slate-700 mb-1">
+                              Barrier Type
+                              <InfoTooltip definition="The nature of the safeguard. Click 'Barrier Type Guide' above for full definitions with examples." />
+                            </label>
                             <select value={newBarrier.barrierType} onChange={e => setNewBarrier({ ...newBarrier, barrierType: e.target.value })}
                               className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500">
                               {BARRIER_TYPES.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}
                             </select>
+                            {newBarrier.barrierType && (() => {
+                              const def = BARRIER_TYPE_DEFINITIONS.find(d => d.value === newBarrier.barrierType);
+                              return def ? <p className="text-xs text-slate-500 italic mt-1">{def.examples}</p> : null;
+                            })()}
                           </div>
                           <div>
-                            <label className="block text-xs font-medium text-slate-700 mb-1">Barrier Side</label>
+                            <label className="block text-xs font-medium text-slate-700 mb-1">
+                              Barrier Position
+                              <InfoTooltip
+                                definition="Prevention barriers are designed to stop the incident from occurring. Recovery barriers activate after a loss of control to limit consequences."
+                                guidance="Most incidents involve failures in both prevention and recovery barriers."
+                              />
+                            </label>
                             <select value={newBarrier.side} onChange={e => setNewBarrier({ ...newBarrier, side: e.target.value })}
                               className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500">
                               <option value="prevention">Prevention (stops incident occurring)</option>
@@ -1136,7 +1517,12 @@ export default function Visualisations() {
                           </div>
                         </div>
                         <div>
-                          <label className="block text-xs font-medium text-slate-700 mb-1">Status</label>
+                          <label className="block text-xs font-medium text-slate-700 mb-1">
+                            Status
+                            <InfoTooltip
+                              definition="Record how this barrier performed at the time of the incident: whether it was present and worked as designed, partially worked, failed despite being in place, or was entirely absent."
+                            />
+                          </label>
                           <select value={newBarrier.status} onChange={e => setNewBarrier({ ...newBarrier, status: e.target.value })}
                             className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500">
                             {BARRIER_STATUSES.map(s => <option key={s.value} value={s.value}>{s.label}</option>)}
@@ -1144,7 +1530,10 @@ export default function Visualisations() {
                         </div>
                         {(newBarrier.status === 'present_failed' || newBarrier.status === 'present_partial' || newBarrier.status === 'absent') && (
                           <div>
-                            <label className="block text-xs font-medium text-slate-700 mb-1">Failure / Absence Reason</label>
+                            <label className="block text-xs font-medium text-slate-700 mb-1">
+                              Failure / Absence Reason
+                              <InfoTooltip definition="Explaining why a barrier failed or was absent often directly identifies a causal factor — consider flagging this in Step 5 Analysis." />
+                            </label>
                             <textarea value={newBarrier.failureReason} onChange={e => setNewBarrier({ ...newBarrier, failureReason: e.target.value })}
                               placeholder="Describe why this barrier failed or was not in place…" rows={2}
                               className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500" />
@@ -1193,20 +1582,29 @@ export default function Visualisations() {
                                         <input type="text" value={editBarrier.name} onChange={e => setEditBarrier({ ...editBarrier, name: e.target.value })}
                                           className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500" />
                                         <div className="grid grid-cols-2 gap-3">
-                                          <select value={editBarrier.barrierType} onChange={e => setEditBarrier({ ...editBarrier, barrierType: e.target.value })}
+                                          <div>
+                                            <label className="block text-xs font-medium text-slate-700 mb-1">Barrier Type</label>
+                                            <select value={editBarrier.barrierType} onChange={e => setEditBarrier({ ...editBarrier, barrierType: e.target.value })}
+                                              className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm">
+                                              {BARRIER_TYPES.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}
+                                            </select>
+                                          </div>
+                                          <div>
+                                            <label className="block text-xs font-medium text-slate-700 mb-1">Barrier Position</label>
+                                            <select value={editBarrier.side} onChange={e => setEditBarrier({ ...editBarrier, side: e.target.value })}
+                                              className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm">
+                                              <option value="prevention">Prevention</option>
+                                              <option value="recovery">Recovery</option>
+                                            </select>
+                                          </div>
+                                        </div>
+                                        <div>
+                                          <label className="block text-xs font-medium text-slate-700 mb-1">Status</label>
+                                          <select value={editBarrier.status} onChange={e => setEditBarrier({ ...editBarrier, status: e.target.value })}
                                             className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm">
-                                            {BARRIER_TYPES.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}
-                                          </select>
-                                          <select value={editBarrier.side} onChange={e => setEditBarrier({ ...editBarrier, side: e.target.value })}
-                                            className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm">
-                                            <option value="prevention">Prevention</option>
-                                            <option value="recovery">Recovery</option>
+                                            {BARRIER_STATUSES.map(s => <option key={s.value} value={s.value}>{s.label}</option>)}
                                           </select>
                                         </div>
-                                        <select value={editBarrier.status} onChange={e => setEditBarrier({ ...editBarrier, status: e.target.value })}
-                                          className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm">
-                                          {BARRIER_STATUSES.map(s => <option key={s.value} value={s.value}>{s.label}</option>)}
-                                        </select>
                                         {(editBarrier.status === 'present_failed' || editBarrier.status === 'present_partial' || editBarrier.status === 'absent') && (
                                           <textarea value={editBarrier.failureReason} onChange={e => setEditBarrier({ ...editBarrier, failureReason: e.target.value })}
                                             placeholder="Failure / absence reason…" rows={2}
@@ -1246,20 +1644,6 @@ export default function Visualisations() {
                         );
                       })
                     )}
-
-                    {/* Guidance */}
-                    <div className="mt-4 p-4 bg-blue-50 border border-blue-200 rounded-xl">
-                      <div className="flex items-start gap-3">
-                        <Info className="w-5 h-5 text-blue-600 mt-0.5 flex-shrink-0" />
-                        <div>
-                          <p className="text-sm font-semibold text-blue-900 mb-1">Barrier Analysis Best Practice</p>
-                          <p className="text-sm text-blue-800">
-                            Prevention barriers should have stopped the incident from occurring. Recovery barriers limit the consequences once an incident is underway.
-                            For each failed or absent barrier, the reason for failure often reveals a causal factor — flag it in Step 5 Analysis.
-                          </p>
-                        </div>
-                      </div>
-                    </div>
                   </>
                 )}
               </div>
@@ -1289,7 +1673,6 @@ function BowTieDiagram({ barriers, investigation }: { barriers: any[]; investiga
     );
   }
 
-  // Layout constants
   const sliceWidth = 110;
   const sliceGap = 20;
   const svgHeight = 340;
@@ -1298,7 +1681,6 @@ function BowTieDiagram({ barriers, investigation }: { barriers: any[]; investiga
   const sliceHeight = sliceBottom - sliceTop;
   const midY = svgHeight / 2;
 
-  // Zones
   const hazardZone = 70;
   const topEventWidth = 100;
   const topEventGap = 28;
@@ -1309,7 +1691,6 @@ function BowTieDiagram({ barriers, investigation }: { barriers: any[]; investiga
 
   const svgWidth = hazardZone + preventionWidth + topEventGap + topEventWidth + topEventGap + recoveryWidth + consequenceZone + 20;
 
-  // X positions
   const prevStartX = hazardZone;
   const topEventX = hazardZone + preventionWidth + topEventGap;
   const topEventCx = topEventX + topEventWidth / 2;
@@ -1364,27 +1745,15 @@ function BowTieDiagram({ barriers, investigation }: { barriers: any[]; investiga
     <>
       {/* Legend */}
       <div className="mb-4 flex flex-wrap gap-4 text-xs">
-        <div className="flex items-center gap-2">
-          <div className="w-4 h-4 rounded bg-green-100 border border-green-500"></div>
-          <span className="text-slate-600">Performed</span>
-        </div>
-        <div className="flex items-center gap-2">
-          <div className="w-4 h-4 rounded bg-amber-100 border border-amber-500"></div>
-          <span className="text-slate-600">Partial</span>
-        </div>
-        <div className="flex items-center gap-2">
-          <div className="w-4 h-4 rounded bg-red-100 border border-red-500"></div>
-          <span className="text-slate-600">Failed</span>
-        </div>
-        <div className="flex items-center gap-2">
-          <div className="w-4 h-4 rounded bg-slate-100 border border-slate-400"></div>
-          <span className="text-slate-600">Absent</span>
-        </div>
+        <div className="flex items-center gap-2"><div className="w-4 h-4 rounded bg-green-100 border border-green-500"></div><span className="text-slate-600">Present &amp; Performed — barrier functioned as designed</span></div>
+        <div className="flex items-center gap-2"><div className="w-4 h-4 rounded bg-amber-100 border border-amber-500"></div><span className="text-slate-600">Partially Performed — barrier partially effective</span></div>
+        <div className="flex items-center gap-2"><div className="w-4 h-4 rounded bg-red-100 border border-red-500"></div><span className="text-slate-600">Present but Failed — barrier in place but did not function</span></div>
+        <div className="flex items-center gap-2"><div className="w-4 h-4 rounded bg-slate-100 border border-slate-400"></div><span className="text-slate-600">Absent — barrier not in place</span></div>
       </div>
+      <p className="text-xs text-slate-500 italic mb-4">Holes in each slice represent the degree of barrier failure — a barrier with large holes allowed the hazard through. Aligned holes across slices indicate a clear pathway to the consequence.</p>
 
       <div className="overflow-x-auto">
         <svg width={svgWidth} height={svgHeight} className="mx-auto">
-          {/* Defs */}
           <defs>
             <marker id="arrow-red" markerWidth="10" markerHeight="7" refX="10" refY="3.5" orient="auto">
               <polygon points="0 0, 10 3.5, 0 7" fill="#ef4444" />
@@ -1394,35 +1763,24 @@ function BowTieDiagram({ barriers, investigation }: { barriers: any[]; investiga
             </marker>
           </defs>
 
-          {/* Hazard → first prevention slice */}
           <line x1="10" y1={midY} x2={prevStartX} y2={midY} stroke="#ef4444" strokeWidth="2.5" markerEnd="url(#arrow-red)" />
-          {/* Last prevention slice → top event */}
           {preventionBarriers.length > 0 && (
             <line x1={prevStartX + preventionWidth} y1={midY} x2={topEventX} y2={midY} stroke="#ef4444" strokeWidth="2.5" markerEnd="url(#arrow-red)" />
           )}
-          {/* Top event → first recovery slice */}
           <line x1={topEventX + topEventWidth} y1={midY} x2={recovStartX} y2={midY} stroke="#f97316" strokeWidth="2.5" markerEnd="url(#arrow-orange)" />
-          {/* Last recovery slice → consequence */}
           {recoveryBarriers.length > 0 && (
             <line x1={recovStartX + recoveryWidth} y1={midY} x2={consequenceCx - 28} y2={midY} stroke="#f97316" strokeWidth="2.5" markerEnd="url(#arrow-orange)" />
           )}
 
-          {/* HAZARD label */}
           <text x="8" y={midY - 12} fontSize="10" fill="#ef4444" fontWeight="700">HAZARD</text>
 
-          {/* PREVENTION section label */}
           {preventionBarriers.length > 0 && (
-            <text
-              x={prevStartX + preventionWidth / 2 - (sliceGap / 2)}
-              y={sliceTop - 12}
-              fontSize="11" fill="#1d4ed8" fontWeight="700" textAnchor="middle"
-            >── PREVENTION ──</text>
+            <text x={prevStartX + preventionWidth / 2 - (sliceGap / 2)} y={sliceTop - 12}
+              fontSize="11" fill="#1d4ed8" fontWeight="700" textAnchor="middle">── PREVENTION ──</text>
           )}
 
-          {/* Prevention barrier slices */}
           {preventionBarriers.map((barrier, idx) => renderSlice(barrier, prevStartX + idx * (sliceWidth + sliceGap)))}
 
-          {/* TOP EVENT node (centre) */}
           <rect x={topEventX} y={midY - 36} width={topEventWidth} height={72} rx="8"
             fill="#fef3c7" stroke="#f59e0b" strokeWidth="2.5" />
           <text x={topEventCx} y={midY - 10} fontSize="10" fill="#92400e" fontWeight="700" textAnchor="middle">💥 TOP</text>
@@ -1433,19 +1791,13 @@ function BowTieDiagram({ barriers, investigation }: { barriers: any[]; investiga
             </div>
           </foreignObject>
 
-          {/* RECOVERY section label */}
           {recoveryBarriers.length > 0 && (
-            <text
-              x={recovStartX + recoveryWidth / 2 - (sliceGap / 2)}
-              y={sliceTop - 12}
-              fontSize="11" fill="#7c3aed" fontWeight="700" textAnchor="middle"
-            >── RECOVERY ──</text>
+            <text x={recovStartX + recoveryWidth / 2 - (sliceGap / 2)} y={sliceTop - 12}
+              fontSize="11" fill="#7c3aed" fontWeight="700" textAnchor="middle">── RECOVERY ──</text>
           )}
 
-          {/* Recovery barrier slices */}
           {recoveryBarriers.map((barrier, idx) => renderSlice(barrier, recovStartX + idx * (sliceWidth + sliceGap)))}
 
-          {/* CONSEQUENCE target */}
           <circle cx={consequenceCx} cy={midY} r="26" fill="#fff7ed" stroke="#f97316" strokeWidth="2.5" />
           <circle cx={consequenceCx} cy={midY} r="15" fill="#fed7aa" stroke="#f97316" strokeWidth="1.5" />
           <circle cx={consequenceCx} cy={midY} r="5"  fill="#f97316" />
@@ -1456,10 +1808,10 @@ function BowTieDiagram({ barriers, investigation }: { barriers: any[]; investiga
       {/* Summary stats */}
       <div className="mt-6 grid grid-cols-4 gap-3">
         {[
-          { label: 'Performed', status: 'present_performed', colour: 'bg-green-50 border-green-200 text-green-700' },
-          { label: 'Partial',   status: 'present_partial',   colour: 'bg-amber-50 border-amber-200 text-amber-700' },
-          { label: 'Failed',    status: 'present_failed',    colour: 'bg-red-50 border-red-200 text-red-700' },
-          { label: 'Absent',    status: 'absent',            colour: 'bg-slate-50 border-slate-200 text-slate-600' }
+          { label: 'Performed',  status: 'present_performed', colour: 'bg-green-50 border-green-200 text-green-700' },
+          { label: 'Partial',    status: 'present_partial',   colour: 'bg-amber-50 border-amber-200 text-amber-700' },
+          { label: 'Failed',     status: 'present_failed',    colour: 'bg-red-50 border-red-200 text-red-700' },
+          { label: 'Absent',     status: 'absent',            colour: 'bg-slate-50 border-slate-200 text-slate-600' }
         ].map(item => {
           const count = barriers.filter(b => b.status === item.status).length;
           return (
@@ -1472,4 +1824,4 @@ function BowTieDiagram({ barriers, investigation }: { barriers: any[]; investiga
       </div>
     </>
   );
-}      
+}
